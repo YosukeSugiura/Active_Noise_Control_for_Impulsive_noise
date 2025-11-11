@@ -1,0 +1,137 @@
+{
+  "global": {
+    "fs": 16000,
+    "order_control": 512,
+    "order_secondary": 128,
+    "frame_step": 64,
+    "num_trials": 1,
+    "noise_file": "sounds/impulsive_noise_alpha1.65.dat",
+
+    "primary_ir_file": "impulse_response/primary_ir.dat",
+    "secondary_ir_file": "impulse_response/secondary_ir.dat",
+    "logs_dir": "logs",
+
+    "amp_scales": [1.0],
+    "steady_pct": 0.1,
+    "nfft_for_spectrum": 4096,
+    "plot_show": true
+  },
+
+  "algorithms": {
+    "FxNLMS": {
+      "enabled": true,
+      "mu": 0.5,
+      "params": {}
+    },
+
+    "BlockFxNLMS": {
+      "enabled": true,
+      "mu": 0.5,
+      "params": {
+        "M": 512,
+        "BlockSize": 64,
+        "eps": 1e-3
+      }
+    },
+
+    "FxgsnLMS": {
+      "enabled": true,
+      "mu": 0.5,
+      "params": {
+        "sigma_e": 1.0
+      }
+    },
+
+    "FxLMM": {
+      "enabled": true,
+      "mu": 0.001,
+      "params": {
+        "gzai": 0.05
+      }
+    },
+
+    "MFxLMM": {
+      "enabled": true,
+      "mu": 0.001,
+      "params": {
+        "gzai_l": 0.05,
+        "lmd_l": 0.97,
+        "eps_l": 0.001
+      }
+    },
+
+    "Th_FxNLMS": {
+      "enabled": true,
+      "mu": 0.3,
+      "params": {
+        "c1": -200.0,
+        "c2": 200.0
+      }
+    },
+
+    "MFxLCH": {
+      "enabled": true,
+      "mu": 0.03,
+      "params": {
+        "rho": 10.0,
+        "lmd_m": 0.9999,
+        "dlt2": 0.01
+      }
+    },
+
+    "MFxRNLMAT": {
+      "enabled": true,
+      "mu": 15.0,
+      "params": {
+        "lmd_m": 0.9999,
+        "dlt2": 0.01,
+        "beta2": 5000.0
+      }
+    },
+
+    "Fair": {
+      "enabled": true,
+      "mu": 0.001,
+      "params": {
+        "gain": 3.0
+      }
+    },
+
+    "FxlogNLMS": {
+      "enabled": true,
+      "mu": 0.5,
+      "params": {
+        "G_l": 10000.0
+      }
+    },
+
+    "FxlogNLMS_plus": {
+      "enabled": true,
+      "mu": 0.1,
+      "params": {
+        "G_ml": 5.0
+      }
+    },
+
+    "NSS_FxlogLMS_plus": {
+      "enabled": true,
+      "mu": 0.1,
+      "params": {
+        "G_ml": 7.5,
+        "lmd_e": 0.999
+      }
+    },
+
+    "FxNMVC": {
+      "enabled": true,
+      "mu": 0.00001,
+      "params": {
+        "p": 2.0,
+        "tau": 1e-1,
+        "use_adaptive_tau": true,
+        "tau_lmd": 0.99,
+        "b_factor": 1.0
+      }
+    }
+  }
+}

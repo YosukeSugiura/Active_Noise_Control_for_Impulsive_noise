@@ -1,95 +1,70 @@
-# Active Noise Control for Impulsive Noise
-
-This repository provides MATLAB implementations of various **Feedforward Active Noise Control (ANC)** algorithms designed to suppress **impulsive noise**. These algorithms are evaluated and compared in terms of their Adaptive Noise Reduction (ANR) performance.
-
-![System Overview](ffanc.png)
+# Feedforward Active Noise Control for Impulsive Noise
+This repository provides a **Feedforward Active Noise Control (ANC)** simulator implemented in **pure Python + NumPy**, accelerated with **Numba**. Multiple robust FxLMS-family algorithms can be enabled via `config.json`. Figures and logs are automatically saved under `logs/`.
 
 ## Requirements
+- Python ≥ 3.10
+- See `requirements.txt`:
+  - `numpy`
+  - `numba`
+  - `matplotlib`
+  - `tqdm`
 
-- MATLAB R2024b
-- Signal Processing Toolbox
-
-## Algorithms
-
-All algorithm implementations are located in the `algorithms/` directory.
-
-| Abbreviation            | Description                                                                   | Reference |
-|-------------------------|-------------------------------------------------------------------------------|-----------|
-| **FxNLMS**              | Standard Filtered-x Normalized LMS                                             | –         |
-| **FxgsnLMS**[*1]        | General Step-size Normalized LMS                                              | [1]       |
-| **FxLMM**[*2]           | Hampel-type Least Mean M-estimate Filtered-x LMS                               | [2]       |
-| **MFxLMM**[*3]          | Modefied MFxLMM                                                                | [3]       |
-| **Th-FxNLMS**           | Thresholded FxNLMS                                                             | –         |
-| **MFxLCH**[*4]          | modified filtered-x least cosine hyperbolic algorithm with low complexity      | [4]       |
-| **Fair**[*5]            | Fair-type M-estimator adaptive algorithm                                       | [5]       |
-| **FxlogNLMS**[*6]       | Logarithmic-transformed FxNLMS                                                 | [6]       |
-| **NS-FxlogLMS**[*7]     | FxlogLMS with Normalized switching                                               | [7]       |
-| **MFxRNLMAT**[*8]       | Modified Filtered-x Robust Normalized Least Mean Absolute Third Algorithm      | [8]       |
-| **FxlogNLMS+**[*9]  | Improved FxlogNLMS with stability and speed-up modifications                   | [9]       |
-| **NSS-FxlogLMS+**[*9]| Normalized step-size version of FxlogNLMS+                             | [9]       |
-
-### References
-
-[*1] Y. Zhou, Q. Zhang, and Y. Yin,  
-"Active control of impulsive noise with symmetric α-stable distribution based on an improved step-size normalized adaptive algorithm,"  
-*Mechanical Systems and Signal Processing*, vol. 56, pp. 320–333, 2015.  
-
-[*2] T. Thanigai, S. M. Kuo, and R. Yenduri,  
-"Nonlinear active noise control for infant incubators in neonatal intensive care units,"  
-in *Proc. ICASSP*, 2007, pp. 109–112.  
-
-[*3] G. Sun, M. T. Li, and T. C. Lim,  
-"Enhanced filtered-x least mean M-estimate algorithm for active impulsive noise control,"  
-*Applied Acoustics*, vol. 90, pp. 31–41, 2015.  
-
-[*4] A. Mirza, A. Zeb, M. Y. Umair, et al.,  
-"Less complex solutions for active noise control of impulsive noise,"  
-*Analog Integrated Circuits and Signal Processing*, vol. 102, no. 3, pp. 507–521, 2020.  
-
-[*5] L. Wu and X. Qiu,  
-"An M-estimator based algorithm for active impulse-like noise control,"  
-*Applied Acoustics*, vol. 74, pp. 407–412, 2013.  
-
-[*6] L. Wu, H. He, and X. Qiu,  
-"An active impulsive noise control algorithm with logarithmic transformation,"  
-*IEEE Trans. Audio, Speech, and Language Processing*, vol. 19, no. 4, pp. 1041–1044, 2011.  
-
-[*7] M. Pawelczyk, W. Wierzchowski, L. Wu, and X. Qiu,  
-"An extension to the filtered-x LMS algorithm with logarithmic transformation,"  
-in *Proc. ISSPIT*, 2015, pp. 454–459.  
-
-[*8] A. Mirza, F. Afzal, A. Zeb, A. Wakeel, W. S. Qureshi, and A. Akgul,  
-"New FxLMAT-Based Algorithms for Active Control of Impulsive Noise,"  
-*IEEE Access*, vol. 11, pp. 81279–81288, 2023, doi: 10.1109/ACCESS.2023.3293647.
-
-[*9] A. Haneda, Y. Sugiura, and T. Shimamura,  
-"FxlogLMS+: Modified FxlogLMS Algorithm for Active Impulsive Noise Control,"  
-*Lecture Notes in Electrical Engineering*, vol. 1322, Springer, 2025, pp. 342–351.  
-https://link.springer.com/chapter/10.1007/978-981-96-1535-3_34
-
-## Usage
-
-1. Downlaad all files
-
-2. Open MATLAB and run the following script:
-
-```matlab
-main.m
+Install:
+```bash
+pip install -r requirements.txt
 ```
 
-3. The script will:
+## Directory Structure
+```
+.
+├─ algorithms/
+│   └─ algorithms.py
+├─ impulse_response/
+│   ├─ primary_ir.dat
+│   └─ secondary_ir.dat
+├─ sounds/
+│   ├─ impulsive_noise_alpha1.45.dat
+│   ├─ impulsive_noise_alpha1.65.dat
+│   └─ ...
+├─ anc.py
+├─ config.json
+├─ logs/
+└─ ffanc.png (optional diagram)
+```
 
-- Load predefined ANC scenarios with impulsive noise
-- Run all methods sequentially
-- Plot the Adaptive Noise Reduction (ANR) curves
-- Save the result as `comparison.png`
+## Usage
+1. Edit `config.json` to enable/disable algorithms.
+2. Specify impulse response paths and noise file.
+3. Run:
+```bash
+python anc.py --config config.json
+```
+4. Output will be stored in `logs/`.
 
-## Results
+## Config Notes
+- Paths in `config.json` can be **relative** to the config location.
+- `amp_scales` enables amplitude invariance tests.
+- `order_control` sets control filter length.
+- `order_secondary` sets filtered‑reference FIR length.
 
-The figure below shows the comparative performance of each algorithm under impulsive noise (α-stable noise with α=1.65).
+## Output Files
+- `anr.csv` — ANR history per algorithm
+- `ratio_amp_invariance.csv` — steady‑state ratio stats (if available)
+- `anr.png` — ANR over time
+- Timing summary printed to console
 
-![Comparison Result](comparison.png)
+## Terminal Summary Example
+```
+=== Summary (last trial) ===
+FxNLMS            ANR_mean[dB]= -23.386  update_mean=   5.514 µs
+BlockFxNLMS       ANR_mean[dB]= -23.266  update_mean=   6.595 µs
+```
 
----
+## Citation
+Please cite if you use this in academic work:
 
-For questions or collaborations, feel free to contact [Yosuke Sugiura](mailto:ysugi@xxxx.ac.jp).
+A. Haneda, Y. Sugiura, and T. Shimamura, “FxlogLMS+: Modified FxlogLMS Algorithm for Active Impulsive Noise Control,”
+*Lecture Notes in Electrical Engineering*, vol. 1322, Springer, 2025, pp. 342–351.
+
+## Author
+Yosuke Sugiura (Saitama University, Japan)
