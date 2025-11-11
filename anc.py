@@ -48,7 +48,8 @@ def save_csv(path: str, arr: np.ndarray, header: str, fmt: str = "%.10f") -> Non
 def save_png(fig: plt.Figure, path: str, label: str) -> None:
     os.makedirs(os.path.dirname(path), exist_ok=True)
     fig.tight_layout()
-    fig.savefig(path, dpi=300)
+    # Use bbox_inches='tight' to include legends placed outside axes
+    fig.savefig(path, dpi=300, bbox_inches='tight')
     plt.close(fig)
     print(f"[plot] {label}: {_rel(path)}")
 
@@ -103,7 +104,7 @@ def step_td(x_in: float,
         x_vec[i] = x_vec[i - 1]
     x_vec[0] = x_in
 
-    # yP = hP · x
+    # yP = hP * x
     yP = 0.0
     for i in range(W):
         yP += hP[i] * x_vec[i]
@@ -122,7 +123,7 @@ def step_td(x_in: float,
             yb_mat[a, j] = yb_mat[a, j - 1]
         yb_mat[a, 0] = yC_all[a]
 
-    # yS_all = hS · yb
+    # yS_all = hS * yb
     for a in range(A):
         s = 0.0
         for j in range(Ls):
@@ -302,14 +303,18 @@ def main() -> None:
             import colorsys
             A_ = len(names)
             alg_cols = [colorsys.hsv_to_rgb(i / A_, 0.75, 0.9) for i in range(A_)]
-        fig, ax = plt.subplots(figsize=(8, 5))
+        fig, ax = plt.subplots(figsize=(10, 7))
         for i, nm in enumerate(names):
             ax.plot(t_frame, anr[:, i], color=alg_cols[i], label=nm.replace("_", "-"))
         ax.set_xlabel("Time [s]"); ax.set_ylabel("ANR (dB)"); ax.grid(True, ls=":")
-        ax.legend()
+        # Place legend below the plot
+        ncol = min(len(names), 4)
+        ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.12), ncol=ncol)
         ylo, yhi = ax.get_ylim()
         ax.set_ylim(ylo, 0.0)
         ax.set_xlim(t_frame[0], t_frame[-1])
+        # Add a small bottom margin so legend does not sit too close to the x-axis label
+        fig.subplots_adjust(bottom=0.20)
         save_png(fig, os.path.join(logs_dir, "anr.png"), "ANR over time")
 
     # Terminal summary: mean ANR and mean update time per algorithm
