@@ -1,7 +1,12 @@
-
 # Feedforward Active Noise Control for Impulsive Noise (Python)
 
+** [matlab version is here!](https://github.com/YosukeSugiura/Active_Noise_Control_for_Impulsive_noise/tree/matlab) **
+
 This repository provides a **Feedforward Active Noise Control (ANC)** simulator for impulsive noise, implemented in **pure Python + NumPy** and accelerated with **Numba**. Multiple robust FxLMS-family algorithms are available and can be selected via `config.json`. Figures and logs are automatically saved under `logs/`.
+
+## System Overview
+
+![FFANC System Overview](ffanc.png)
 
 ## Requirements
 
@@ -88,6 +93,12 @@ All algorithm implementations are located in the `algorithms/` directory.
 - `ratio_amp_invariance.csv` — steady-state ratio stats (if available)
 - `anr.png` — ANR over time
 - Timing summary printed to console
+
+## Results
+
+The figure below shows the comparative performance of each algorithm under impulsive noise (α-stable noise with α=1.45).
+
+![Comparison Result](comparison.png)
 
 ## Terminal Summary Example
 
