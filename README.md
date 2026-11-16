@@ -9,6 +9,10 @@ This repository provides a **Feedforward Active Noise Control (ANC)** simulator 
 
 The coherence-based FD-FxNLMS implementation, example inputs, and figure generation instructions are available on the [`apsipa2026` branch](https://github.com/YosukeSugiura/Active_Noise_Control_for_Impulsive_noise/tree/apsipa2026/apsipa2026#readme).
 
+Example ANR output from the short simulation on the `apsipa2026` branch.
+
+![Sample-run ANR in dB over time](https://raw.githubusercontent.com/YosukeSugiura/Active_Noise_Control_for_Impulsive_noise/apsipa2026/apsipa2026/assets/anr.png)
+
 ## System Overview
 
 ![FFANC System Overview](ffanc.png)
