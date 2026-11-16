@@ -4,6 +4,11 @@
 
 This repository provides a **Feedforward Active Noise Control (ANC)** simulator for impulsive noise, implemented in **pure Python + NumPy** and accelerated with **Numba**. Multiple robust FxLMS-family algorithms are available and can be selected via `config.json`. Figures and logs are automatically saved under `logs/`.
 
+
+## APSIPA ASC 2026
+
+[Coherence-based FD-FxNLMS implementation and figure example](apsipa2026/README.md)
+
 ## System Overview
 
 ![FFANC System Overview](ffanc.png)
