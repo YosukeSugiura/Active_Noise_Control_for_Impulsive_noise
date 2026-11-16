@@ -7,7 +7,7 @@ This repository provides a **Feedforward Active Noise Control (ANC)** simulator 
 
 ## APSIPA ASC 2026
 
-[Coherence-based FD-FxNLMS implementation and figure example](apsipa2026/README.md)
+The coherence-based FD-FxNLMS implementation, example inputs, and figure generation instructions are available on the [`apsipa2026` branch](https://github.com/YosukeSugiura/Active_Noise_Control_for_Impulsive_noise/tree/apsipa2026/apsipa2026#readme).
 
 ## System Overview
 
