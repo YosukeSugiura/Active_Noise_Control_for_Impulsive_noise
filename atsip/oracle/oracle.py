@@ -23,13 +23,16 @@ C_SEC = 128                           # secondary path taps (trimmed)
 ALPHA = 0.05                          # EMA weight on the newest frame
 MU_DIAG = 0.36                        # step of the plain N0 driver (Experiment A)
 MUS = [0.05, 0.1, 0.2, 0.36, 0.6, 1.0]
-NORMS = ["N0", "N1", "N2", "N3", "N4"]
+NORMS = ["N0", "N1", "N2", "N3", "N4", "N5", "N6"]
+K = len(NORMS)
 NORM_DESC = {
     "N0": "binwise EMA",
     "N1": "block scalar mean",
     "N2": "mixed 0.55*N1+0.45*N0",
     "N3": "instantaneous",
     "N4": "two-component",
+    "N5": "two-component, shaped impulse part",
+    "N6": "N5 + clean background (w_i weighted EMA)",
 }
 N_NOISE = 480000
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -88,6 +91,8 @@ def load_source(kind, arg):
                 xq=np.concatenate([np.zeros(N), x]),   # xq[m] = x[m-N]
                 Sf=np.fft.rfft(hS, N))
     data["w_opt"] = wiener_opt(r, d)
+    p = np.abs(data["Sf"]) ** 2
+    data["S2"] = p / p.mean()            # known secondary-path power shape, computed once
     return data
 
 
@@ -95,12 +100,15 @@ def load_source(kind, arg):
 # Normalizations Lam(k)
 # ----------------------------------------------------------------------------
 class Normalizers:
-    """State for the five Lam(k) choices. update() takes the current frame R_i."""
+    """State for the seven Lam(k) choices. update() takes the current frame R_i."""
 
-    def __init__(self):
+    def __init__(self, S2):
+        self.S2 = S2          # known secondary-path power shape (N5, N6)
         self.srr = None       # EMA of |R|^2 (base of N0, N1, N2)
-        self.logPbg = None    # EMA of log P_i (N4)
-        self.shape = None     # EMA of |R|^2 / P_i (N4)
+        self.logPbg = None    # EMA of log P_i (N4, N5)
+        self.shape = None     # EMA of |R|^2 / P_i (N4, N5)
+        self.logPbg6 = None   # N6: own background, updated with weight w_i
+        self.shape6 = None    # N6: own shape, updated with weight w_i
         self.psum = 0.0
         self.count = 0
 
@@ -129,7 +137,20 @@ class Normalizers:
         lam2 = (1 - 0.45) * lam1 + 0.45 * lam0
         lam3 = A + eps
         lam4 = Pbg * self.shape + np.maximum(P - Pbg, 0.0) + eps
-        return [lam0, lam1, lam2, lam3, lam4], P, z
+        lam5 = Pbg * self.shape + np.maximum(P - Pbg, 0.0) * self.S2 + eps
+
+        # N6: background state of its own, z6 before the update, effective alpha = ALPHA * w_i
+        if self.logPbg6 is None:
+            self.logPbg6 = np.log(P + tiny)
+            self.shape6 = s_new.copy()
+        Pbg6 = np.exp(self.logPbg6)
+        z6 = P / (Pbg6 + tiny)
+        w_i = min(1.0, 2.0 / max(z6, tiny))
+        a_eff = ALPHA * w_i
+        self.logPbg6 = (1 - a_eff) * self.logPbg6 + a_eff * np.log(P + tiny)
+        self.shape6 = (1 - a_eff) * self.shape6 + a_eff * s_new
+        lam6 = Pbg6 * self.shape6 + np.maximum(P - Pbg6, 0.0) * self.S2 + eps
+        return [lam0, lam1, lam2, lam3, lam4, lam5, lam6], P, z
 
 
 def direction(R, E, lam):
@@ -153,11 +174,11 @@ def simulate(data, rule, norm=None, mu=None):
     e_all = np.zeros(L)
     nan_rec = lambda: np.full(nb, np.nan)
     msd_db, z_rec, gam_rec, P_rec, mu_used = nan_rec(), nan_rec(), nan_rec(), nan_rec(), nan_rec()
-    mu_star = np.full((5, nb), np.nan)
-    cos2 = np.full((5, nb), np.nan)
+    mu_star = np.full((K, nb), np.nan)
+    cos2 = np.full((K, nb), np.nan)
     mu_b = 2 * mu * B / M if rule == "fixed" else None
     wo2 = w_opt @ w_opt
-    norms = Normalizers()
+    norms = Normalizers(data["S2"])
     Sre = Srr_c = See = None
     pos_hist = []
     diverged = False
@@ -294,7 +315,7 @@ def run_source(spec):
 def diag_metrics(tag):
     a = np.loadtxt(os.path.join(OUT, f"diag_{tag}.csv"), delimiter=",", skiprows=1)
     z, gam = a[:, 3], a[:, 4]
-    mus, cos2 = a[:, 6:11].T, a[:, 11:16].T
+    mus, cos2 = a[:, 6:6 + K].T, a[:, 6 + K:6 + 2 * K].T
     nb = len(z)
     start = int(2 * FS / B)
     imp, non = z > 10, z < 2
@@ -327,9 +348,13 @@ def fmt(v, p=3):
 
 def make_figures(tags, metrics_unused=None):
     data = {t: np.loadtxt(os.path.join(OUT, f"diag_{t}.csv"), delimiter=",", skiprows=1) for t in tags}
-    # Fig 1: log mu_star vs log z, N0, N2, N4 (pooled over sources, every 4th block)
-    fig, axs = plt.subplots(1, 3, figsize=(13, 4))
-    for ax, n in zip(axs, [0, 2, 4]):
+    # Fig 1: log mu_star vs log z, all seven norms (pooled over sources, every 4th block)
+    # z is the N0..N5 background ratio recorded in the diagnostics (N4 background).
+    fig, axs = plt.subplots(2, 4, figsize=(15, 7))
+    for n, ax in enumerate(axs.flat):
+        if n >= K:
+            ax.axis("off")
+            continue
         xs, ys = [], []
         for t in tags:
             a = data[t][::4]
@@ -338,7 +363,7 @@ def make_figures(tags, metrics_unused=None):
             xs.append(np.log10(z[k]))
             ys.append(np.log10(m[k]))
         ax.scatter(np.concatenate(xs), np.concatenate(ys), s=3, alpha=0.3)
-        ax.set_title(f"{NORMS[n]} ({NORM_DESC[NORMS[n]]})")
+        ax.set_title(f"{NORMS[n]} ({NORM_DESC[NORMS[n]]})", fontsize=9)
         ax.set_xlabel("log10 z_i (P_i / P_bg)")
         ax.set_ylabel("log10 mu_star")
         ax.grid(True, ls=":")
@@ -346,14 +371,14 @@ def make_figures(tags, metrics_unused=None):
     fig.savefig(os.path.join(OUT, "fig_logmustar_vs_logz.png"), dpi=130)
     plt.close(fig)
 
-    # Fig 2: cos2 vs gamma_mean for all five directions (pooled, every 4th block)
-    fig, axs = plt.subplots(1, 5, figsize=(18, 3.6), sharey=True)
+    # Fig 2: cos2 vs gamma_mean for all seven directions (pooled, every 4th block)
+    fig, axs = plt.subplots(1, K, figsize=(24, 3.6), sharey=True)
     for n, ax in enumerate(axs):
         xs, ys = [], []
         for t in tags:
             a = data[t][::4]
             xs.append(a[:, 4])
-            ys.append(a[:, 11 + n])
+            ys.append(a[:, 6 + K + n])
         ax.scatter(np.concatenate(xs), np.concatenate(ys), s=2, alpha=0.25)
         ax.set_title(NORMS[n])
         ax.set_xlabel("gamma_mean")
@@ -378,7 +403,7 @@ def make_figures(tags, metrics_unused=None):
     plt.close(fig)
 
 
-def write_report(results, metrics, runtime):
+def write_report(results, metrics, runtime, check):
     tags = [r["tag"] for r in results]
     by_tag = {r["tag"]: r for r in results}
     L = []
@@ -399,6 +424,17 @@ def write_report(results, metrics, runtime):
              "FreqFxLMS -25.67, Prop -27.03, paper FxNLMS -24.32. No repro row is N0 with delayless "
              "FD normalization, so the comparison is only indicative.\n")
 
+    L.append("**Fairness check (repro FreqFxLMS).** The repro FreqFxLMS uses block-mean normalization and "
+             "step mu*B/M (no factor 2). This script's fixed rule uses mu_b = 2*mu*B/M, so the repro step equals "
+             "our rule at mu = repro_mu/2. N1 (block scalar mean) at our mu=0.18 therefore corresponds to the repro "
+             "FreqFxLMS step. N1 uses the EMA-smoothed mean of |R|^2, not the instantaneous block mean, so the match "
+             "is approximate.\n")
+    L.append("| check | source | whole-curve ANR [dB] | last10 [dB] | final MSD [dB] |")
+    L.append("|---|---|---|---|---|")
+    L.append(f"| N1 fixed mu=0.18 (ours) | a145 | {fmt(check['whole'],2)} | {fmt(check['last10'],2)} | {fmt(check['msd_end'],2)} |")
+    L.append("| repro FreqFxLMS (repro/RESULTS.md) | a145 | -25.67 | n/a | n/a |")
+    L.append("")
+
     L.append("## 2. Direction diagnostics (Experiment A, driver = N0 at mu=0.36)\n")
     L.append("Averages over the six sources. Impulsive = z_i > 10, non-impulsive = z_i < 2. "
              "CV = std(log mu*)/|mean(log mu*)| over blocks after 2 s with mu*>0; std_log = std of the same values.\n")
@@ -414,6 +450,13 @@ def write_report(results, metrics, runtime):
     L.append(f"Mean over sources: blocks per run {meta[0]['n_blocks']}, impulsive blocks "
              f"{np.mean([m['n_imp'] for m in meta]):.0f}, non-impulsive blocks {np.mean([m['n_non'] for m in meta]):.0f}, "
              f"mean gamma_mean {np.mean([m['gamma_mean'] for m in meta]):.4f}.\n")
+    L.append("Impulsive-block count per source (driver N0 at mu=0.36; z_i from the N4 background):\n")
+    L.append("| source | impulsive blocks (z>10) | non-impulsive blocks (z<2) | total blocks |")
+    L.append("|---|---|---|---|")
+    for t in tags:
+        mt = metrics[t]["_meta"]
+        L.append(f"| {t} | {mt['n_imp']} | {mt['n_non']} | {mt['n_blocks']} |")
+    L.append("")
 
     L.append("### Appendix A: per-source diagnostics\n")
     for t in tags:
@@ -477,12 +520,16 @@ def write_report(results, metrics, runtime):
         L.append("")
 
     L.append("## 4. Figures (atsip/oracle/out/)\n")
-    L.append("- `fig_logmustar_vs_logz.png`: log10 mu_star_n vs log10 z_i for N0, N2, N4 (pooled over the six sources, every 4th block, mu_star>0 only).")
-    L.append("- `fig_cos2_vs_gamma.png`: cos2 vs gamma_mean for N0 to N4 (pooled, every 4th block).")
+    L.append("- `fig_logmustar_vs_logz.png`: log10 mu_star_n vs log10 z_i for N0 to N6 (pooled over the six sources, every 4th block, mu_star>0 only).")
+    L.append("- `fig_cos2_vs_gamma.png`: cos2 vs gamma_mean for N0 to N6 (pooled, every 4th block).")
     L.append("- `fig_oracle_msd_a145.png`: MSD of the oracle-step trajectories, alpha=1.45 file.")
     L.append("")
     L.append("## 5. Notes on choices\n")
     L.append("- N0, N1, N2 and the shape EMA of N4 include the current frame before use. The N4 background P_bg is used before its update, as specified.")
+    L.append("- N5 reuses the N4 state (P_bg, shape) unchanged and only replaces the scalar impulse term with max(P_i - P_bg, 0) * S2(k).")
+    L.append("- S2(k) = |Sf(k)|^2 / mean_k |Sf(k)|^2 over the N/2+1 rfft bins of the trimmed secondary path (hS, N = 1024), computed once per source.")
+    L.append("- N6 has its own background (log P_bg and shape) so that the clean update does not change the N4/N5 state. Its weight w_i = min(1, 2/z_i) uses z_i = P_i / P_bg6 before the update, and the effective alpha is 0.05 * w_i for both EMAs.")
+    L.append("- The z_i column and the impulsive/non-impulsive split in Table 2 still come from the N4 background, for comparability across norms. N6 therefore uses a slightly different z for its own weighting.")
     L.append("- eps = 1e-6 x cumulative mean of P_i (up to the current frame), used for all normalizations.")
     L.append("- The N3 instantaneous Lam uses the same eps (not eps times a frame mean).")
     L.append("- The CMS seeds (0, 1, 2) are generated in memory with rng = numpy default_rng(seed) and are not saved.")
@@ -499,10 +546,16 @@ def main():
         results = pool.map(run_source, SOURCES)
     tags = [s[0] for s in SOURCES]
     metrics = {t: diag_metrics(t) for t in tags}
+    # Fairness check: N1 at mu=0.18 (fixed rule), a145 source, not part of the MUS grid
+    data = load_source("file", SOURCES[0][2])
+    chk = simulate(data, "fixed", norm=NORMS.index("N1"), mu=0.18)
+    w_, l_ = summarize(anr_curve(chk["e"], data["d"]))
+    check = dict(whole=w_, last10=l_, msd_end=final_msd_db(chk["w"], data["w_opt"]))
     make_figures(tags)
     with open(os.path.join(OUT, "summary.json"), "w", encoding="utf-8") as f:
-        json.dump({"results": results, "diag_metrics": metrics}, f, indent=1, default=float)
-    write_report(results, metrics, time.time() - t0)
+        json.dump({"results": results, "diag_metrics": metrics, "n1_mu018_check": check},
+                  f, indent=1, default=float)
+    write_report(results, metrics, time.time() - t0, check)
     print(f"[total] {time.time() - t0:.1f} s", flush=True)
 
 
