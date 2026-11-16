@@ -12,4 +12,10 @@ python -m pip install -r apsipa2026/requirements.txt
 python apsipa2026/make_anc_figure.py
 ```
 
-The script saves PDF and PNG files in `apsipa2026/figures/`. The script records the settings for this demonstration. The exact paper experiment configuration, the settings for all compared algorithms, and reproduction of the reported ANR and RTF remain unverified.
+The script saves the waveform and spectrum comparison in PDF and PNG and the ANR curve as `apsipa2026/figures/anr.png`.
+
+## Example ANR output
+
+![Sample-run ANR in dB over time, with the two input impulses marked](assets/anr.png)
+
+The curve shows the default short simulation with symmetric alpha-stable noise (alpha = 1.45) and the two marked impulses. ANR uses the smoothed amplitude ratio in Eqs. (30) and (31), with a smoothing coefficient of 0.999. The exact paper experiment configuration, the settings for all compared algorithms, and reproduction of the reported ANR and RTF remain unverified.

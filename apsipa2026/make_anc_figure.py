@@ -64,6 +64,31 @@ def run_anc(x: np.ndarray, h_primary: np.ndarray, h_secondary: np.ndarray, mu: f
     return r, e
 
 
+def save_anr_figure(out: Path, x, h_primary, error, fs, impulse_indices):
+    """Plot ANR using the smoothed amplitudes in Eqs. (30) and (31)."""
+    disturbance = lfilter(h_primary, [1.0], x)
+    chi = 0.999
+    a_error = lfilter([1.0 - chi], [1.0, -chi], np.abs(error))
+    a_disturbance = lfilter([1.0 - chi], [1.0, -chi], np.abs(disturbance))
+    valid = (a_error > 0) & (a_disturbance > 0)
+    time_ms = 1000 * np.arange(len(x)) / fs
+    anr = 20 * (np.log10(a_error[valid]) - np.log10(a_disturbance[valid]))
+
+    fig, ax = plt.subplots(figsize=(7.6, 3.5), layout='constrained')
+    ax.plot(time_ms[valid], anr, color='#1766a3', linewidth=1.7, label='Coherence-based FD-FxNLMS')
+    ax.axhline(0, color='0.45', linewidth=0.8)
+    for index, sample in enumerate(impulse_indices):
+        ax.axvline(time_ms[sample], color='#be582e', linestyle='--', linewidth=1.1,
+                   label='Input impulses' if index == 0 else None)
+    ax.set(xlabel='Time [ms]', ylabel='ANR [dB]', xlim=(0, time_ms[-1]))
+    ax.grid(alpha=0.22)
+    ax.legend(loc='lower left')
+    path = out / 'anr.png'
+    fig.savefig(path, dpi=180, facecolor='white')
+    plt.close(fig)
+    return path
+
+
 def main():
     parser = argparse.ArgumentParser(description='Two same-sign impulses, 30-ms ANC overview')
     parser.add_argument('--spacing-ms', type=float, default=12.5,
@@ -168,6 +193,7 @@ def main():
     fig.savefig(png, dpi=300, facecolor='white')
     fig.savefig(pdf, facecolor='white')
     plt.close(fig)
+    anr_path = save_anr_figure(out, x, hP, Re_all, fs, (p1, p2))
 
     print(f'Input source: baseline_inputs.npz (SαS alpha={alpha}, seed={seed})')
     print(f'30-ms frame: {frame} samples, fs={fs} Hz')
@@ -177,6 +203,7 @@ def main():
     print(f'FFT-bin spacing: {fs/args.nfft:g} Hz; true window-limited resolution ~{fs/frame:g} Hz')
     print('Saved:', png)
     print('Saved:', pdf)
+    print('Saved:', anr_path)
 
 
 if __name__ == '__main__':
