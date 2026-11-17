@@ -1,0 +1,142 @@
+[check] {"bias_db": -278.42771513301227, "resid_rel": 3.8342230421733036e-15, "spread": 7.54883262369465, "cond_C": 2134.147977180601, "ev_min": 0.026089226563482906, "ev_max": 0.1969432046093808, "spread_eps0.0001": 7.732174647584612, "spread_eps0.01": 28.954433404903615}
+[check] vs specfac_grid whole (ours, specfac): {"B0": [-27.44181204566968, -27.44181204566968], "W0.5": [-28.600526685741016, -28.600526685741016], "GS": [-29.242039796891856, -29.242039796891856], "SF": [-29.200919795234427, -29.200919795234427], "SF+ramp": [-29.32599460480589, -29.32599460480589]}
+[tune] Switch tau 0.0 gmax None done
+[tune] Switch tau 0.3 gmax None done
+[tune] WY tau 0.0 gmax 1.0 done
+[tune] Switch tau 1.0 gmax None done
+[tune] WY tau 0.3 gmax 1.0 done
+[tune] WY tau 1.0 gmax 1.0 done
+[tune] WY tau 0.0 gmax 10.0 done
+[tune] WY tau 0.3 gmax 10.0 done
+[tune] WY tau 1.0 gmax 10.0 done
+[tune] Switch tau 1.0 (a145 whole -28.85 at mu 0.05); WY1 tau 0.0 (-29.15 at 0.1); WY10 tau 0.0 (-28.50 at 0.1)
+[cfg] a145 B0
+[cfg] a165 B0
+[cfg] a145 W0.5
+[cfg] a165 W0.5
+[cfg] a145 GS
+[cfg] a165 GS
+[cfg] a145 SF
+[cfg] a165 SF
+[cfg] a145 SF+ramp
+[cfg] a165 SF+ramp
+[cfg] a165 MFBLMS
+[cfg] a145 MFBLMS
+[cfg] a165 MFBLMS+ramp
+[cfg] a145 MFBLMS+ramp
+[cfg] a145 Switch
+[cfg] a165 Switch
+[cfg] a165 WY g=1
+[cfg] a145 WY g=1
+[cfg] a165 WY g=10
+[cfg] a145 WY g=10
+[cfg] cms145_s0 B0
+[cfg] a185 B0
+[cfg] cms145_s0 W0.5
+[cfg] a185 W0.5
+[cfg] a185 GS
+[cfg] cms145_s0 GS
+[cfg] cms145_s0 SF
+[cfg] a185 SF
+[cfg] cms145_s0 SF+ramp
+[cfg] a185 SF+ramp
+[cfg] cms145_s0 MFBLMS
+[cfg] a185 MFBLMS
+[cfg] cms145_s0 MFBLMS+ramp
+[cfg] a185 MFBLMS+ramp
+[cfg] cms145_s0 Switch
+[cfg] a185 Switch
+[cfg] cms145_s0 WY g=1
+[cfg] a185 WY g=1
+[cfg] cms145_s0 WY g=10
+[cfg] a185 WY g=10
+[cfg] cms145_s1 B0
+[cfg] cms145_s2 B0
+[cfg] cms145_s1 W0.5
+[cfg] cms145_s2 W0.5
+[cfg] cms145_s1 GS
+[cfg] cms145_s2 GS
+[cfg] cms145_s1 SF
+[cfg] cms145_s2 SF
+[cfg] cms145_s1 SF+ramp
+[cfg] cms145_s2 SF+ramp
+[cfg] cms145_s1 MFBLMS
+[cfg] cms145_s2 MFBLMS
+[cfg] cms145_s1 MFBLMS+ramp
+[cfg] cms145_s2 MFBLMS+ramp
+[cfg] cms145_s1 Switch
+[cfg] cms145_s2 Switch
+[cfg] cms145_s1 WY g=1
+[cfg] cms145_s2 WY g=1
+[cfg] cms145_s1 WY g=10
+[cfg] cms145_s2 WY g=10
+[cfg] a120_s0 B0
+[cfg] a120_s1 B0
+[cfg] a120_s0 W0.5
+[cfg] a120_s1 W0.5
+[cfg] a120_s0 GS
+[cfg] a120_s1 GS
+[cfg] a120_s0 SF
+[cfg] a120_s1 SF
+[cfg] a120_s0 SF+ramp
+[cfg] a120_s1 SF+ramp
+[cfg] a120_s0 MFBLMS
+[cfg] a120_s1 MFBLMS
+[cfg] a120_s0 MFBLMS+ramp
+[cfg] a120_s1 MFBLMS+ramp
+[cfg] a120_s0 Switch
+[cfg] a120_s1 Switch
+[cfg] a120_s0 WY g=1
+[cfg] a120_s1 WY g=1
+[cfg] a120_s0 WY g=10
+[cfg] a120_s1 WY g=10
+[cfg] col145_s10 B0
+[cfg] col145_s11 B0
+[cfg] col145_s10 W0.5
+[cfg] col145_s11 W0.5
+[cfg] col145_s10 GS
+[cfg] col145_s11 GS
+[cfg] col145_s10 SF
+[cfg] col145_s11 SF
+[cfg] col145_s10 SF+ramp
+[cfg] col145_s11 SF+ramp
+[cfg] col145_s10 MFBLMS
+[cfg] col145_s11 MFBLMS
+[cfg] col145_s10 MFBLMS+ramp
+[cfg] col145_s11 MFBLMS+ramp
+[cfg] col145_s10 Switch
+[cfg] col145_s11 Switch
+[cfg] col145_s10 WY g=1
+[cfg] col145_s11 WY g=1
+[cfg] col145_s10 WY g=10
+[cfg] col145_s11 WY g=10
+[done] A a165 91.2 s
+[done] A a145 91.4 s
+[done] A cms145_s0 87.8 s
+[done] A a185 89.1 s
+[done] A cms145_s1 87.4 s
+[done] A cms145_s2 89.5 s
+[done] A a120_s0 90.4 s
+[done] A a120_s1 91.4 s
+[done] A col145_s10 94.3 s
+[done] A col145_s11 96.4 s
+[A] chosen mu {'B0': 0.1, 'W0.5': 0.1, 'GS': 0.05, 'SF': 0.1, 'SF+ramp': 0.05, 'MFBLMS': 0.05, 'MFBLMS+ramp': 0.02, 'Switch': 0.05, 'WY g=1': 0.1, 'WY g=10': 0.2}
+[B] input A seed 1 done
+[B] input A seed 0 done
+[B] input B seed 0 done
+[B] input B seed 1 done
+[B] input C seed 0 done
+[B] input C seed 1 done
+[C] path change cms145_s0 done
+[C] path change cms145_s1 done
+[C] path change cms145_s2 done
+[total] 558.1 s
+[timing] B0 0.254 ms/block
+[timing] W0.5 0.227 ms/block
+[timing] GS 0.226 ms/block
+[timing] SF 0.314 ms/block
+[timing] MFBLMS 0.289 ms/block
+[timing] MFBLMS+ramp 0.254 ms/block
+[timing] Switch 0.244 ms/block
+[timing] WY g=10 0.259 ms/block
+[written] RESULTS_mfblms.md
