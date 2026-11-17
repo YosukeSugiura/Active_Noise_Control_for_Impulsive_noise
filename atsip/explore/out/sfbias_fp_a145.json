@@ -1,0 +1,97 @@
+{
+ "check": {
+  "operator_max_diff": 0.0
+ },
+ "rows": [
+  {
+   "name": "geometric a=0 (Lam=Pbar), reference",
+   "excess_db": -27.58638377896787,
+   "L1_db": -29.454176215262574,
+   "L1_floor_db": -29.516635746320897
+  },
+  {
+   "name": "base Rall eps_shared (= fp.py ER)",
+   "excess_db": -17.182747533952,
+   "L1_db": -29.31862720988855,
+   "L1_floor_db": -29.516635746320897
+  },
+  {
+   "name": "frozen F (long-term mean |Rall|^2)",
+   "excess_db": -17.0467951007056,
+   "L1_db": -29.38158265821834,
+   "L1_floor_db": -29.516635746320897
+  },
+  {
+   "name": "eps_reg 1e-3 Pbar",
+   "excess_db": -17.21638540634502,
+   "L1_db": -29.333343037132288,
+   "L1_floor_db": -29.516635746320897
+  },
+  {
+   "name": "eps_reg 1e-2 Pbar",
+   "excess_db": -18.433353313021534,
+   "L1_db": -29.379864313353387,
+   "L1_floor_db": -29.516635746320897
+  },
+  {
+   "name": "tail causalM (Rall, N grid)",
+   "excess_db": -17.20575804082111,
+   "L1_db": -29.32432370434842,
+   "L1_floor_db": -29.516635746320897
+  },
+  {
+   "name": "diag: flat F (Lam=Pbar), same causal op",
+   "excess_db": -27.58638377896787,
+   "L1_db": -29.454176215262574,
+   "L1_floor_db": -29.516635746320897
+  },
+  {
+   "name": "diag: frozen a=0.5 (Lfz^0.5 Pbar^0.5)",
+   "excess_db": -25.50444249657069,
+   "L1_db": -29.5113825756323,
+   "L1_floor_db": -29.516635746320897
+  },
+  {
+   "name": "control: N grid, zp N-frame R (no padding)",
+   "excess_db": -17.37007523470366,
+   "L1_db": -29.33621778515483,
+   "L1_floor_db": -29.516635746320897
+  },
+  {
+   "name": "F from 4N grid, sampled to N",
+   "excess_db": -17.224205093242723,
+   "L1_db": -29.333774012297905,
+   "L1_floor_db": -29.516635746320897
+  },
+  {
+   "name": "F from 8N grid, sampled to N",
+   "excess_db": -17.224960144757798,
+   "L1_db": -29.33357000109853,
+   "L1_floor_db": -29.516635746320897
+  },
+  {
+   "name": "causal split on 2N grid",
+   "excess_db": -17.644717373840027,
+   "L1_db": -29.349095722144906,
+   "L1_floor_db": -29.516635746320897
+  },
+  {
+   "name": "causal split on 4N grid",
+   "excess_db": -17.66540831667606,
+   "L1_db": -29.34931530795606,
+   "L1_floor_db": -29.516635746320897
+  },
+  {
+   "name": "2N grid + causalM tail",
+   "excess_db": -17.645233044720065,
+   "L1_db": -29.349143172941602,
+   "L1_floor_db": -29.516635746320897
+  },
+  {
+   "name": "4N grid + causalM tail",
+   "excess_db": -17.665396812760243,
+   "L1_db": -29.349311090975103,
+   "L1_floor_db": -29.516635746320897
+  }
+ ]
+}
