@@ -21,7 +21,7 @@ Usage:  python vssI2.py            run all jobs (Pool(2)), one json per job in o
 import os, sys, json, time, glob
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-sys.path.insert(0, "/tmp/chk6")
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "theory", "transient"))
 import vssI as V1                       # shared directions, Rule (SF-I, SF-IE), simulate, scoring, capture
 from simx import *                      # get, run, ramp, scores, ML, MFm, O, B, M, N, EXP
 import vss2 as V

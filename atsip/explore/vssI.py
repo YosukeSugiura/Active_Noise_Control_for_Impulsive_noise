@@ -10,7 +10,7 @@ Usage:  python vssI.py            run all jobs (Pool(2)), one json per job in ou
         python vssI.py --report   write RESULTS_vssI.md from the json files
 """
 import os, sys, json, time, glob
-sys.path.insert(0, "/tmp/chk6")
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "theory", "transient"))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from simx import *
 import vss2 as V
