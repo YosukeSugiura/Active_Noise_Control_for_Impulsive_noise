@@ -52,8 +52,11 @@ RAMP = [(2, 2), (2, 4), (3, 2), (3, 4)]        # (m0, T)
 TOL_DB = 1.0
 
 
-def sf_dir(R, E, Srr, Pbar, s_eps, eps_reg, trunc=TRUNC):
-    """Spectral-factor direction, returns irfft(G)[:M]."""
+def sf_dir(R, E, Srr, Pbar, s_eps, eps_reg, trunc=TRUNC, ret_y=False):
+    """Spectral-factor direction, returns irfft(G)[:M].
+    ret_y=True: returns (direction, x, F) with x the length-N intermediate vector after the causal truncation and
+    before the inverse factor (x = {R* E / F*}_+, lags >= trunc zeroed) and F the minimum-phase factor (rfft bins),
+    so that direction == irfft(rfft(x) / F)[:M].  The direction is computed by the same code either way."""
     Lam = np.maximum(Srr + s_eps + eps_reg * Pbar, 1e-300)
     full = np.concatenate([Lam, Lam[-2:0:-1]])              # length N, symmetric
     c = np.fft.ifft(0.5 * np.log(full)).real                 # real cepstrum
@@ -63,6 +66,8 @@ def sf_dir(R, E, Srr, Pbar, s_eps, eps_reg, trunc=TRUNC):
     x = np.fft.irfft(np.conj(R) * E / np.conj(F), N)
     x[trunc:] = 0.0                                          # keep causal lags
     G_ = np.fft.rfft(x) / F
+    if ret_y:
+        return np.fft.irfft(G_, N)[:M], x, F
     return np.fft.irfft(G_, N)[:M]
 
 
