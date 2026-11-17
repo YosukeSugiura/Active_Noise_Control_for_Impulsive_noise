@@ -45,6 +45,45 @@ Reference (uniform stationary): h_eff/h = 0.875, f = 0.801, noise (centred) = 0.
 | 1 pulse @768 + earlier pulse 64 samples before | tail (pulse base) | 1.000 | 1.000 | 2.000 | 1.072 | 3.218 | 1.936 | 7.520 | 0.065 | 0.101 | 0.036 | 0.000 | 1.000 | 0.000 |
 | 1 pulse @768 + earlier pulse 16 samples before | tail (pulse base) | 1.000 | 1.000 | 2.000 | 1.072 | 3.218 | 1.936 | 7.520 | 0.065 | 0.101 | 0.036 | 0.000 | 1.000 | 0.000 |
 
+### Conditioned on the sample gain (E): Delta / g with g from the sample (what the method sees)
+
+gF = mean|R|^2 / Pbar over the N-sample reference frame (the method's g); gE = sum x^2 over the M-sample error window / (M sigma0^2). mean = <E[A v / g], v> / <v, v>; fluct = E|A v / g - mean|^2 / (h^2 |v|^2); noise = E|zeta / g - E zeta / g|^2. Ratios to 'uniform (stationary)'. NaN: g = 0 in every realisation (no energy in the window).
+
+| condition | pi_x | pi_xM | mean/gF | fluct/gF^2 | noise/gF^2 | mean/gE | fluct/gE^2 | noise/gE^2 |
+|---|---|---|---|---|---|---|---|---|
+| uniform (stationary) | 0.000977 | 0.002 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| uniform (frame only) | 0.000977 | 0.002 | 1.000 | 1.000 | 0.999 | 1.000 | 1.000 | 0.999 |
+| 1 pulse @0 | 1.000 | NaN | 0.000235 | 1.35e-34 | 1.73e-32 | NaN | NaN | NaN |
+| 1 pulse @256 | 1.000 | NaN | 0.190 | 2.39e-30 | 5.57e-30 | NaN | NaN | NaN |
+| 1 pulse @511 | 1.000 | NaN | 1.991 | 4.95e-29 | 3.87e-29 | NaN | NaN | NaN |
+| 1 pulse @512 (in err. window) | 1.000 | 1.000 | 1.991 | 2.92e-29 | 3.53e-29 | 0.991 | 7.98e-30 | 8.87e-30 |
+| 1 pulse @640 (in err. window) | 1.000 | 1.000 | 1.960 | 3.82e-29 | 3.39e-29 | 0.976 | 1.27e-29 | 8.52e-30 |
+| 1 pulse @768 (in err. window) | 1.000 | 1.000 | 1.801 | 3.53e-29 | 3.36e-29 | 0.896 | 5.44e-30 | 8.46e-30 |
+| 1 pulse @1023 (in err. window) | 1.000 | 1.000 | -4.28e-08 | 3.76e-39 | 5.19e-33 | -2.13e-08 | 9.38e-40 | 1.3e-33 |
+| 2 pulses spacing 1 (@767,768) | 0.500 | 0.500 | 1.972 | 1.587 | 0.077 | 0.899 | 0.244 | 0.014 |
+| 2 pulses spacing 16 (@752,768) | 0.500 | 0.500 | 1.817 | 0.910 | 0.179 | 0.904 | 0.226 | 0.045 |
+| 2 pulses spacing 128 (@640,768) | 0.500 | 0.500 | 1.883 | 0.511 | 0.437 | 0.937 | 0.127 | 0.110 |
+| 2 pulses spacing 512 (@256,768) | 0.500 | 1.000 | 0.954 | 0.509 | 0.421 | 5.157 | 10765.848 | 1013.954 |
+| 2 pulses spacing 16 @0,16 | 0.500 | NaN | 0.000228 | 3.36e-05 | 0.004 | NaN | NaN | NaN |
+| 2 pulses spacing 16 @248,264 | 0.500 | NaN | 0.203 | 0.111 | 0.020 | NaN | NaN | NaN |
+| 2 pulses spacing 16 @504,520 | 0.500 | 1.000 | 1.997 | 1.087 | 0.185 | 73.903 | 334698.532 | 656.864 |
+| 2 pulses spacing 16 @640,656 | 0.500 | 0.500 | 1.957 | 1.007 | 0.175 | 0.974 | 0.250 | 0.044 |
+| 2 pulses spacing 16 @1007,1023 | 0.500 | 0.500 | 0.009 | 0.020 | 0.029 | 0.005 | 0.005 | 0.007 |
+| stationary + earlier pulse 8 block(s) before | 0.000977 | 0.002 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| stationary + earlier pulse 4 block(s) before | 0.000977 | 0.002 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| stationary + earlier pulse 2 block(s) before | 0.000977 | 0.002 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| stationary + earlier pulse 1 block(s) before | 0.000977 | 0.002 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| stationary + earlier pulse 127 samples before | 0.000977 | 0.002 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| stationary + earlier pulse 64 samples before | 0.000977 | 0.002 | 1.000 | 1.000 | 1.002 | 1.000 | 1.000 | 1.002 |
+| stationary + earlier pulse 16 samples before | 0.000977 | 0.002 | 1.000 | 1.000 | 1.031 | 1.000 | 1.000 | 1.031 |
+| 1 pulse @768 + earlier pulse 8 block(s) before | 1.000 | 1.000 | 1.801 | 3.53e-29 | 3.36e-29 | 0.896 | 5.44e-30 | 8.46e-30 |
+| 1 pulse @768 + earlier pulse 4 block(s) before | 1.000 | 1.000 | 1.801 | 3.53e-29 | 3.36e-29 | 0.896 | 5.44e-30 | 8.46e-30 |
+| 1 pulse @768 + earlier pulse 2 block(s) before | 1.000 | 1.000 | 1.801 | 3.53e-29 | 3.36e-29 | 0.896 | 5.44e-30 | 8.46e-30 |
+| 1 pulse @768 + earlier pulse 1 block(s) before | 1.000 | 1.000 | 1.801 | 3.53e-29 | 3.36e-29 | 0.896 | 5.44e-30 | 8.46e-30 |
+| 1 pulse @768 + earlier pulse 127 samples before | 1.000 | 1.000 | 1.801 | 3.53e-29 | 3.36e-29 | 0.896 | 5.44e-30 | 8.46e-30 |
+| 1 pulse @768 + earlier pulse 64 samples before | 1.000 | 1.000 | 1.801 | 1.64e-07 | 2.11e-05 | 0.896 | 4.09e-08 | 5.3e-06 |
+| 1 pulse @768 + earlier pulse 16 samples before | 1.000 | 1.000 | 1.801 | 1.86e-06 | 0.000238 | 0.896 | 4.61e-07 | 5.98e-05 |
+
 ## Inner product P
 
 Reference (uniform stationary): h_eff/h = 0.982, f = 0.962, noise (centred) = 3.21e-07, |E zeta|^2 = 1.52e-09.
@@ -83,4 +122,43 @@ Reference (uniform stationary): h_eff/h = 0.982, f = 0.962, noise (centred) = 3.
 | 1 pulse @768 + earlier pulse 127 samples before | tail (pulse base) | 1.000 | 1.000 | 2.000 | 1.072 | 3.218 | 2.026 | 7.889 | 0.009 | 0.013 | 0.005 | 0.000 | 1.000 | 0.000 |
 | 1 pulse @768 + earlier pulse 64 samples before | tail (pulse base) | 1.000 | 1.000 | 2.000 | 1.072 | 3.218 | 2.026 | 7.889 | 0.009 | 0.013 | 0.005 | 0.000 | 1.000 | 0.000 |
 | 1 pulse @768 + earlier pulse 16 samples before | tail (pulse base) | 1.000 | 1.000 | 2.000 | 1.072 | 3.218 | 2.026 | 7.889 | 0.009 | 0.013 | 0.005 | 0.000 | 1.000 | 0.000 |
+
+### Conditioned on the sample gain (P): Delta / g with g from the sample (what the method sees)
+
+gF = mean|R|^2 / Pbar over the N-sample reference frame (the method's g); gE = sum x^2 over the M-sample error window / (M sigma0^2). mean = <E[A v / g], v> / <v, v>; fluct = E|A v / g - mean|^2 / (h^2 |v|^2); noise = E|zeta / g - E zeta / g|^2. Ratios to 'uniform (stationary)'. NaN: g = 0 in every realisation (no energy in the window).
+
+| condition | pi_x | pi_xM | mean/gF | fluct/gF^2 | noise/gF^2 | mean/gE | fluct/gE^2 | noise/gE^2 |
+|---|---|---|---|---|---|---|---|---|
+| uniform (stationary) | 0.000977 | 0.002 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| uniform (frame only) | 0.000977 | 0.002 | 1.000 | 1.000 | 0.998 | 1.000 | 1.000 | 0.998 |
+| 1 pulse @0 | 1.000 | NaN | 1.63e-05 | 1.79e-34 | 3.08e-31 | NaN | NaN | NaN |
+| 1 pulse @256 | 1.000 | NaN | 0.123 | 2.53e-30 | 2.11e-29 | NaN | NaN | NaN |
+| 1 pulse @511 | 1.000 | NaN | 2.010 | 4.69e-29 | 1.74e-28 | NaN | NaN | NaN |
+| 1 pulse @512 (in err. window) | 1.000 | 1.000 | 2.010 | 3.86e-29 | 1.65e-28 | 0.999 | 1.05e-29 | 4.09e-29 |
+| 1 pulse @640 (in err. window) | 1.000 | 1.000 | 1.996 | 5.85e-29 | 1.64e-28 | 0.992 | 1.88e-29 | 4.08e-29 |
+| 1 pulse @768 (in err. window) | 1.000 | 1.000 | 1.887 | 5.55e-29 | 1.61e-28 | 0.938 | 3.91e-30 | 4.01e-29 |
+| 1 pulse @1023 (in err. window) | 1.000 | 1.000 | 1.98e-08 | 1.26e-39 | 2.36e-32 | 9.83e-09 | 3.13e-40 | 5.76e-33 |
+| 2 pulses spacing 1 (@767,768) | 0.500 | 0.500 | 1.883 | 0.797 | 0.160 | 0.935 | 0.217 | 0.033 |
+| 2 pulses spacing 16 (@752,768) | 0.500 | 0.500 | 1.899 | 0.713 | 0.386 | 0.944 | 0.176 | 0.096 |
+| 2 pulses spacing 128 (@640,768) | 0.500 | 0.500 | 1.942 | 0.520 | 0.453 | 0.966 | 0.128 | 0.112 |
+| 2 pulses spacing 512 (@256,768) | 0.500 | 1.000 | 0.959 | 0.520 | 0.622 | 3.683 | 7648.415 | 187.598 |
+| 2 pulses spacing 16 @0,16 | 0.500 | NaN | 1.61e-05 | 7.41e-06 | 0.013 | NaN | NaN | NaN |
+| 2 pulses spacing 16 @248,264 | 0.500 | NaN | 0.131 | 0.081 | 0.016 | NaN | NaN | NaN |
+| 2 pulses spacing 16 @504,520 | 0.500 | 1.000 | 2.013 | 0.846 | 0.424 | 74.356 | 340415.968 | 1692.479 |
+| 2 pulses spacing 16 @640,656 | 0.500 | 0.500 | 1.991 | 0.785 | 0.393 | 0.990 | 0.194 | 0.098 |
+| 2 pulses spacing 16 @1007,1023 | 0.500 | 0.500 | 0.033 | 0.016 | 0.091 | 0.016 | 0.004 | 0.023 |
+| stationary + earlier pulse 8 block(s) before | 0.000977 | 0.002 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| stationary + earlier pulse 4 block(s) before | 0.000977 | 0.002 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| stationary + earlier pulse 2 block(s) before | 0.000977 | 0.002 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| stationary + earlier pulse 1 block(s) before | 0.000977 | 0.002 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| stationary + earlier pulse 127 samples before | 0.000977 | 0.002 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| stationary + earlier pulse 64 samples before | 0.000977 | 0.002 | 1.000 | 1.000 | 1.002 | 1.000 | 1.000 | 1.002 |
+| stationary + earlier pulse 16 samples before | 0.000977 | 0.002 | 1.000 | 1.000 | 1.034 | 1.000 | 1.000 | 1.034 |
+| 1 pulse @768 + earlier pulse 8 block(s) before | 1.000 | 1.000 | 1.887 | 5.55e-29 | 1.61e-28 | 0.938 | 3.91e-30 | 4.01e-29 |
+| 1 pulse @768 + earlier pulse 4 block(s) before | 1.000 | 1.000 | 1.887 | 5.55e-29 | 1.61e-28 | 0.938 | 3.91e-30 | 4.01e-29 |
+| 1 pulse @768 + earlier pulse 2 block(s) before | 1.000 | 1.000 | 1.887 | 5.55e-29 | 1.61e-28 | 0.938 | 3.91e-30 | 4.01e-29 |
+| 1 pulse @768 + earlier pulse 1 block(s) before | 1.000 | 1.000 | 1.887 | 5.55e-29 | 1.61e-28 | 0.938 | 3.91e-30 | 4.01e-29 |
+| 1 pulse @768 + earlier pulse 127 samples before | 1.000 | 1.000 | 1.887 | 5.55e-29 | 1.61e-28 | 0.938 | 3.91e-30 | 4.01e-29 |
+| 1 pulse @768 + earlier pulse 64 samples before | 1.000 | 1.000 | 1.887 | 1.83e-08 | 3.16e-05 | 0.938 | 4.52e-09 | 7.83e-06 |
+| 1 pulse @768 + earlier pulse 16 samples before | 1.000 | 1.000 | 1.887 | 3.06e-07 | 0.000527 | 0.938 | 7.56e-08 | 0.000131 |
 

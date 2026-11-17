@@ -88,6 +88,9 @@ class Probe:
         z = KD * s.dirf(Rf, fr(efp)); Av = KD * s.dirf(Rf, fr(ec))
         g = np.mean(np.abs(Rf) ** 2, axis=1) / S["Pbar"]
         out = dict(Eg=float(g.mean()), Eg2=float((g ** 2).mean()))
+        # sample gains used for conditioning (the method sees the sample, not sigma)
+        gE = np.sum(x[:, F0 + EW0:F0 + N] ** 2, axis=1) / (M * SIG0 ** 2)     # error window
+        gs = dict(gF=g, gE=gE)
         v = s.v
         for ip in ("E", "P"):
             W = (lambda a: a) if ip == "E" else (lambda a: a @ Phi)
@@ -98,6 +101,15 @@ class Probe:
                            fluct=float(np.mean(np.sum(dm * W(dm), 1))) / (H ** 2 * vv),
                            noise_c=float(np.mean(np.sum(dz * W(dz), 1))), noise_raw=float(np.mean(np.sum(z * W(z), 1))),
                            zeta_mean2=float(zm @ W(zm)))
+            for gt, gg in gs.items():
+                ok = gg > 1e-9
+                if ok.sum() < 2:
+                    out[ip].update({f"mean_{gt}": float("nan"), f"fluct_{gt}": float("nan"), f"noise_{gt}": float("nan")}); continue
+                Ag = Av[ok] / gg[ok, None]; zg = z[ok] / gg[ok, None]
+                mg = Ag.mean(0); dAg = Ag - mg; dzg = zg - zg.mean(0)
+                out[ip][f"mean_{gt}"] = float(mg @ W(v)) / vv
+                out[ip][f"fluct_{gt}"] = float(np.mean(np.sum(dAg * W(dAg), 1))) / (H ** 2 * vv)
+                out[ip][f"noise_{gt}"] = float(np.mean(np.sum(dzg * W(dzg), 1)))
         if keep:
             out["_z"], out["_Av"] = z, Av
         return out
@@ -196,6 +208,20 @@ def report(o):
                                          fm(x["h_eff"] / gs / rE["h_eff"]), fm(x["fluct"] / gs ** 2 / rE["fluct"]),
                                          fm(x["noise_c"] / gs ** 2 / rE["noise_c"]), fm(x["noise_raw"] / gs ** 2 / rE["noise_raw"]),
                                          fm(x["zeta_mean2"] / rE["noise_c"]), fm(pnoise), fm(gs ** 2), fm(pnoise)]) + " |")
+        L.append("")
+        L += [f"### Conditioned on the sample gain ({ip}): Delta / g with g from the sample (what the method sees)", "",
+              "gF = mean|R|^2 / Pbar over the N-sample reference frame (the method's g); gE = sum x^2 over the M-sample error "
+              "window / (M sigma0^2). mean = <E[A v / g], v> / <v, v>; fluct = E|A v / g - mean|^2 / (h^2 |v|^2); noise = "
+              "E|zeta / g - E zeta / g|^2. Ratios to 'uniform (stationary)'. NaN: g = 0 in every realisation (no energy in the window).", "",
+              "| condition | pi_x | pi_xM | mean/gF | fluct/gF^2 | noise/gF^2 | mean/gE | fluct/gE^2 | noise/gE^2 |", "|---|---|---|---|---|---|---|---|---|"]
+        for c in J["conds"]:
+            x = c[ip]
+            if "mean_gF" not in x:
+                continue
+            cells = []
+            for gt in ("gF", "gE"):
+                cells += [fm(x[f"mean_{gt}"] / rE[f"mean_{gt}"]), fm(x[f"fluct_{gt}"] / rE[f"fluct_{gt}"]), fm(x[f"noise_{gt}"] / rE[f"noise_{gt}"])]
+            L.append("| " + " | ".join([c["name"], fm(c["pi_x"]), fm(c["pi_xM"])] + cells) + " |")
         L.append("")
     path = os.path.join(HERE, "RESULTS_protoB.md") if not o.smoke else os.path.join(d, "RESULTS_protoB_smoke.md")
     with open(path, "w") as f:

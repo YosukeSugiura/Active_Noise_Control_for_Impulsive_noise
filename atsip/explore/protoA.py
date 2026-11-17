@@ -658,22 +658,25 @@ def rep_state(Ld, kg, L_):
         out += [f"### {st}.1 ({ip}) Raw lagged products C_l = E<Delta_t, Delta_t-l> (C_0 = Q): measured vs predictions, ref fp", "",
                 "Columns per lag: meas | 9.1 = Sec. 9.1 steady form | br = same first-order theory with the finite sums of the "
                 "branched segment (exogenous Gamma) | brS = br with the H~v part of Gamma scaled with X_t (S = f h^2 x) | "
-                f"old = Sec. 2. All values / Gamma_0 (Gamma_0 = {fm(Gk[0])}). Window means over tau.", ""]
-        hdr = "| window | mu | " + " | ".join(f"l={l} meas | 9.1 | br | brS | old" for l in lsel) + " |"
-        out += [hdr, "|---|---|" + "---|" * (5 * len(lsel))]
+                "brSA = brS with the measured mean operator (X -> kappa X, kappa = (h_eff/h)^2 (1 + nonscalar); h -> h_eff in the "
+                f"h mu factors) | old = Sec. 2. All values / Gamma_0 (Gamma_0 = {fm(Gk[0])}). Window means over tau.", ""]
+        frA = js["frozen"][ip]["fp"]; hA = frA["h_eff"]; kapA = (hA / H) ** 2 * (1 + frA["nonscalar"])
+        hdr = "| window | mu | " + " | ".join(f"l={l} meas | 9.1 | br | brS | brSA | old" for l in lsel) + " |"
+        out += [hdr, "|---|---|" + "---|" * (6 * len(lsel))]
         for wn, taus in W.items():
             for im, mu in enumerate(Ld.mus):
                 GDD = A[f"GDD_{ip}_m{im}"]; Gvv = A[f"Gvv_{ip}_fp_m{im}"]
                 gex, gsc = mk_gf(A, ip, kg, im, X0, tof)
                 cells = []
                 for l in lsel:
-                    me, p91, pbr, pbs, pol = [], [], [], [], []
+                    me, p91, pbr, pbs, pba, pol = [], [], [], [], [], []
                     for tau in taus:
                         t = ib0 + tau; X = H ** 2 * Gvv[t, t]
                         me.append(GDD[t, t - l]); p91.append(pred_steady(Gk, kg, X, l, mu))
                         pbr.append(sum(pred_branch(gex, X, tau, l, mu).values()))
                         pbs.append(sum(pred_branch(gsc, X, tau, l, mu).values())); pol.append(pred_old(Gk, kg, X, l, mu))
-                    cells += [fm(np.mean(q) / Gk[0]) for q in (me, p91, pbr, pbs, pol)]
+                        pba.append(sum(pred_branch(gsc, kapA * X, tau, l, mu, h=hA).values()))
+                    cells += [fm(np.mean(q) / Gk[0]) for q in (me, p91, pbr, pbs, pba, pol)]
                 out.append(f"| {wn} | {mu:g} | " + " | ".join(cells) + " |")
         out.append("")
         # four-way split (measured vs branch predictions)
@@ -781,9 +784,11 @@ def rep_state(Ld, kg, L_):
             "tau_a and the zeta / H~V correlation profiles from this state's mu = 0 decomposition (Euclidean, ref fp), a0 = 1. "
             "(a) Sec. 2 psi_muhat; (b) Sec. 9.1 EMA forms solved for (X, N): mu_deg = (X/h)/((1 + tau_m f) X + tau_a N) "
             "(Sec. 1/2 form), mu_1 = [X/h - mu((tau_a - 1) N + (tau_m - 1) f X)/2]_+ / Q (one-step form). Last column: "
-            "mu_deg with the true X_tau and the mu = 0 N.", ""]
-    out += ["| window | mu | mu/2 | oracle fp E | oracle fp P | oracle wM P | (a) in | (a) out | (b) mu_deg in | (b) mu_deg out | (b) mu_1 in | mu_deg true X,N |",
-            "|---|---|---|---|---|---|---|---|---|---|---|---|"]
+            "mu_deg with the true X_tau and the mu = 0 N. (b) mu_1A: mu_1 with the measured mean operator (h -> h_eff in the "
+            "solve; E<v,Delta> = X / (h_eff (1 + nonscalar))).", ""]
+    out += ["| window | mu | mu/2 | oracle fp E | oracle fp P | oracle wM P | (a) in | (a) out | (b) mu_deg in | (b) mu_deg out | (b) mu_1 in | (b) mu_1A in | mu_deg true X,N |",
+            "|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+    frE = js["frozen"]["E"]["fp"]; hE, nsE = frE["h_eff"], frE["nonscalar"]
     cE = consts[("E", "fp")]
     L, bd = 4, 0.1
     rhoz = cE["Gz"] / cE["Gz"][0]; rhom = cE["Gm"] / cE["Gm"][0]
@@ -795,7 +800,7 @@ def rep_state(Ld, kg, L_):
             GDDE = A[f"GDD_E_m{im}"]; GDDP = A[f"GDD_P_m{im}"]
             cs = [ema_c(GDDE, t, L, bd) for t in range(GDDE.shape[0])]
             qs = [GDDE[t, t] for t in range(GDDE.shape[0])]
-            acc = {q: [] for q in ("oE", "oP", "oWP", "ai", "ao", "bi", "bo", "b1", "bt")}
+            acc = {q: [] for q in ("oE", "oP", "oWP", "ai", "ao", "bi", "bo", "b1", "b1A", "bt")}
             for tau in taus:
                 t = ib0 + tau
                 oE = A[f"GvD_E_fp_m{im}"][t, t] / GDDE[t, t]; oP = A[f"GvD_P_fp_m{im}"][t, t] / GDDP[t, t]
@@ -808,10 +813,12 @@ def rep_state(Ld, kg, L_):
                     acc["b" + nm].append((X / H) / den if den > 0 else 0.0)
                     if nm == "i":
                         acc["b1"].append(max(X / H - mu * ((cE["ta"] - 1) * Nn + (cE["tm"] - 1) * cE["f"] * X) / 2, 0) / Q)
+                        XA, NA = solve91(C, Q, mu, L, bd, cE["f"], cE["tm"], cE["ta"], gz, gm_, h=hE)
+                        acc["b1A"].append(max(XA / (hE * (1 + nsE)) - mu * ((cE["ta"] - 1) * NA + (cE["tm"] - 1) * cE["f"] * XA) / 2, 0) / Q)
                 Xt = H ** 2 * A[f"Gvv_E_fp_m{im}"][t, t]
                 acc["bt"].append((Xt / H) / ((1 + cE["tm"] * cE["f"]) * Xt + cE["ta"] * cE["N"]))
             out.append(f"| {wn} | {mu:g} | {mu / 2:g} | " + " | ".join(fm(np.nanmean(acc[q]), 4) for q in
-                                                                     ("oE", "oP", "oWP", "ai", "ao", "bi", "bo", "b1", "bt")) + " |")
+                                                                     ("oE", "oP", "oWP", "ai", "ao", "bi", "bo", "b1", "b1A", "bt")) + " |")
     out.append("")
     # ---- Table 4: frame delay
     ckE = A["ckmask_E_fp"]; ckP = A["ckmask_P_fp"]
@@ -823,7 +830,8 @@ def rep_state(Ld, kg, L_):
             "E(Delta_t - Delta^re_t) = d_eff h (E w_t-1 - E w_t) (Euclidean); compare with sum k c_k. A ratio or d_eff above "
             "the mean-operator value means the fluctuation of the delayed frame is correlated with the past updates "
             "(the same mechanism as T2 in P2).", "",
-            "| window | mu | ratio E | pred E | ratio Phi | pred Phi | d_eff (all tau) |", "|---|---|---|---|---|---|---|"]
+            "| window | mu | ratio E | pred E | ratio Phi | pred Phi | d_eff (all tau) | d_eff (h_eff) |", "|---|---|---|---|---|---|---|---|"]
+    hE4 = js["frozen"]["E"]["fp"]["h_eff"]
     for wn, taus in W.items():
         for im, mu in enumerate(Ld.mus):
             if mu == 0:
@@ -831,7 +839,7 @@ def rep_state(Ld, kg, L_):
             fd = A[f"fd_m{im}"]
             de = A[f"deff_m{im}"][0] if f"deff_m{im}" in A.files else np.nan
             out.append(f"| {wn} | {mu:g} | {fm(np.mean(fd[0, taus] / fd[2, taus]))} | {fm(H * mu * kbarE)} | "
-                       f"{fm(np.mean(fd[1, taus] / fd[3, taus]))} | {fm(H * mu * kbarP)} | {fm(de)} |")
+                       f"{fm(np.mean(fd[1, taus] / fd[3, taus]))} | {fm(H * mu * kbarP)} | {fm(de)} | {fm(de * H / hE4)} |")
     out += ["", "Occupancy c_k at mu = 0 (exact split of A_b v by the block whose coefficients produced the output samples; "
             "units of h; THEORY 9.2: about 1/4 each, k = 0..3; sum = h_eff/h).", "",
             "| c_k | " + " | ".join(f"k={k}" for k in range(KC + 1)) + " | sum | sum k c_k |", "|---|" + "---|" * (KC + 3)]
