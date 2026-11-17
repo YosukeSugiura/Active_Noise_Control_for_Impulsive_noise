@@ -5,7 +5,7 @@ os.environ["OMP_NUM_THREADS"]="1"; os.environ["OPENBLAS_NUM_THREADS"]="1"
 import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
 from scipy import signal, linalg
-EXP="/home/claude/active_noise_control_for_impulsive_noise/atsip/explore"
+EXP=os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),"..",".."))
 sys.path.insert(0,EXP); sys.path.insert(0,os.path.join(EXP,"theory","closedform"))
 import dissect as D, explore as X, mixlam as ML, specfac as SFm, mfblms as MFm, inclass as IC
 import base as BS

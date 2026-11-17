@@ -2,7 +2,7 @@ import os
 os.environ["OMP_NUM_THREADS"]="1"; os.environ["OPENBLAS_NUM_THREADS"]="1"
 import numpy as np
 from scipy import linalg
-ROOT="/home/claude/active_noise_control_for_impulsive_noise"
+ROOT=os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),"..","..","..",".."))
 def pad(h,n):
     o=np.zeros(n); m=min(n,len(h)); o[:m]=h[:m]; return o
 hP=pad(np.loadtxt(ROOT+"/impulse_response/primary_ir.dat",ndmin=1),512)
