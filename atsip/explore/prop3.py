@@ -72,10 +72,8 @@ class Frame3(q.Frame):
         end = (i + 1) * B
         seg = e_all[max(0, end - 2 * B):end]
         s.last[:] = 0.0; s.last[2 * B - len(seg):] = seg
-        E = super().__call__(i, w, e_all, ys)          # updates the secondary buffer and the error energy
-        if s.rebuild or not s.rule.in_early(i):
-            return E
-        s.n_rebuilt -= 1                               # early=SF: the ordinary frame, nothing is rebuilt
+        if s.rebuild:
+            return super().__call__(i, w, e_all, ys)
         return p.ML.frame_E(e_all, i * B, M)
 
 
@@ -90,8 +88,11 @@ def split_coherence(c, last, eps):
 
 def colour_stat(c):
     rho = np.abs(c.R) ** 2 / np.maximum(c.Srr, 1e-300)
-    rho = rho[rho > 0]
-    return float(np.log(rho.mean()) - np.log(rho).mean()) if len(rho) else 0.0
+    mean = rho.mean()
+    if mean == 0:
+        return 0.0  # No reference energy in this frame.
+    rho[rho == 0] = np.finfo(rho.dtype).tiny
+    return float(np.log(mean) - np.log(rho).mean())
 
 
 class P3(q.P2):
@@ -105,13 +106,17 @@ class P3(q.P2):
             s._close(s.until, "fixed")
         internal = s.c["mu_e"] if early else s.late
         gain = max(c.g, s.gmin)
-        mu = internal / gain
+        # Match P2's operation order in both early modes.
+        mu = internal / gain if s.frame.rebuild else internal * (1.0 / gain)
         dv = p.SFm.sf_dir(c.R, c.E, c.Srr, c.Pbar, c.eps, s.c["eps"])
         s.J.append(colour_stat(c))
         applied = bool(s.restarts) and s.restarts[-1] == i - 1
         if s.det is not None:
             rw = float(s.rw[i])
-            z = s.frame.energy / rw if rw > 0 else np.nan
+            if s.frame.rebuild:
+                z = s.frame.energy / rw if rw > 0 else np.nan
+            else:
+                z = p.rsn_stat(c.E, rw)
             if s.det.update(i, z):
                 coh = split_coherence(c, s.frame.last, s.c["eps"])
                 J4 = max(s.J[-4:])
@@ -138,11 +143,14 @@ def run_p3(data, Rall, st, c, nb, X4):
 def prep(tag, nb=None, shat=None):
     if shat is None or shat[0] != "f":
         return q.prep(tag, nb, shat)
-    cls, seed = tag.rsplit("_s", 1)
+    delay = float(shat[1:])
+    if delay == 0.0:
+        return q.prep(tag, nb, "g1")
+    cls = tag.rsplit("_s", 1)[0]
     dd = p.data_pcb(tag) if cls == "pcb" else T.data(tag)
     hS = dd["hS"]; L = 4 * len(hS)
     k = np.arange(L // 2 + 1)
-    hm = np.fft.irfft(np.fft.rfft(hS, L) * np.exp(-2j * np.pi * k * float(shat[1:]) / L), L)[:len(hS) + 16]
+    hm = np.fft.irfft(np.fft.rfft(hS, L) * np.exp(-2j * np.pi * k * delay / L), L)[:len(hS) + 16]
     out = dict(dd)
     out["hS_model"] = hm; out["Sf"] = np.fft.rfft(hm, N); out["r"] = p.signal.lfilter(hm, [1.0], dd["x"])
     s2 = np.abs(out["Sf"]) ** 2; out["S2"] = s2 / s2.mean()
@@ -251,22 +259,24 @@ def report(smoke):
     ab.atomic_write(dest / "RESULTS_dev2.csv", write_csv)
 
     def write_cands(h):
-        h.write("exp,class,seed,rule,block,time_s,true_change,coh,J,accepted\n")
+        w = csv.writer(h, lineterminator="\n")
+        w.writerow(("exp", "class", "seed", "rule", "block", "time_s", "true_change", "coh", "J", "accepted"))
         for r in rows:
             for c in r.get("cands") or []:
-                h.write(f"{r['exp']},{r['class']},{r['seed']},\"{r['rule']}\",{c['block']},{c['block'] / BPS:.3f},"
-                        f"{int(c['true'])},{c['coh']:.4f},{c['J']:.4f},{int(c['ok'])}\n")
+                w.writerow((r["exp"], r["class"], r["seed"], r["rule"], c["block"], f"{c['block'] / BPS:.3f}",
+                            int(c["true"]), c["coh"], c["J"], int(c["ok"])))
     ab.atomic_write(dest / "RESULTS_dev2_cands.csv", write_cands)
 
     E = lambda e: [r for r in rows if r["exp"] == e]
     L = ["# dev2：再始動のゲート（E8）と二次経路の推定誤差（E9）", "",
-         "表は自動生成。値は dB（小さいほど良い）。クラス内で seed 平均、クラス間で等重み平均。件数は合計。",
+         "表は自動生成。L1・Φ 超過は dB（小さいほど良い）。クラス内で seed 平均、クラス間で等重み平均。件数は合計。",
          "規則名：gate- はゲートなし、gate0.1 は一致度 κ = 0.1、J1.5 は色の判定のしきい値。nors は再始動なし。",
          f"基準設定：ND = {ND0}、SF = {SF0}、δ = 0.03。", ""]
     r8 = E("E8")
     if r8:
         ref = name_of(config(ND0))                       # no gate: every detection is logged and accepted
         L += ["## E8 検出ごとの一致度 coh と色の統計 J（ND・ゲートなしの記録）", "",
+              "検出候補の種別は経路変化から1秒以内かどうかで判定する。誤作動・見逃しの件数は実際の再始動を各変化と1対1で対応させて数える。", "",
               "| クラス | 種別 | 件数 | coh 最小 | coh 中央 | coh 最大 | J 最小 | J 中央 | J 最大 |", "|---|---|---:|---:|---:|---:|---:|---:|---:|"]
         g = defaultdict(list)
         for r in r8:
@@ -291,13 +301,14 @@ def report(smoke):
             if rc:
                 L += [f"## E8 {title}", "",
                       q.table(rc, ("L1_whole", "L1_first5", "L1_last10", "ex_0_1s", "ex_last10", "L1_ev", "ex_ev", "L1_pc15_17",
-                                   "L1_pcb10_12", "L1_pcb20_22", "n_cand", "n_reject")), ""]
+                                   "L1_pcb10_12", "L1_pcb20_22"),
+                              ("n_cand", "n_reject", "div_num", "amp", "false_rs", "missed_rs")), ""]
         L += ["### クラスごとの L1 whole", "", q.per_class(r8, "L1_whole"), "",
               "### クラスごとの ex_ev（イベント直後 2 秒の Φ 超過）", "", q.per_class(r8, "ex_ev"), ""]
     r9 = E("E9")
     if r9:
         L += ["## E9 二次経路の推定誤差（G、a145、pc）", "",
-              "g0.7 / g1.4：利得誤差。n30 / n20：各タップに −30 / −20 dB の白色誤差。f0.25：0.25 サンプルの遅れ。d1：1 サンプルの遅れ。",
+              "g0.7 / g1.4：利得誤差。n30 / n20：白色タップ誤差の総エネルギー比 −30 / −20 dB。f0.25：0.25 サンプルの遅れ。d1：1 サンプルの遅れ。",
               "基準の規則（SF fix mu0.1、SF-V2、最終の則）も同じ Ŝ で動かす。", "",
               q.table(r9, ("L1_whole", "L1_first5", "L1_last10", "ex_0_1s", "ex_last10", "L1_pc15_17")), "",
               "### Ŝ ≠ S − Ŝ = S（同じ規則）", "", "| 規則 | L1 whole | L1 first5 | ex 0–1 s | L1 pc 15–17 |", "|---|---|---|---|---|"]
@@ -324,8 +335,11 @@ def check():
         r2, s2 = q.run_p2(data, Rall, st, q.config(base["early"], base["mu_e"], base["end"]), nb, o.X4)
         r3, s3 = run_p3(data, Rall, st, config(base), nb, o.X4)
         assert r3.restarts == r2.restarts and len(r3.restarts) == 1, (r3.restarts, r2.restarts)
-        np.testing.assert_allclose(s3["ex"], s2["ex"], rtol=1e-6)
-        assert (r3.frame.n_rebuilt > 0) == (base["early"] == "ND")
+        for key in ("e", "w", "ex"):
+            np.testing.assert_array_equal(s3[key], s2[key])
+        for key in ("mu_app", "restart_apply_block"):
+            np.testing.assert_array_equal(s3["tr"][key], s2["tr"][key])
+        assert r3.frame.n_rebuilt == (r2.frame.n_rebuilt if r2.frame is not None else 0)
         print(f"check 1 ok ({base['early']}): P3 without a gate equals P2; detection {r3.cands}")
     # 2. Split coherence: about 1/(1 + M/B) = 0.2 for a pure mismatch, about 0 for white noise at the error microphone.
     data, Rall, st = prep("G_s10", 300)
@@ -352,7 +366,11 @@ def check():
     print("check 3b ok: path change kept", rule.cands)
     # 4. Fractional-delay model: f0 equals the true path.
     d0, R0, s0 = prep("G_s10", 64, "f0")
-    np.testing.assert_allclose(d0["hS_model"][:len(d0["hS"])], d0["hS"], atol=1e-10)
+    np.testing.assert_array_equal(d0["hS_model"], d0["hS"])
+    d_ref, R_ref, s_ref = prep("G_s10", 64)
+    np.testing.assert_array_equal(d0["r"], d_ref["r"])
+    np.testing.assert_array_equal(R0, R_ref)
+    np.testing.assert_array_equal(s0.Srr, s_ref.Srr)
     print("check 4 ok")
 
 
