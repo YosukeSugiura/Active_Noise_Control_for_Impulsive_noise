@@ -253,3 +253,83 @@ missing rule; a stored `par` that differs -> recomputed from scratch; `--force` 
 Rule names: `SF-Y <est91|estX> delayopt g gam.03 [early|rs|early+rs]`, `SF-Y <est91|estX> delayopt g gam.1 early+rs`;
 controls `SF-Y estX delayopt g gam.03` (protoC2 best, = the estX base rule above), `SF-V2`, `SF+ramp`,
 `SF-D g gam0.03 a0 1`.
+
+---
+
+# protoC4: restart statistics that do not fire on bursts / SaS impulses (subcommands c5 / report4)
+
+Spec: the protoC4 task (RESULTS_protoC3.md: the old `rs` statistic fires 22-28 times per 30 s on BU and a120, ~10 on
+a145; THEORY_vss2.md 10.5). Only new rule names are added; every existing rule stays bitwise unchanged (check 21
+compares all 77 protoC / protoC2 / protoC3 rules with the protoC.py of commit 0073387, loaded with `git show`, on
+G_s0 and, for the SFY3 rules incl. the old rs restarts, on a120_s0; run the check inside the git checkout).
+
+New variants (suffix of `SF-Y <est91|estX> delayopt g gam.03`; class SFY4 / YEstRSX; same restart actions as `rs`:
+C, Q, k, ubar / delayed buffer reset, estX's kept (X, N) cleared, mu_state = mu_early and a new early phase):
+- `early+rsN` (the spec): z_n = sum e^2 / sum r^2 over the M = 512-sample error window of block n (the errors in the
+  direction's error frame, via Parseval of Ctx.E; r = `data['r']` = hS * x, the filtered reference; the method's
+  R_n = rfft(hS, N) x rfft(x frame) uses the same hS, so r is the method's filtered reference, as a linear
+  convolution). zbar = EMA with beta_z = `--z-beta` [0.05], never reset, started with z_0; restart when
+  z_n > `--z-thr` [4] x zbar_{n-1} for `--z-d` [2] consecutive blocks.
+- `early+rsN2` (added): rsN with sum r^2 over the 2M samples ending at the block end. The errors in the window depend
+  on r over 2M - 1 samples (M-tap filter); with the M window, z_n jumps for ~M/B = 4 blocks right after an impulse
+  leaves the r window while its filtered tail is still in e (seen in smoke: rsN 15-36 false restarts per 30 s on
+  a120 / a145 / II300 / pc, 0 on BU).
+- `early+rsG` (cheap alternative): |y_n|^2 / g_n^2 (no floor on g) against its own EMA (adaptive beta, started and
+  reset together with Q), `--r-thr`, `--rs-d` as rs. Note: the old statistic |u_n|^2 = |y_n|^2 / max(g_n, 0.25)^2
+  already divides the power by g^2 above the floor, so rsG differs from rs only for g < 0.25, by its own EMA and by
+  the guard.
+- rsN / rsN2 / rsG: no restart within `--rs-guard` [64] blocks of the previous restart (trigger counting held at 0).
+- Also available (not in the default list): `... rsN`, `rsN2`, `rsG` without early, and the gam.1 forms.
+
+Default c5 rule list (12): `SF-Y <est91|estX> delayopt g gam.03 <early+rsN|early+rsN2|early+rsG>` and the controls
+`SF-Y <est91|estX> delayopt g gam.03 <early|early+rs>`, `SF-V2`, `SF+ramp`.
+
+## 14. Self-check (45 s, ~250 MB)
+
+```bash
+python protoC.py check      # checks 1-20 + 21-24; must end with ALL CHECKS PASSED
+```
+
+New checks: (21) all 77 existing rules bitwise == 0073387 on G_s0 (200 blocks); all protoC3 SFY3 rules bitwise and
+same restart blocks on a120_s0 (600 blocks, old rs restarts 4-6 times); (22) YEstRSX 'G' with g = 1 and guard 0 ==
+YEstRS bitwise (C, Q, restarts); 'N' on a synthetic z sequence: zbar = EMA used before its update, a single spike
+ignored, a step restarts after d blocks, a step inside the guard ignored, a step after it restarts; (23) the error
+window energy (Parseval of Ctx.E) and the r window energy equal direct sums; (24) no restart on G_s0 (300 blocks) for
+the three variants; on pc_s0 (up to the change + 150 blocks) every restart sets mu_state = mu_early and the early
+flag, the statistic exceeds threshold x reference at the restart block, restarts are >= guard apart, and rsN2
+detects the change (rsN / rsG restart counts printed).
+
+## 15. Smoke runs (about 30 s; max 2 processes)
+
+```bash
+python protoC.py c5 --tags BU_s0,a120_s0,a145_s0,II300_s0 --nb 1250 --procs 2 --n-early 64 --force   # 12 rules, 15 s
+python protoC.py c5 --tags pc_s0,pcb_s0 --nb 3000 --procs 2 --n-early 64 --force \
+  --rules "SF-Y est91 delayopt g gam.03 early+rsN;SF-Y est91 delayopt g gam.03 early+rsN2;SF-Y est91 delayopt g gam.03 early+rsG;SF-Y est91 delayopt g gam.03 early+rs;SF-Y estX delayopt g gam.03 early+rsN2"   # 10 s
+python protoC.py report4 --smoke     # -> out/protoC_smoke/RESULTS_protoC4_smoke.md
+```
+
+`--n-early 64`: the protoC3 full run (RESULTS_protoC3.md, `x3_n_early = 64`) used a fixed early length of 64, so the
+early / early+rs controls of c5 reproduce the protoC3 numbers. Note: a finished tag (`done`) is skipped even when the
+constants differ; use `--force` when changing constants.
+
+## 16. Full runs
+
+```bash
+python protoC.py c5 --procs 2 --n-early 64   # G, BU, PS, a145, a120, pc, pcb, II300 x seeds 0,1,2 = 24 jobs, 12 rules each
+python protoC.py report4                     # -> atsip/explore/RESULTS_protoC4.md
+```
+
+Inputs / seeds: `--classes G,BU,PS,a145,a120,pc,pcb,II300 --seeds 0,1,2` (default) or `--tags`. Then commit
+`RESULTS_protoC4.md` only (nothing under `out/`).
+
+Estimated full runtime: ~20 s per job (smoke: 4 jobs x 12 rules x 1250 blocks in 15 s with 2 procs) -> ~5 min for 24
+jobs with 2 procs; report4 < 5 s. Peak RSS < 300 MB per process. Resume as c4 (`out/protoC/protoC_C5_<tag>.json/.npz`,
+rewritten after every rule, resumes at the first missing rule; a stored `par` that differs -> recomputed from
+scratch for unfinished tags; `--force` recomputes).
+
+## 17. Outputs (protoC4)
+
+| file | content |
+|---|---|
+| `out/protoC/protoC_C5_<tag>.json/.npz` | as C4; `par` also with `x4_*` (z_beta, z_thr, z_d, guard); per SFY3 / SFY4 rule `handover`, `early_frac`, `rs` (restart blocks, delays per change, false restarts, per 30 s); npz traces of SFY4 also `rsstat` (z_n or |y|^2/g^2) and `rsref` (zbar_{n-1} or its EMA) |
+| `RESULTS_protoC4.md` | `python protoC.py report4`: C5 tables in the C1 format, pcb change windows, early / restart table (as report3), restart table (false restarts per 30 s with min / max over seeds, total restarts per 30 s, delay and missed count per change) |

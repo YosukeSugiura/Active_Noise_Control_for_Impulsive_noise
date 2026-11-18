@@ -55,7 +55,16 @@ protoC3 (early phase from theory and adaptive smoothing; SF-Y <est91|estX> delay
   input  'pcb' (alpha 1.45, path -> pc path at 10 s, back at 20 s; vssT_lib.path_of via data['pseg'])
   c4 (closed loop), c4x (estimator diagnostic, own X_hat, restarts), report3 -> RESULTS_protoC3.md
 
+protoC4 (restart statistics; class SFY4 / YEstRSX; restart actions as rs; no restart within --rs-guard [64] blocks):
+  rsN    z_n = sum e^2 / sum r^2 over the M-sample error window (r = data['r'] = hS * x, the filtered reference),
+         zbar = EMA_{z_beta} (never reset); restart when z_n > z_thr zbar_{n-1} for z_d blocks (0.05, 4, 2)
+  rsN2   rsN with sum r^2 over the 2M samples ending at the block end (also the r samples that reach the window's
+         errors through the M-tap filter; rsN fires when an impulse has just left the r window)
+  rsG    |y_n|^2 / g_n^2 (no floor) against its own EMA (adaptive beta, reset with Q); r_thr, d as rs
+  rules  'SF-Y <est91|estX> delayopt g gam.03 early+rs<N|N2|G>'; c5 (closed loop), report4 -> RESULTS_protoC4.md
+
 Subcommands:  check | c1 | c2 | report [--smoke] | c3 | c2x | report2 [--smoke] | c4 | c4x | report3 [--smoke]
+              | c5 | report4 [--smoke]
   c1  closed loop, one job per tag (Pool <= 2), out/protoC/protoC_C1_<tag>.json/.npz (rewritten after every rule;
       a rerun resumes at the first missing rule)
   c2  tracking check: at sampled blocks, mu_state and target vs argmin of the T-step mean Phi-excess of a
@@ -64,6 +73,7 @@ Options: --tags / --classes --seeds, --nb (smoke -> out/protoC_smoke/), --procs,
   --f --tau-a --tau-m --heff --ck --gz --gm --dopt-T --dopt-k --mu-fmax --rec-db
   protoC2: --kappa --estx-a applied|state --det-rel --no-aq-cap --no-oracle
   protoC3: --early-k --n-early --ne-max --trust-q --trust-dec --beta-min --r-thr --rs-d --rs-kmin
+  protoC4: --z-beta --z-thr --z-d --rs-guard
 """
 import os, sys, json, time, glob, argparse, copy
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -979,13 +989,17 @@ def par3_desc(o):
     return dict(par2_desc(o), **{"x3_" + k: v for k, v in o.X3.items()}, x3_mu_early=o.mu_e)
 
 
-def c4_job(tag, o):
-    """protoC3 closed loop (as c1/c3; rewritten after every rule, resumes at the first missing rule)."""
-    nb = o.nb; t0 = time.time(); P = o.P; exp = "C4"
+def c4_job(tag, o, exp="C4"):
+    """protoC3 closed loop (as c1/c3; rewritten after every rule, resumes at the first missing rule).
+    exp 'C5' (protoC4): the rsN / rsG rules (make_rules4, C5_RULES, par4_desc)."""
+    nb = o.nb; t0 = time.time(); P = o.P
     dd, Rall, st = prep3(tag, nb)
     nbr = (len(dd["d"]) // B) if nb is None else nb
-    RR = make_rules3(nbr, P, o.X2, o.X3, o.mu_e)
-    pdesc = par3_desc(o); p0 = fpath(exp, tag, nb); chg = change_blocks(dd)
+    if exp == "C5":
+        RR = make_rules4(nbr, P, o.X2, o.X3, o.X4, o.mu_e, dd); pdesc = par4_desc(o); rdef = C5_RULES
+    else:
+        RR = make_rules3(nbr, P, o.X2, o.X3, o.mu_e); pdesc = par3_desc(o); rdef = C4_RULES
+    p0 = fpath(exp, tag, nb); chg = change_blocks(dd)
     res = dict(tag=tag, nb=nbr, pc=dd["pc"], pcb=bool(dd.get("pseg")), changes=chg, par=pdesc, rules={}, done=False)
     arrs = dict(g=np.asarray(st.g[:nbr], np.float32))
     if os.path.exists(p0) and not o.force:
@@ -995,7 +1009,7 @@ def c4_job(tag, o):
             q = fpath(exp, tag, nb, "npz")
             if os.path.exists(q):
                 arrs.update(dict(np.load(q)))
-    for name in (o.rules or C4_RULES):
+    for name in (o.rules or rdef):
         if name in res["rules"]:
             continue
         t1 = time.time(); rule = RR[name]()
@@ -1074,13 +1088,149 @@ def c4x_job(tag, o):
 
 
 # ==============================================================================================
+# protoC4: restart statistics that do not fire on bursts / SaS impulses ('rsN', 'rsG'; class SFY4 / YEstRSX)
+# ==============================================================================================
+X4_DEF = dict(z_beta=0.05, z_thr=4.0, z_d=2, guard=64)
+VARS4 = ("early+rsN", "early+rsN2", "early+rsG")
+REF_COMMIT4 = "0073387"     # protoC.py before the protoC4 extension
+
+
+def rwin_energy(dd, nbr, W=M):
+    """sum r^2 over the error window of every block: samples [i B + B - W, i B + B); W = M (default, rsN) = the M
+    errors in Ctx.E; W = 2M (rsN2) also covers the r samples that reach the window's errors through the M-tap filter.
+    r = data['r'] = hS * x, the filtered reference (Rall = rfft(hS, N) x rfft(x frame), the same hS)."""
+    r = np.asarray(dd["r"], float); cs = np.concatenate([[0.0], np.cumsum(r * r)])
+    out = np.empty(nbr)
+    for i in range(nbr):
+        hi = min(i * B + B, len(r)); lo = max(0, i * B + B - W)
+        out[i] = cs[hi] - cs[lo]
+    return out
+
+
+def ewin_energy(E):
+    """sum e^2 of the M errors in the zero-padded N-point frame E = rfft (Parseval, N even)."""
+    p = np.abs(E) ** 2
+    return float((p[0] + p[-1] + 2.0 * np.sum(p[1:-1])) / N)
+
+
+class YEstRSX(YEstRS):
+    """YEstRS (same adaptive beta, same restart actions) with another restart statistic, set by the rule before
+    update() through s.zin:
+      'N' (rsN)  s.zin = z_n = sum e^2 / sum r^2 over the error window; zbar = EMA_{z_beta} z, never reset (start: z of
+                 the first block); trigger z_n > z_thr * zbar_{n-1} (zbar before its update with z_n).
+      'G' (rsG)  s.zin = g_n; statistic |y_n|^2 / g_n^2 = |u_n|^2 max(g_n, gmin)^2 / g_n^2 (u = y / max(g, gmin)),
+                 compared with its own EMA (adaptive beta as Q, started and reset together with Q), r_thr, d as rs.
+    Restart after d consecutive triggers, not within `guard` blocks of the previous restart (trigger counting held at
+    0 inside the guard).  Restart actions = YEstRS (C = Q = None, k = 0, ubar / buffer rebuilt from the d - 1
+    previous blocks)."""
+
+    def __init__(s, L, bd, b, X3, X4, mode, gmin):
+        super().__init__(L, bd, b, X3)
+        s.mode, s.gmin, s.guard = mode, gmin, int(X4["guard"])
+        if mode == "N":
+            s.rthr, s.d, s.zb = X4["z_thr"], int(X4["z_d"]), X4["z_beta"]
+        elif mode != "G":
+            raise ValueError(mode)
+        s.zin = None; s.zbar = None; s.Zg = None; s.kZ = 0; s.last_rst = None; s.stat = np.nan; s.ref = np.nan
+
+    def update(s, i, u):
+        q = float(u @ u); s.restarted = False
+        if s.mode == "N":
+            z = float(s.zin); ref = s.zbar
+            if np.isfinite(z):
+                s.zbar = z if s.zbar is None else (1 - s.zb) * s.zbar + s.zb * z
+        else:
+            g = float(s.zin)
+            z = q * max(g, s.gmin) ** 2 / g ** 2 if g > 0 else np.nan; ref = s.Zg
+        s.stat, s.ref = z, (np.nan if ref is None else ref)
+        trig = ref is not None and np.isfinite(z) and z > s.rthr * ref
+        if s.last_rst is not None and i - s.last_rst < s.guard:
+            trig = False
+        s.cnt = s.cnt + 1 if trig else 0
+        s.raw = (s.raw + [u.copy()])[-s.d:]
+        if s.cnt >= s.d:
+            s.C = s.Q = None; s.kC = s.kQ = 0; s.cnt = 0; s.ubar = None; s.buf = [None] * s.L
+            s.Zg = None; s.kZ = 0
+            for uu in s.raw[:-1]:
+                s._push(uu)
+            s.restarted = True; s.nrst += 1; s.last_rst = i
+        old = s.buf[0]
+        if i >= s.L + 4 or s.nrst > 0:
+            bq = max(s.bmin, 1.0 / (s.kQ + 1))
+            s.Q = q if s.Q is None else (1 - bq) * s.Q + bq * q; s.kQ += 1
+            if s.mode == "G" and np.isfinite(z):
+                bz = max(s.bmin, 1.0 / (s.kZ + 1))
+                s.Zg = z if s.Zg is None else (1 - bz) * s.Zg + bz * z; s.kZ += 1
+            if old is not None:
+                c = float(u @ old); bc = max(s.bmin, 1.0 / (s.kC + 1))
+                s.C = c if s.C is None else (1 - bc) * s.C + bc * c; s.kC += 1
+        s._push(u)
+
+
+class SFY4(SFY3):
+    """SFY3 with the rs restart statistic replaced (mode 'N' = rsN, 'G' = rsG; see YEstRSX).  rw = rwin_energy(data)
+    (rsN only).  Restart actions as rs: estimator reset, estX's kept (X, N) cleared, mu_state = mu_early and the early
+    phase restarted with early.  Extra traces: 'rsstat' (z_n or |y|^2/g^2), 'rsref' (zbar_{n-1} or its EMA)."""
+
+    def __init__(s, est, gamma, P, X2, X3, X4, early, mode, mu_e, rw=None):
+        super().__init__(est, gamma, P, X2, X3, early, True, mu_e)
+        if mode == "N" and rw is None:
+            raise ValueError("rsN needs rw (rwin_energy of the input)")
+        s.mode, s.rw, s.X4 = mode, rw, X4
+        s.e2.y = YEstRSX(s.e2.y.L, s.e2.y.bd, s.e2.y.b, X3, X4, mode, P.gmin); s.est = s.e2.y
+        s.tr.update({k: [] for k in ("rsstat", "rsref")})
+
+    def block(s, i, c):
+        if s.mode == "N":
+            ee, rr = ewin_energy(c.E), float(s.rw[i])
+            s.est.zin = ee / rr if rr > 0 else np.nan
+        else:
+            s.est.zin = c.g
+        out = SFY3.block(s, i, c)
+        s.tr["rsstat"].append(s.est.stat); s.tr["rsref"].append(s.est.ref)
+        return out
+
+
+def rule_name4(est, gamma, var):
+    return rule_name3(est, gamma, var)
+
+
+C5_NEW = [rule_name4(e, 0.03, v) for e in EST3 for v in VARS4]
+C5_CTRL = [rule_name3(e, 0.03, v) for e in EST3 for v in ("early", "early+rs")]
+C5_RULES = C5_NEW + C5_CTRL + ["SF-V2", "SF+ramp"]
+DEF_CLASSES.update({"c5": "G,BU,PS,a145,a120,pc,pcb,II300"})
+DEF_SEEDS.update({"c5": "0,1,2"})
+
+
+def make_rules4(nbr, P, X2, X3, X4, mu_e, dd):
+    """make_rules3 plus 'SF-Y <est91|estX> delayopt g <gam> [early+]rs<N|G>'."""
+    R = make_rules3(nbr, P, X2, X3, mu_e)
+    rws = {"N": rwin_energy(dd, nbr), "N2": rwin_energy(dd, nbr, 2 * M)}
+    for e in EST3:
+        for g in GAMS:
+            for v in ("early+rsN", "early+rsN2", "early+rsG", "rsN", "rsN2", "rsG"):
+                md = v.split("rs")[-1]
+                R[rule_name4(e, g, v)] = (lambda e=e, g=g, v=v, md=md: SFY4(e, g, P, X2, X3, X4, v.startswith("early"),
+                                                                            md[0], mu_e, rws.get(md)))
+    return R
+
+
+def par4_desc(o):
+    return dict(par3_desc(o), **{"x4_" + k: v for k, v in o.X4.items()})
+
+
+def c5_job(tag, o):
+    return c4_job(tag, o, "C5")
+
+
+# ==============================================================================================
 # Job dispatch
 # ==============================================================================================
 def c3_job(tag, o):
     return c1_job(tag, o, "C3")
 
 
-JOBS = {"c1": c1_job, "c2": c2_job, "c3": c3_job, "c2x": c2x_job, "c4": c4_job, "c4x": c4x_job}
+JOBS = {"c1": c1_job, "c2": c2_job, "c3": c3_job, "c2x": c2x_job, "c4": c4_job, "c4x": c4x_job, "c5": c5_job}
 
 
 def _dispatch(a):
@@ -1096,7 +1246,7 @@ def main_jobs(cmd, o):
     todo = []
     for t in tags_of(cmd, o):
         p = fpath(cmd.upper(), t, o.nb)
-        if os.path.exists(p) and not o.force and json.load(open(p)).get("done") and not (cmd in ("c1", "c3", "c4") and o.rules):
+        if os.path.exists(p) and not o.force and json.load(open(p)).get("done") and not (cmd in ("c1", "c3", "c4", "c5") and o.rules):
             print("skip (done):", p); continue
         todo.append((cmd, t, o))
     print(f"{cmd.upper()}: {len(todo)} jobs, procs={o.procs}, nb={o.nb}, a*={o.P.astar:.4f} mu_D={o.P.mu_D:.3f}", flush=True)
@@ -1187,6 +1337,7 @@ def check(o):
     rep("continuation_corr (dp+g) == simulation (gamma = 0)", dc < 1e-9, f"rel diff {dc:.1e}")
     ok &= check2(o, dd, Rall, st)
     ok &= check3(o, dd, Rall, st)
+    ok &= check4(o, dd, Rall, st)
     print("ALL CHECKS PASSED" if ok else "SOME CHECKS FAILED", flush=True)
     return ok
 
@@ -1387,6 +1538,101 @@ def check3(o, dd, Rall, st):
         np.array_equal(db["x"], dp["x"]) and np.array_equal(db["d"][:n1], xo[:n1]) and np.array_equal(db["d"][n2:], xo[n2:])
         and np.array_equal(db["d"][n0:n2], dp["d"][n0:n2]) and np.array_equal(dp["d"][:n0], xo[:n0])
         and [path_of(db, i) for i in (0, n1 // B - 1, n1 // B, n2 // B - 1, n2 // B, 3749)] == [0, 0, 1, 1, 0, 0])
+    return ok
+
+
+def check4(o, dd, Rall, st):
+    """protoC4 checks (21-24)."""
+    ok = True
+
+    def rep(name, cond, msg=""):
+        nonlocal ok
+        ok &= bool(cond); print(f"[{'OK ' if cond else 'FAIL'}] {name} {msg}", flush=True)
+
+    P = o.P
+    same = lambda a, b: (np.array_equal(a["w"], b["w"]) and np.array_equal(a["e"], b["e"], equal_nan=True)
+                         and a["tr"].keys() == b["tr"].keys()
+                         and all(np.array_equal(a["tr"][k], b["tr"][k], equal_nan=True) for k in a["tr"]))
+    # 21. every protoC3 rule (incl. all SFY3 variants) and every existing rule bitwise == 0073387, on G_s0 and on
+    #     a120_s0 (where the old rs restarts)
+    try:
+        R0 = _ref_module(REF_COMMIT4)
+    except Exception as ex:
+        rep(f"reference module {REF_COMMIT4} loads", False, str(ex)); R0 = None
+    if R0 is not None:
+        X3 = o.X3
+        names_new = list(make_rules3(10, P, o.X2, X3, o.mu_e).keys())
+        names_old = list(R0.make_rules3(10, P, o.X2, X3, o.mu_e).keys())
+        bad = []; nbq = 200
+        RRn, RRo = make_rules4(nbq, P, o.X2, X3, o.X4, o.mu_e, dd), R0.make_rules3(nbq, P, o.X2, X3, o.mu_e)
+        for k in names_old:
+            if not same(simulate(dd, Rall, st, RRn[k](), nb=nbq), simulate(dd, Rall, st, RRo[k](), nb=nbq)):
+                bad.append(k)
+        rep(f"all {len(names_old)} existing rules (protoC / protoC2 / protoC3) bitwise == {REF_COMMIT4} on G_s0 "
+            f"({nbq} blocks)", not bad and names_new == names_old and R0.C4_RULES == C4_RULES,
+            f"mismatch: {bad[:3]}" if bad else "")
+        da, Ra, sa = prep3("a120_s0", 600); bad = []; nr = []
+        RRn, RRo = make_rules4(600, P, o.X2, X3, o.X4, o.mu_e, da), R0.make_rules3(600, P, o.X2, X3, o.mu_e)
+        for k in [n for n in names_old if isinstance(RRo[n](), R0.SFY3)]:
+            rn, ro = RRn[k](), RRo[k]()
+            if not same(simulate(da, Ra, sa, rn, nb=600), simulate(da, Ra, sa, ro, nb=600)) or rn.restarts != ro.restarts:
+                bad.append(k)
+            if getattr(rn, "rs", False):
+                nr.append(len(rn.restarts))
+        rep(f"all protoC3 SFY3 rules bitwise == {REF_COMMIT4} on a120_s0 (600 blocks, old rs restarts: {nr})",
+            not bad and sum(nr) > 0, f"mismatch: {bad[:3]}" if bad else "")
+    # 22. YEstRSX: 'G' with g = 1 and guard 0 == YEstRS (C, Q, restarts); 'N' logic on a synthetic z sequence
+    rng = np.random.default_rng(5); L_, b_ = P.L, P.b
+    U = rng.standard_normal((120, 16)); U[40] *= 10.0; U[60:] *= 10.0; U[90:] *= 10.0
+    a, bq = YEstRS(L_, P.bd, b_, o.X3), YEstRSX(L_, P.bd, b_, o.X3, dict(o.X4, guard=0), "G", P.gmin); good = True
+    for i, u in enumerate(U):
+        a.update(i, u); bq.zin = 1.0; bq.update(i, u)
+        good &= (a.C == bq.C and a.Q == bq.Q and a.restarted == bq.restarted and (a.Q is None or a.Q == bq.Zg))
+    rep("YEstRSX 'G' (g = 1, guard 0) == YEstRS bitwise (C, Q, restarts; its EMA == Q)", good and a.nrst == bq.nrst == 2,
+        f"restarts {a.nrst}")
+    X4 = o.X4; d_ = int(X4["z_d"]); gd = int(X4["guard"]); zt = X4["z_thr"]; bz = X4["z_beta"]
+    z = np.exp(0.1 * rng.standard_normal(200)); z[30] *= 50.0; z[80:] *= 50.0; z[80 + gd // 2:] *= 50.0
+    z[80 + gd + 20:] *= 50.0
+    ys = YEstRSX(L_, P.bd, b_, o.X3, X4, "N", P.gmin); rst = []; zb = None; zok = True
+    for i in range(200):
+        ys.zin = z[i]; ys.update(i, rng.standard_normal(16))
+        zok &= bool(np.isnan(ys.ref)) if zb is None else (ys.ref == zb)
+        zb = z[i] if zb is None else (1 - bz) * zb + bz * z[i]
+        zok &= ys.zbar == zb
+        if ys.restarted:
+            rst.append(i)
+    exp_r = [80 + d_ - 1, 80 + gd + 20 + d_ - 1]
+    rep(f"YEstRSX 'N': zbar = EMA({bz:g}) used before its update; single spike ignored (d = {d_}); step at 80 -> "
+        f"restart at {exp_r[0]}; step inside the {gd}-block guard ignored; step after it -> {exp_r[1]}",
+        zok and rst == exp_r, f"restarts {rst}")
+    # 23. window energies: Parseval of the error frame, r window
+    e = rng.standard_normal(5000); s0 = 20 * B
+    ok23 = abs(ewin_energy(ML.frame_E(e, s0, M)) - float(e[s0 + B - M:s0 + B] @ e[s0 + B - M:s0 + B])) < 1e-9 * M
+    rw = rwin_energy(dd, 30); r = dd["r"]
+    ok23 &= all(abs(rw[i] - float(r[max(0, i * B + B - M):i * B + B] @ r[max(0, i * B + B - M):i * B + B])) < 1e-9 * (1 + rw[i])
+                for i in (0, 1, 3, 4, 29))
+    rep("ewin_energy (Parseval of Ctx.E) == sum e^2 over the M-sample error window; rwin_energy == sum r^2 there", ok23)
+    # 24. SFY4 on G_s0 (no restart) and on pc_s0 up to 150 blocks after the change: restart actions (mu_state =
+    #     mu_early from the next block, early flag on, statistic > threshold x reference at the restart block);
+    #     rsN2 detects the change (rsN / rsG restart counts printed only)
+    RR = make_rules4(300, P, o.X2, o.X3, o.X4, o.mu_e, dd); msg = []; good = True
+    for v in VARS4:
+        rl = RR[rule_name4("estX", 0.03, v)](); simulate(dd, Rall, st, rl, nb=300)
+        msg.append(f"G_s0 {v}: {rl.restarts}"); good &= not rl.restarts
+    nbp = PC_BLOCK + 150; dp, Rp, sp = prep3("pc_s0", nbp); RR = make_rules4(nbp, P, o.X2, o.X3, o.X4, o.mu_e, dp)
+    for v in VARS4:
+        rl = RR[rule_name4("est91", 0.03, v)](); tr = simulate(dp, Rp, sp, rl, nb=nbp)["tr"]
+        thr = o.X4["z_thr"] if "rsN" in v else o.X3["r_thr"]
+        for j in rl.restarts:
+            good &= (tr["mu_state"][j + 1] == o.mu_e and tr["early"][j] == 1 and tr["restart"][j] == 1
+                     and tr["rsstat"][j] > thr * tr["rsref"][j])
+        good &= all(b - a >= o.X4["guard"] for a, b in zip(rl.restarts, rl.restarts[1:]))
+        hit = [r_ for r_ in rl.restarts if PC_BLOCK <= r_ < PC_BLOCK + 10]
+        if v == "early+rsN2":
+            good &= bool(hit)
+        msg.append(f"pc_s0 {v}: {len(rl.restarts)} restarts, at the change: {hit}")
+    rep("SFY4: no restart on G_s0 (300 blocks); pc_s0: restart actions and guard; rsN2 detects the change", good,
+        "; ".join(msg))
     return ok
 
 
@@ -1598,7 +1844,7 @@ def report2(o):
     print("wrote", p, f"({len(L)} lines)")
 
 
-def rep_c4_extra(J4):
+def rep_c4_extra(J4, vars_=VARS3[1:]):
     """pcb windows, early handover, restarts (per input class, mean over seeds)."""
     L = []
     byc = {}
@@ -1624,7 +1870,7 @@ def rep_c4_extra(J4):
           "| input | rule | handover (blocks) | early frac | false restarts / 30 s | delay change 1 | delay change 2 |",
           "|---|---|---|---|---|---|---|"]
     for c, rs in byc.items():
-        names = [k for k in dict.fromkeys(k for r in rs for k in r["rules"]) if k.split()[-1] in VARS3[1:]]
+        names = [k for k in dict.fromkeys(k for r in rs for k in r["rules"]) if k.split()[-1] in vars_]
         for k in names:
             rows = [r["rules"][k] for r in rs if k in r["rules"]]
             ho = [x["handover"][0] for x in rows if x.get("handover")]
@@ -1690,6 +1936,71 @@ def report3(o):
     print("wrote", p, f"({len(L)} lines)")
 
 
+def rep_c5_rs(J5):
+    """Restart table per input class and rule (seeds pooled)."""
+    L = ["### Restarts (rs / rsN / rsG rules; per input, over seeds)", "",
+         "false / 30 s = restarts not within 1 s after a true change, per 30 s of run (mean over seeds; [min, max]); "
+         "total = all restarts per 30 s; delay = blocks from the change to the first restart within 1 s (mean over the "
+         "detected changes); missed = changes with no restart within 1 s (count over seeds / number of changes).", "",
+         "| input | rule | false / 30 s | [min, max] | total / 30 s | delay change 1 | missed 1 | delay change 2 | missed 2 | n |",
+         "|---|---|---|---|---|---|---|---|---|---|"]
+    byc = {}
+    for t, r in J5.items():
+        byc.setdefault(cls_of(t), []).append(r)
+    for c, rs in byc.items():
+        names = [k for k in dict.fromkeys(k for r in rs for k in r["rules"]) if k.split()[-1] in VARS3[1:] + VARS4]
+        for k in names:
+            q = [r["rules"][k]["rs"] for r in rs if k in r["rules"] and "rs" in r["rules"][k]]
+            if not q:
+                continue
+            fr = [x["false_per30"] for x in q]
+            tot = [len(x["restarts"]) / (r["nb"] / BPS / 30.0) for x, r in zip(q, [r for r in rs if k in r["rules"] and "rs" in r["rules"][k]])]
+            cells = []
+            for j in range(2):
+                v = [x["delays"][j] for x in q if len(x["delays"]) > j]
+                fin = [x for x in v if np.isfinite(x)]
+                cells += ([fm(float(np.mean(fin)), 1) if fin else "NaN", f"{len(v) - len(fin)} / {len(v)}"] if v else ["-", "-"])
+            L.append(f"| {c} | {k} | {fm(float(np.mean(fr)))} | [{fm(min(fr))}, {fm(max(fr))}] | {fm(float(np.mean(tot)))} | "
+                     + " | ".join(cells) + f" | {len(q)} |")
+    L.append("")
+    return L
+
+
+def report4(o):
+    smoke = o.smoke
+    J5 = load("C5", smoke)
+    par = next(iter(J5.values()), {}).get("par", par4_desc(o))
+    X3 = {k[3:]: v for k, v in par.items() if k.startswith("x3_")}
+    X4 = {k[3:]: v for k, v in par.items() if k.startswith("x4_")}
+    L = ["# RESULTS protoC4: restart statistics rsN / rsG (SF-Y, 1/g, delayopt, early; prototype)", "",
+         f"Generated by `python protoC.py report4{' --smoke' if smoke else ''}` from out/{'protoC_smoke' if smoke else 'protoC'}/"
+         "protoC_C5_*.json.  dB conventions as in RESULTS_protoC.md (more negative is better).", "",
+         "Constants: " + ", ".join(f"{k} = {fm(v, 4) if isinstance(v, float) else v}" for k, v in par.items()), "",
+         "Variants (suffix of 'SF-Y <est91|estX> delayopt g gam.03'); early and rs as in RESULTS_protoC3.md "
+         f"(mu_early = {fm(X3.get('mu_early', np.nan), 3)}, n_e = "
+         + (f"{X3.get('n_early')} fixed" if X3.get("n_early") else f"trust rule, at most {X3.get('ne_max')}") + "):", "",
+         f"- rs (old): restart when |u_n|^2 > {X3.get('r_thr')} x Q_(n-1) for {X3.get('d')} consecutive blocks, "
+         "u = y / max(g, 0.25); no guard.",
+         f"- rsN: z_n = sum e^2 / sum r^2 over the M = {M}-sample error window of block n (e = the errors in the "
+         "direction's error frame; r = data['r'] = hS * x, the filtered reference whose spectrum the method uses); "
+         f"zbar = EMA (beta_z = {X4.get('z_beta')}) of z, never reset; restart when z_n > {X4.get('z_thr')} x zbar_(n-1) "
+         f"for {X4.get('z_d')} consecutive blocks.",
+         f"- rsG: |y_n|^2 / g_n^2 (no floor on g) against its own EMA (adaptive beta, started / reset with Q); "
+         f"r_thr = {X3.get('r_thr')}, d = {X3.get('d')}.",
+         f"- rsN and rsG: no restart within {X4.get('guard')} blocks of the previous restart; restart actions as rs "
+         "(C, Q, k, ubar / delayed buffer reset, estX's kept (X, N) cleared, mu_state = mu_early and a new early phase).", "",
+         "## C5: closed loop", ""]
+    L += rep_c1(J5) if J5 else ["(no outputs)", ""]
+    if J5:
+        L += rep_c4_extra(J5, VARS3[1:] + VARS4)
+        L += rep_c5_rs(J5)
+    p = os.path.join(HERE, "RESULTS_protoC4.md") if not smoke else os.path.join(OUT_SMOKE, "RESULTS_protoC4_smoke.md")
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    with open(p, "w") as f:
+        f.write("\n".join(L) + "\n")
+    print("wrote", p, f"({len(L)} lines)")
+
+
 def report(o):
     smoke = o.smoke
     J1, J2 = load("C1", smoke), load("C2", smoke)
@@ -1726,7 +2037,7 @@ def report(o):
 # ==============================================================================================
 def parse(argv):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=["check", "report", "c1", "c2", "c3", "c2x", "report2", "c4", "c4x", "report3"])
+    ap.add_argument("cmd", choices=["check", "report", "c1", "c2", "c3", "c2x", "report2", "c4", "c4x", "report3", "c5", "report4"])
     ap.add_argument("--classes"); ap.add_argument("--seeds"); ap.add_argument("--tags")
     ap.add_argument("--nb", type=int, default=None); ap.add_argument("--procs", type=int, default=2)
     ap.add_argument("--force", action="store_true"); ap.add_argument("--smoke", action="store_true")
@@ -1756,6 +2067,11 @@ def parse(argv):
     ap.add_argument("--r-thr", type=float, default=X3_DEF["r_thr"], help="protoC3 restart: |u|^2 > r_thr * Q")
     ap.add_argument("--rs-d", type=int, default=X3_DEF["d"], help="protoC3 restart: consecutive blocks")
     ap.add_argument("--rs-kmin", type=int, default=X3_DEF["rs_kmin"], help="protoC3 restart: min Q updates since restart")
+    ap.add_argument("--z-beta", type=float, default=X4_DEF["z_beta"], help="protoC4 rsN: EMA beta of z")
+    ap.add_argument("--z-thr", type=float, default=X4_DEF["z_thr"], help="protoC4 rsN: z_n > z_thr * zbar_(n-1)")
+    ap.add_argument("--z-d", type=int, default=X4_DEF["z_d"], help="protoC4 rsN: consecutive blocks")
+    ap.add_argument("--rs-guard", type=int, default=X4_DEF["guard"], help="protoC4 rsN / rsG: no restart within this "
+                    "many blocks of the previous one")
     o = ap.parse_args(argv)
     o.rules = o.rules.split(";") if o.rules else None
     o.X2 = dict(kappa=o.kappa, amode=o.estx_a, det_rel=o.det_rel, aq_cap=not o.no_aq_cap)
@@ -1764,8 +2080,9 @@ def parse(argv):
               ck=[float(v) for v in o.ck.split(",")], gz=o.gz, gm=o.gm, dopt_T=o.dopt_T, dopt_k=o.dopt_k, mu_fmax=o.mu_fmax)
     o.X3 = dict(early_k=o.early_k, n_early=o.n_early, ne_max=o.ne_max, trust_q=o.trust_q, trust_dec=o.trust_dec,
                 beta_min=o.beta_min, r_thr=o.r_thr, d=o.rs_d, rs_kmin=o.rs_kmin)
+    o.X4 = dict(z_beta=o.z_beta, z_thr=o.z_thr, z_d=o.z_d, guard=o.rs_guard)
     o.mu_e = mu_early_value(o.P, o.early_k)
-    if o.cmd in ("c4", "c4x", "check"):
+    if o.cmd in ("c4", "c4x", "c5", "check"):
         print(f"protoC3 early step mu_early = {o.mu_e:.3f} (K '{o.early_k}', N = 0, T = {o.P.dopt_T})", flush=True)
     return o
 
@@ -1780,5 +2097,7 @@ if __name__ == "__main__":
         report2(o)
     elif o.cmd == "report3":
         report3(o)
+    elif o.cmd == "report4":
+        report4(o)
     else:
         main_jobs(o.cmd, o)
