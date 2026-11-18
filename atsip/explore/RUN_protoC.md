@@ -168,3 +168,88 @@ Constants added (stored as `x2_*` in `par` of the C3 / C2X files): `--kappa` [1]
 
 Rule names: `SF-Y <est91|estL4|estX> <delayopt|onestep> g gam<.03|.1>`; controls `SF-Y delayopt g gam.03`
 (= protoC, identical to est91 delayopt g gam.03), `SF-V2`, `SF-D g gam0.03 a0 1`, `SF+ramp`.
+
+---
+
+# protoC3: early phase from theory (A) and adaptive smoothing with restarts (B) (subcommands c4 / c4x / report3)
+
+Spec: the protoC3 task (THEORY_vss2.md Sec. 10-11; RESULTS_protoC2.md C2X: X_hat, N_hat far too large in blocks
+8-63 and after the path change). Only the SF-Y rules with the 1/g correction and the delayopt target are varied.
+All existing rules stay bitwise unchanged (check 15 compares every protoC / protoC2 rule with the protoC.py of
+commit ac8eb5b, loaded with `git show`; run the check inside the git checkout).
+
+Variants (suffix of `SF-Y <est91|estX> delayopt g gam<.03|.1>`; no suffix = the protoC2 rule):
+- `early`: internal step (mu_state) = mu_early for the first n_e blocks after the start and after every restart,
+  then the delayopt EMA from mu_state = mu_early. mu_early = argmin of the delayopt model with N = 0 and the
+  injection mu^2 [1 + (2tau_m-1) f] h_eff^2 x (`--early-k full`, the spec; `excl1` = without the '1', as the
+  delayopt target's default), T = 8, 1e-3 grid: **0.678** with the default constants (a = 0.161 = a*, i.e. the
+  delayed-LMS optimum; `excl1` gives 0.694). Printed by `check`, `c4`, `c4x`.
+  n_e: `--n-early N` fixes it; default 0 = trust rule: the first block with the estimator ok, >= 2L blocks since the
+  (re)start, Q <= `--trust-q` [2] x mean |u|^2 of the last L blocks and that mean >= `--trust-dec` [0.5] x the mean of
+  the L blocks before; at most `--ne-max` [64].
+- `rs`: C and Q EMAs with beta_k = max(`--beta-min` [0.05], 1/(k+1)), k = updates since the last (re)start.
+  Restart: |u_n|^2 > `--r-thr` [4] x Q_{n-1} for `--rs-d` [2] consecutive blocks (`--rs-kmin` [0]: min. Q updates
+  since the last restart before detection). On a restart: C = Q = None, ubar and the lag-L buffer rebuilt from the
+  d - 1 previous trigger blocks (C resumes L - d + 1 blocks later, Q at once), estX's kept (X, N) cleared,
+  mu_state = mu_early (with early) or kept (rs alone; frozen until C is available again).
+- New input `pcb` (path change and back): alpha 1.45 as pc (same x per seed), primary path -> the pc path at 10 s,
+  back to the original at 20 s. Implemented in protoC (`data_pcb`) with a 6-line extension of `vssT_lib.path_of`
+  (optional `data['pseg']`; unchanged for every other input, checked).
+
+## 10. Self-check (22 s, ~200 MB)
+
+```bash
+python protoC.py check      # checks 1-14 + 15-20; must end with ALL CHECKS PASSED
+```
+
+New checks: (15) all 64 protoC / protoC2 rules bitwise == ac8eb5b, path_of unchanged without `pseg`;
+(16) SFY3 with early = rs = off == the protoC2 rule (bitwise); (17) YEstRS: running mean then EMA, no restart on
+stationary data, a single spike ignored, a step restarts after d blocks, C resumes L - d + 1 blocks later;
+(18) mu_early X-invariant (printed with a* / h_eff and the excl1 value), early phase with fixed n_e, trust-rule
+handover on G_s0; (19) pcb data segments == pc_s0 / original, path_of 0/1/0.
+
+## 11. Smoke runs (about 1.5 min; max 2 processes)
+
+```bash
+python protoC.py c4 --tags G_s0,BU_s0 --nb 600 --procs 2                       # 13 rules each, 5 s
+python protoC.py c4 --tags pc_s0,pcb_s0 --nb 3000 --procs 2 \
+  --rules "SF-Y estX delayopt g gam.03;SF-Y estX delayopt g gam.03 rs;SF-Y estX delayopt g gam.03 early+rs;SF-Y est91 delayopt g gam.03 early+rs"   # 8 s
+python protoC.py c4x --tags G_s0 --nb 2000 --procs 1                            # 10 drivers, 17 s
+python protoC.py c4x --tags pc_s0 --nb 2600 --procs 1                           # 22 s (may run beside the G_s0 one)
+python protoC.py report3 --smoke     # -> out/protoC_smoke/RESULTS_protoC3_smoke.md
+```
+
+(pc / pcb L1 windows need full-length runs; NaN in smoke by design.)
+
+## 12. Full runs
+
+Run one after the other (each uses 2 processes):
+
+```bash
+python protoC.py c4 --procs 2      # G, BU, PS, a145, a120, pc, pcb x seeds 0,1,2 = 21 jobs, 13 rules each
+python protoC.py c4x --procs 2     # G_s0, pc_s0; the 10 SF-Y drivers (no oracle)
+python protoC.py report3           # -> atsip/explore/RESULTS_protoC3.md
+```
+
+Inputs / seeds: `--classes G,BU,PS,a145,a120,pc,pcb --seeds 0,1,2` (c4 default), `--classes G,pc --seeds 0` (c4x
+default; c4x refuses pcb), or `--tags`. Then commit `RESULTS_protoC3.md` only (nothing under `out/`).
+
+Estimated full runtime: c4 ~20-25 s per job (measured: pcb_s0 full length, 2 rules, 5.6 s incl. data preparation)
+-> ~4-5 min for 21 jobs with 2 procs; c4x ~35 s per tag (both in parallel); report3 < 5 s. Peak RSS ~230 MB per
+process (measured, c4 full length). Total under 10 min.
+
+Resume: c4 as c1 / c3 (`out/protoC/protoC_C4_<tag>.json/.npz`, rewritten after every rule, resumes at the first
+missing rule; a stored `par` that differs -> recomputed from scratch; `--force` recomputes). c4x writes
+`out/protoC/protoC_C4X_<tag>.json/.npz` after every driver, restarts a tag from the first driver if killed.
+
+## 13. Outputs (protoC3)
+
+| file | content |
+|---|---|
+| `out/protoC/protoC_C4_<tag>.json/.npz` | as C1 / C3; `par` with `x3_*` (incl. `x3_mu_early`), `changes` (true change blocks); per SFY3 rule `handover` (blocks where an early phase ended), `early_frac`, `rs` (restart blocks, detection delays per change, false restarts, per 30 s); pcb: `pcb` (L1 and excess over 10-12, 15-20, 20-22, 25-30 s); npz traces also `early`, `restart` |
+| `out/protoC/protoC_C4X_<tag>.json/.npz` | as C2X without the oracle; `xstats` with pc split into +0-63 / +64-255 / +256.. blocks; `handover`, `rs` per driver; npz also `early`, `restart`, `mu_state` |
+| `RESULTS_protoC3.md` | `python protoC.py report3`: C4 tables in the C1 format, pcb change-window table, early / restart table, C4X own X_hat / X_true and N_hat / N_true per phase, restart times vs the true change |
+
+Rule names: `SF-Y <est91|estX> delayopt g gam.03 [early|rs|early+rs]`, `SF-Y <est91|estX> delayopt g gam.1 early+rs`;
+controls `SF-Y estX delayopt g gam.03` (protoC2 best, = the estX base rule above), `SF-V2`, `SF+ramp`,
+`SF-D g gam0.03 a0 1`.

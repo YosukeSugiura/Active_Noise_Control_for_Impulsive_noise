@@ -47,7 +47,15 @@ protoC2 (THEORY_vss2.md Sec. 11, estimator variants for the SF-Y rules with the 
        N_true / Q_frz from frozen probes at sampled blocks; C2 oracle argmin for the SF-Y drivers (--no-oracle)
   report2 -> RESULTS_protoC2.md
 
-Subcommands:  check | c1 | c2 | report [--smoke] | c3 | c2x | report2 [--smoke]
+protoC3 (early phase from theory and adaptive smoothing; SF-Y <est91|estX> delayopt g, class SFY3 / YEstRS):
+  early  internal step = mu_early (dopt model with N = 0, K 'full' = [1 + (2tm-1) f] h^2 x; 0.678 with the defaults)
+         for n_e blocks after the start / each restart (n_e: trust rule, at most 64, or --n-early), then delayopt EMA
+  rs     outer EMAs with beta_k = max(beta_min, 1/(k+1)); restart when |u_n|^2 > r_thr Q_{n-1} for d blocks
+  rules  'SF-Y <est> delayopt g gam.03 [early|rs|early+rs]', '... gam.1 early+rs'; no suffix = the protoC2 rule
+  input  'pcb' (alpha 1.45, path -> pc path at 10 s, back at 20 s; vssT_lib.path_of via data['pseg'])
+  c4 (closed loop), c4x (estimator diagnostic, own X_hat, restarts), report3 -> RESULTS_protoC3.md
+
+Subcommands:  check | c1 | c2 | report [--smoke] | c3 | c2x | report2 [--smoke] | c4 | c4x | report3 [--smoke]
   c1  closed loop, one job per tag (Pool <= 2), out/protoC/protoC_C1_<tag>.json/.npz (rewritten after every rule;
       a rerun resumes at the first missing rule)
   c2  tracking check: at sampled blocks, mu_state and target vs argmin of the T-step mean Phi-excess of a
@@ -55,6 +63,7 @@ Subcommands:  check | c1 | c2 | report [--smoke] | c3 | c2x | report2 [--smoke]
 Options: --tags / --classes --seeds, --nb (smoke -> out/protoC_smoke/), --procs, --force, --rules "a;b",
   --f --tau-a --tau-m --heff --ck --gz --gm --dopt-T --dopt-k --mu-fmax --rec-db
   protoC2: --kappa --estx-a applied|state --det-rel --no-aq-cap --no-oracle
+  protoC3: --early-k --n-early --ne-max --trust-q --trust-dec --beta-min --r-thr --rs-d --rs-kmin
 """
 import os, sys, json, time, glob, argparse, copy
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -621,13 +630,17 @@ def par2_desc(o):
     return dict(o.P.desc(), **{"x2_" + k: v for k, v in o.X2.items()})
 
 
-def phases2(nbr, pc):
-    """Diagnostic phases (blocks): early < 64, 64-256, 256-1024, > 1024 (pc: up to 15 s), pc: after 15 s."""
+def phases2(nbr, pc, fine=False):
+    """Diagnostic phases (blocks): early < 64, 64-256, 256-1024, > 1024 (pc: up to 15 s), pc: after 15 s.
+    fine (protoC3): pc also split into +0-63, +64-255, +256.. blocks after the change."""
     end1 = min(nbr, PC_BLOCK) if pc else nbr
     ph = {"8-63": (8, min(64, end1)), "64-255": (64, min(256, end1)), "256-1023": (256, min(1024, end1)),
           ">=1024": (1024, end1)}
     if pc:
         ph["pc >=15 s"] = (PC_BLOCK, nbr)
+        if fine:
+            ph.update({"pc +0-63": (PC_BLOCK, min(nbr, PC_BLOCK + 64)), "pc +64-255": (PC_BLOCK + 64, min(nbr, PC_BLOCK + 256)),
+                       "pc +256..": (PC_BLOCK + 256, nbr)})
     return {k: v for k, v in ph.items() if v[1] > v[0]}
 
 
@@ -686,7 +699,7 @@ class XHook:
             s.prb["Qfrz"].append(float(np.mean(np.sum(Uw ** 2, 1))))
 
 
-def xstats(rec, prb, own, nbr, pc):
+def xstats(rec, prb, own, nbr, pc, fine=False):
     """Per phase: median X_hat / X_true, fraction X_hat == 0, median N_hat / N_true at the probe blocks."""
     ii = np.asarray(rec["i"]); Xt = np.asarray(rec["Xtrue"], float)
     pi_ = np.asarray(prb["i"]); Nt = np.asarray(prb["Ntrue"], float)
@@ -694,7 +707,7 @@ def xstats(rec, prb, own, nbr, pc):
     if own is not None:
         cols = dict(own="own", **cols)
     out = {}
-    for ph, (a, b) in phases2(nbr, pc).items():
+    for ph, (a, b) in phases2(nbr, pc, fine).items():
         m = (ii >= a) & (ii < b); mp = (pi_ >= a) & (pi_ < b); d = {}
         for k in cols:
             X = np.asarray(own["X"] if k == "own" else rec[f"{k}_X"], float)
@@ -748,13 +761,326 @@ def c2x_job(tag, o):
 
 
 # ==============================================================================================
+# protoC3: early phase from theory (A, 'early') and adaptive smoothing with restarts (B, 'rs')
+# ==============================================================================================
+X3_DEF = dict(early_k="full", n_early=0, ne_max=64, trust_q=2.0, trust_dec=0.5, beta_min=0.05, r_thr=4.0, d=2,
+              rs_kmin=0)
+EARLY_GRID = np.round(np.arange(0.0, MU_MAX + 1e-9, 1e-3), 6)
+EST3 = ("est91", "estX")
+VARS3 = ("", "early", "rs", "early+rs")
+PCB_T = (10.0, 20.0)                # pcb: primary path changed at 10 s (to the pc path) and back at 20 s
+RS_TRUE_WIN = BPS                   # a restart within 1 s after a true change counts as a detection
+
+
+def mu_early_value(P, kmode="full"):
+    """Sec. 10.1-10.2 model with N = 0 (noise-free): argmin_mu of dopt_curve(X, 0) on a 1e-3 grid in [0, 1.5].
+    With N = 0 the model is homogeneous in X (m ~ sqrt X, p ~ X), so the argmin does not depend on X.
+    kmode 'full': injection mu^2 [1 + (2tm-1) f] h_eff^2 x (the K of Sec. 10.2, as in the protoC3 spec);
+    'excl1': the delayopt target's default (the '1' left out)."""
+    Pq = copy.copy(P); Pq.dopt_k = kmode
+    r2 = np.array([rho_delay(m * P.h, P.c) for m in EARLY_GRID]) ** 2
+    J = dopt_curve(1.0, 0.0, Pq, grid=EARLY_GRID, rho2=r2)
+    return float(EARLY_GRID[int(np.argmin(J))])
+
+
+class YEstRS(YEst):
+    """YEst with adaptive smoothing (rs): C, Q <- (1 - b_k) . + b_k new, b_k = max(beta_min, 1/(k+1)), k = updates
+    since the last (re)start (separate counts for C and Q).  Restart: |u_n|^2 > r_thr * Q_{n-1} for d consecutive
+    blocks (and at least rs_kmin Q updates since the last restart) -> C = Q = None, k = 0, ubar and the delayed buffer
+    are rebuilt from the d - 1 previous trigger blocks (no statistics), then u_n is processed; C resumes once the
+    lag-L partner is a post-restart vector (L - d + 1 blocks later), Q at once.  Before the first restart the
+    statistics start at block L + 4 as in YEst."""
+
+    def __init__(s, L, bd, b, X3):
+        super().__init__(L, bd, b)
+        s.bmin, s.rthr, s.d, s.kmin = X3["beta_min"], X3["r_thr"], int(X3["d"]), int(X3["rs_kmin"])
+        s.kC = s.kQ = 0; s.cnt = 0; s.raw = []; s.restarted = False; s.nrst = 0
+
+    def _push(s, u):
+        s.ubar = u.copy() if s.ubar is None else (1 - s.bd) * s.ubar + s.bd * u
+        s.buf = s.buf[1:] + [s.ubar.copy()]
+
+    def update(s, i, u):
+        q = float(u @ u); s.restarted = False
+        if s.Q is not None and s.kQ >= s.kmin:
+            s.cnt = s.cnt + 1 if q > s.rthr * s.Q else 0
+        s.raw = (s.raw + [u.copy()])[-s.d:]
+        if s.cnt >= s.d:
+            s.C = s.Q = None; s.kC = s.kQ = 0; s.cnt = 0; s.ubar = None; s.buf = [None] * s.L
+            for uu in s.raw[:-1]:
+                s._push(uu)
+            s.restarted = True; s.nrst += 1
+        old = s.buf[0]
+        if i >= s.L + 4 or s.nrst > 0:
+            bq = max(s.bmin, 1.0 / (s.kQ + 1))
+            s.Q = q if s.Q is None else (1 - bq) * s.Q + bq * q; s.kQ += 1
+            if old is not None:
+                c = float(u @ old); bc = max(s.bmin, 1.0 / (s.kC + 1))
+                s.C = c if s.C is None else (1 - bc) * s.C + bc * c; s.kC += 1
+        s._push(u)
+
+
+class SFY3(SFY):
+    """SF-Y <est> delayopt g <gam> with the protoC3 options (est in est91 / estX):
+      early  internal step = mu_early (constant, mu_early_value) for the first n_e blocks after the start (and after
+             every rs restart); n_e = X3 n_early if > 0, else the first block where X_hat is 'trusted', at most ne_max:
+             estimator ok, at least 2L blocks since the (re)start, Q <= trust_q * mean(|u|^2, last L blocks) (the outer
+             EMA no longer dominated by older, larger vectors) and mean(|u|^2, last L) >= trust_dec * mean(|u|^2, the L
+             blocks before) (the fast decay is over).  Then the delayopt EMA takes over from mu_state = mu_early.
+      rs     YEstRS (adaptive beta, restarts).  On a restart: mu_state = mu_early and the early phase restarts if early
+             is on, else mu_state is kept; estX's kept (X, N) for the det test is cleared.
+    The estimator (C, Q, X_hat, N_hat) runs during the early phase as well (traces), only the target is not used."""
+
+    def __init__(s, est, gamma, P, X2, X3, early, rs, mu_e):
+        super().__init__("Y", "delayopt", "g", gamma, P, mu_init=(mu_e if early else MU_INIT), est=est, X2=X2)
+        s.X3, s.early, s.rs, s.mu_e = X3, early, rs, mu_e
+        if rs:
+            s.e2.y = YEstRS(s.e2.y.L, s.e2.y.bd, s.e2.y.b, X3); s.est = s.e2.y
+        s.in_early = bool(early); s.ke = 0; s.qh = []; s.handover = []; s.restarts = []
+        s.tr.update({k: [] for k in ("early", "restart")})
+
+    def trusted(s, ok):
+        X3, L = s.X3, s.P.L
+        if X3["n_early"] > 0:
+            return s.ke >= X3["n_early"]
+        if s.ke >= X3["ne_max"]:
+            return True
+        if not ok or len(s.qh) < 2 * L:
+            return False
+        m1, m0 = float(np.mean(s.qh[-L:])), float(np.mean(s.qh[-2 * L:-L]))
+        return s.est.Q <= X3["trust_q"] * m1 and m1 >= X3["trust_dec"] * m0
+
+    def block(s, i, c):
+        dv, y, _ = sf_y(c)
+        py = float(y @ y)
+        fac, clp = s.factor(c.g, py, s.Qy)
+        Qy0 = s.Qy; s.Qy = s.ema_y(s.Qy, py)
+        mus = s.mu_state; mu = mus * fac
+        u = fac * y
+        s.est.update(i, u)
+        rst = int(bool(s.rs and s.est.restarted))
+        if rst:
+            s.restarts.append(i); s.e2.prev = None; s.qh = []
+            if s.early:
+                s.in_early = True; s.ke = 0
+        s.qh = (s.qh + [float(u @ u)])[-2 * s.P.L:]
+        X, Nn, xc, mfc, keep, ok = s.e2.solve(mus)
+        tgt = np.nan; stc = 0; ine = int(s.in_early)
+        if s.in_early:
+            s.ke += 1; s.mu_state = s.mu_e; tgt = s.mu_e
+            if s.trusted(ok):
+                s.in_early = False; s.handover.append(i)
+        elif ok:
+            tgt = mu_delayopt(X, Nn, s.P)
+            ns = (1 - s.gamma) * mus + s.gamma * tgt
+            s.mu_state = min(max(ns, 0.0), MU_MAX); stc = int(s.mu_state != ns)
+        s.e2.push_mu(mu, fac)
+        s.last = dict(mu_state=mus, target=tgt, fac=fac, Qy_after=s.Qy, Qy_before=Qy0)
+        t = s.tr
+        for k, v in (("mu_app", mu), ("mu_state", mus), ("target", tgt), ("X", X), ("N", Nn),
+                     ("C", s.est.C if s.est.C is not None else np.nan), ("Q", s.est.Q if s.est.Q is not None else np.nan),
+                     ("ypow", py), ("dpclip", clp), ("mufclamp", mfc), ("xclip", xc), ("stclip", stc),
+                     ("a", s.e2.a), ("rho", s.e2.rho), ("detkeep", keep), ("early", ine), ("restart", rst)):
+            t[k].append(v)
+        return mu, dv
+
+
+def rule_name3(est, gamma, var):
+    return rule_name2(est, "delayopt", "g", gamma) + (f" {var}" if var else "")
+
+
+C4_NEW = ([rule_name3(e, 0.03, v) for e in EST3 for v in VARS3] + [rule_name3(e, 0.1, "early+rs") for e in EST3])
+C4_RULES = C4_NEW + ["SF-V2", "SF+ramp", "SF-D g gam0.03 a0 1"]
+C4X_RULES = list(C4_NEW)
+DEF_CLASSES.update({"c4": "G,BU,PS,a145,a120,pc,pcb", "c4x": "G,pc"})
+DEF_SEEDS.update({"c4": "0,1,2", "c4x": "0"})
+
+
+def make_rules3(nbr, P, X2, X3, mu_e):
+    R = make_rules(nbr, P, X2)
+    for e in EST3:
+        for g in GAMS:
+            for v in VARS3[1:]:
+                R[rule_name3(e, g, v)] = (lambda e=e, g=g, v=v: SFY3(e, g, P, X2, X3, "early" in v, "rs" in v, mu_e))
+    return R
+
+
+def pcb_blocks():
+    return [int(t * FS) // B for t in PCB_T]
+
+
+def prep3(tag, nb=None):
+    """T.prep, plus class 'pcb' (data_pcb)."""
+    if cls_of(tag) != "pcb":
+        return T.prep(tag, nb)
+    dd = data_pcb(tag)
+    Rall = ML.prepass(dd)["Rall"]
+    if nb is not None:
+        Rall = Rall[:min(len(Rall), nb + 64)]
+    return dd, Rall, Stats(dd, Rall)
+
+
+def data_pcb(tag):
+    """Class 'pcb': alpha 1.45 input as pc (same x for the same seed); primary path -> the pc path (0.8 x, +8 samples)
+    at 10 s and back to the original at 20 s.  path_of via data['pseg']; data['pc'] = False so that the 15 s pc
+    windows / score_pc are not used."""
+    seed = int(tag.rsplit("_s", 1)[1])
+    x = O.cms_symmetric_stable(1.45, O.N_NOISE, seed)
+    dd = D.build(x)
+    hP = O.pad_or_trim(np.loadtxt(os.path.join(O.ROOT, "impulse_response/primary_ir.dat"), ndmin=1), M)
+    hPn = np.zeros(M); hPn[MFm.PC_DELAY:] = MFm.PC_SCALE * hP[:M - MFm.PC_DELAY]
+    n1, n2 = (int(t * FS) for t in PCB_T)
+    d_new = signal.lfilter(hPn, [1.0], x)
+    dd["d"] = np.concatenate([dd["d"][:n1], d_new[n1:n2], dd["d"][n2:]])
+    dd["w_opt"] = O.wiener_opt(dd["r"][n1:n2], dd["d"][n1:n2])
+    dd["pc"] = False; dd["pseg"] = [(n1 // B, 1), (n2 // B, 0)]; dd["tag"] = tag
+    return dd
+
+
+def change_blocks(dd):
+    if dd.get("pseg"):
+        return [b for b, _ in dd["pseg"]]
+    return [PC_BLOCK] if dd.get("pc") else []
+
+
+def restart_stats(rst, changes, nbr):
+    """Restart blocks vs true change blocks: delay (blocks) of the first restart within RS_TRUE_WIN after each change
+    (NaN: missed), false restarts = all others, per 30 s of run."""
+    rst = list(rst); used = set(); delays = []
+    for cb in changes:
+        if cb >= nbr:
+            continue
+        hit = [r for r in rst if cb <= r < cb + RS_TRUE_WIN]
+        delays.append(float(hit[0] - cb) if hit else np.nan)
+        if hit:
+            used.add(hit[0])
+    nf = sum(1 for r in rst if r not in used)
+    return dict(restarts=[int(r) for r in rst], delays=delays, n_false=nf, false_per30=nf / (nbr / BPS / 30.0))
+
+
+def pcb_summ(sim, dd, nbr):
+    ex = sim["ex"]; out = {}
+    b1, b2 = pcb_blocks()
+    win = {"10-12": (b1, b1 + 2 * BPS), "15-20": (15 * BPS, b2), "20-22": (b2, b2 + 2 * BPS), "25-30": (25 * BPS, 30 * BPS)}
+    for k, (a, b) in win.items():
+        out["ex_" + k] = dbm(ex[a:b]) if nbr >= b else np.nan
+    e = sim["e"]
+    if (not sim["div"]) and np.isfinite(e).all() and len(e) == len(dd["d"]):
+        anr = O.anr_curve(e, dd["d"]); ts = (63 + 64 * np.arange(len(anr))) / FS
+        for k, (a, b) in win.items():
+            m = (ts >= a / BPS) & (ts < b / BPS); out["L1_" + k] = float(anr[m].mean())
+    else:
+        for k in win:
+            out["L1_" + k] = np.nan
+    return out
+
+
+def par3_desc(o):
+    return dict(par2_desc(o), **{"x3_" + k: v for k, v in o.X3.items()}, x3_mu_early=o.mu_e)
+
+
+def c4_job(tag, o):
+    """protoC3 closed loop (as c1/c3; rewritten after every rule, resumes at the first missing rule)."""
+    nb = o.nb; t0 = time.time(); P = o.P; exp = "C4"
+    dd, Rall, st = prep3(tag, nb)
+    nbr = (len(dd["d"]) // B) if nb is None else nb
+    RR = make_rules3(nbr, P, o.X2, o.X3, o.mu_e)
+    pdesc = par3_desc(o); p0 = fpath(exp, tag, nb); chg = change_blocks(dd)
+    res = dict(tag=tag, nb=nbr, pc=dd["pc"], pcb=bool(dd.get("pseg")), changes=chg, par=pdesc, rules={}, done=False)
+    arrs = dict(g=np.asarray(st.g[:nbr], np.float32))
+    if os.path.exists(p0) and not o.force:
+        old = json.load(open(p0))
+        if old.get("nb") == nbr and old.get("par") == json.loads(json.dumps(pdesc)):
+            res["rules"] = old["rules"]
+            q = fpath(exp, tag, nb, "npz")
+            if os.path.exists(q):
+                arrs.update(dict(np.load(q)))
+    for name in (o.rules or C4_RULES):
+        if name in res["rules"]:
+            continue
+        t1 = time.time(); rule = RR[name]()
+        sim = simulate(dd, Rall, st, rule, nb=nbr)
+        mt = metrics(sim, dd)
+        r = dict(**mt, **summaries(sim, dd, nbr, o.rec_db), sec=time.time() - t1)
+        r["amp"] = bool((not r["div"]) and np.isfinite(r["L1"][0]) and r["L1"][0] > 0)
+        if res["pcb"]:
+            r["pcb"] = pcb_summ(sim, dd, nbr)
+        tr = sim["tr"]; arrs[name + "|ex"] = np.asarray(sim["ex"], np.float32)
+        for k, v in tr.items():
+            arrs[name + "|" + k] = np.asarray(v, np.float32)
+        mua = np.asarray(tr["mu_app"], float)
+        r["mu_app_ph"] = {k: (float(np.mean(mua[a:b])) if b > a and b <= len(mua) else np.nan) for k, (a, b) in phases(nbr).items()}
+        if dd["pc"] and len(mua) > PC_BLOCK:
+            r["mu_app_ph"]["pc15-17"] = float(np.mean(mua[PC_BLOCK:PC_BLOCK + 2 * BPS]))
+        if "mu_state" in tr:
+            r["zero_frac"], r["zero_run"] = zero_stats(tr["mu_state"])
+            for k in ("dpclip", "mufclamp", "xclip", "stclip", "detkeep"):
+                if k in tr and len(tr[k]):
+                    r["frac_" + k] = float(np.mean(tr[k]))
+        if isinstance(rule, SFY3):
+            r["handover"] = [int(b) for b in rule.handover]
+            r["early_frac"] = float(np.mean(tr["early"])) if len(tr["early"]) else np.nan
+            if rule.rs:
+                r["rs"] = restart_stats(rule.restarts, chg, len(mua))
+        res["rules"][name] = r
+        save(exp, tag, nb, res, arrs)
+        extra = ""
+        if isinstance(rule, SFY3):
+            extra = f" handover {r['handover'][:4]}" + (f" restarts {r['rs']['restarts'][:6]}" if rule.rs else "")
+        print(f"[{exp} {tag}] {name}: L1 {np.round(r['L1'], 2)} ex1s {r['ex_first1']:.2f} last10 {r['ex_last10']:.2f} dB "
+              f"div={r['div']} amp={r['amp']}{extra} ({r['sec']:.1f} s, total {time.time() - t0:.0f} s)", flush=True)
+    res["done"] = True; save(exp, tag, nb, res, arrs)
+    return tag
+
+
+def c4x_job(tag, o):
+    """Estimator diagnostic for the protoC3 rules (C2X without the oracle; XHook shadows are computed as in c2x but
+    report3 shows the driver's own X_hat, N_hat).  Also restart times vs the true change."""
+    nb = o.nb; t0 = time.time(); P = o.P
+    dd, Rall, st = prep3(tag, nb)
+    if dd.get("pseg"):
+        raise ValueError("c4x supports G / pc style inputs only (pcb probes would straddle the changes)")
+    nbr = (len(dd["d"]) // B) if nb is None else nb
+    vfp = {0: fixed_point(("SF",), 0), 1: fixed_point(("SF",), 1)}
+    probes = [b for b in C2X_PROBE if b < nbr]
+    if dd["pc"]:
+        probes = sorted(set(probes + [PC_BLOCK + k for k in C2_PC if PC_BLOCK + k < nbr]))
+    RR = make_rules3(nbr, P, o.X2, o.X3, o.mu_e)
+    chg = change_blocks(dd)
+    res = dict(tag=tag, nb=nbr, pc=dd["pc"], changes=chg, par=par3_desc(o), probes=probes, rules={}, done=False)
+    arrs = {}
+    for name in (o.rules or C4X_RULES):
+        rule = RR[name]()
+        hk = XHook(dd, Rall, st, P, o.X2, vfp, probes, nbr, None)
+        sim = simulate(dd, Rall, st, rule, nb=nbr, hook=hk)
+        n_ = len(hk.rec["i"]); own = dict(X=sim["tr"]["X"][:n_], N=sim["tr"]["N"][:n_])
+        x = dict(div=sim["div"], probe=hk.prb, xstats=xstats(hk.rec, hk.prb, own, nbr, dd["pc"], fine=True))
+        if isinstance(rule, SFY3):
+            x["handover"] = [int(b) for b in rule.handover]
+            if rule.rs:
+                x["rs"] = restart_stats(rule.restarts, chg, len(sim["tr"]["mu_app"]))
+        res["rules"][name] = x
+        for k, v in hk.rec.items():
+            arrs[name + "|" + k] = np.asarray(v, float)
+        arrs[name + "|own_X"] = own["X"]; arrs[name + "|own_N"] = own["N"]
+        for k in ("early", "restart", "mu_state"):
+            if k in sim["tr"]:
+                arrs[name + "|" + k] = np.asarray(sim["tr"][k], float)
+        save("C4X", tag, nb, res, arrs)
+        print(f"[C4X {tag}] {name}: div={sim['div']} handover {x.get('handover')} "
+              f"restarts {x.get('rs', {}).get('restarts')} ({time.time() - t0:.0f} s)", flush=True)
+    res["done"] = True; save("C4X", tag, nb, res, arrs)
+    return tag
+
+
+# ==============================================================================================
 # Job dispatch
 # ==============================================================================================
 def c3_job(tag, o):
     return c1_job(tag, o, "C3")
 
 
-JOBS = {"c1": c1_job, "c2": c2_job, "c3": c3_job, "c2x": c2x_job}
+JOBS = {"c1": c1_job, "c2": c2_job, "c3": c3_job, "c2x": c2x_job, "c4": c4_job, "c4x": c4x_job}
 
 
 def _dispatch(a):
@@ -770,7 +1096,7 @@ def main_jobs(cmd, o):
     todo = []
     for t in tags_of(cmd, o):
         p = fpath(cmd.upper(), t, o.nb)
-        if os.path.exists(p) and not o.force and json.load(open(p)).get("done") and not (cmd in ("c1", "c3") and o.rules):
+        if os.path.exists(p) and not o.force and json.load(open(p)).get("done") and not (cmd in ("c1", "c3", "c4") and o.rules):
             print("skip (done):", p); continue
         todo.append((cmd, t, o))
     print(f"{cmd.upper()}: {len(todo)} jobs, procs={o.procs}, nb={o.nb}, a*={o.P.astar:.4f} mu_D={o.P.mu_D:.3f}", flush=True)
@@ -860,6 +1186,7 @@ def check(o):
     dc = np.max(np.abs(cont - full["ex"][50:62]) / full["ex"][50:62])
     rep("continuation_corr (dp+g) == simulation (gamma = 0)", dc < 1e-9, f"rel diff {dc:.1e}")
     ok &= check2(o, dd, Rall, st)
+    ok &= check3(o, dd, Rall, st)
     print("ALL CHECKS PASSED" if ok else "SOME CHECKS FAILED", flush=True)
     return ok
 
@@ -867,13 +1194,13 @@ def check(o):
 REF_COMMIT = "1b0f256"      # protoC.py before the protoC2 extension (reference for the bitwise check)
 
 
-def _ref_module():
+def _ref_module(commit=REF_COMMIT):
     import subprocess, importlib.util, tempfile
-    src = subprocess.run(["git", "show", f"{REF_COMMIT}:atsip/explore/protoC.py"], cwd=HERE, capture_output=True,
+    src = subprocess.run(["git", "show", f"{commit}:atsip/explore/protoC.py"], cwd=HERE, capture_output=True,
                          text=True, check=True).stdout
-    d = tempfile.mkdtemp(prefix="protoC_ref_"); f = os.path.join(d, "protoC_ref.py")
+    d = tempfile.mkdtemp(prefix="protoC_ref_"); f = os.path.join(d, f"protoC_ref_{commit}.py")
     open(f, "w").write(src.replace("HERE = os.path.dirname(os.path.abspath(__file__))", f"HERE = {HERE!r}"))
-    spec = importlib.util.spec_from_file_location("protoC_ref", f); m = importlib.util.module_from_spec(spec)
+    spec = importlib.util.spec_from_file_location(f"protoC_ref_{commit}", f); m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
     return m
 
@@ -965,6 +1292,104 @@ def check2(o, dd, Rall, st):
     return ok
 
 
+REF_COMMIT3 = "ac8eb5b"     # protoC.py before the protoC3 extension
+
+
+def check3(o, dd, Rall, st):
+    """protoC3 checks (15-20)."""
+    ok = True
+
+    def rep(name, cond, msg=""):
+        nonlocal ok
+        ok &= bool(cond); print(f"[{'OK ' if cond else 'FAIL'}] {name} {msg}", flush=True)
+
+    P = o.P; nbq = 200
+    same = lambda a, b: (np.array_equal(a["w"], b["w"]) and np.array_equal(a["e"], b["e"], equal_nan=True)
+                         and a["tr"].keys() == b["tr"].keys()
+                         and all(np.array_equal(a["tr"][k], b["tr"][k], equal_nan=True) for k in a["tr"]))
+    # 15. all existing rules bitwise == ac8eb5b (protoC + protoC2 rules and the protoC2 controls)
+    try:
+        R0 = _ref_module(REF_COMMIT3)
+    except Exception as ex:
+        rep(f"reference module {REF_COMMIT3} loads", False, str(ex)); R0 = None
+    if R0 is not None:
+        P0 = R0.Par(f=P.f, ta=P.ta, tm=P.tm, heff=P.h, ck=P.c, gz=P.gz, gm=P.gm, dopt_T=P.dopt_T, dopt_k=P.dopt_k,
+                    mu_fmax=None if abs(P.mu_fmax - 0.75 / (P.h * (P.ta - 1))) < 1e-15 else P.mu_fmax)
+        names = R0.SFY_NAMES + R0.C3_RULES
+        RRn, RRo = make_rules3(nbq, P, o.X2, o.X3, o.mu_e), R0.make_rules(nbq, P0, o.X2); bad = []
+        for k in names:
+            if not same(simulate(dd, Rall, st, RRn[k](), nb=nbq), simulate(dd, Rall, st, RRo[k](), nb=nbq)):
+                bad.append(k)
+        rep(f"all {len(names)} protoC / protoC2 rules bitwise == {REF_COMMIT3} (w, e, traces; {nbq} blocks)",
+            not bad and R0.SFY_NAMES == SFY_NAMES and R0.C3_RULES == C3_RULES, f"mismatch: {bad[:3]}" if bad else "")
+    # path_of unchanged for the existing inputs (pseg absent)
+    dpc = dict(pc=True); dG = dict(pc=False)
+    rep("vssT_lib.path_of unchanged without 'pseg' (pc: i >= PC_BLOCK, others 0)",
+        all(path_of(dpc, i) == int(i >= PC_BLOCK) and path_of(dG, i) == 0 for i in range(0, 3750)))
+    # 16. SFY3 with early = rs = False == the protoC2 rule (bitwise w, e, shared traces)
+    bad = []
+    for e in EST3:
+        for g in GAMS:
+            a = simulate(dd, Rall, st, SFY3(e, g, P, o.X2, o.X3, False, False, o.mu_e), nb=300)
+            b = simulate(dd, Rall, st, SFY("Y", "delayopt", "g", g, P, est=e, X2=o.X2), nb=300)
+            if not (np.array_equal(a["w"], b["w"]) and np.array_equal(a["e"], b["e"])
+                    and all(np.array_equal(a["tr"][k], b["tr"][k], equal_nan=True) for k in b["tr"])):
+                bad.append((e, g))
+    rep("SFY3(early = rs = off) == SF-Y <est> delayopt g <gam> (bitwise, 300 blocks)", not bad, str(bad) if bad else "")
+    # 17. YEstRS: running mean then EMA(beta_min); restart logic on a synthetic sequence
+    rng = np.random.default_rng(3); L_, b_ = P.L, P.b
+    for bd in (P.bd, 1.0):
+        ys = YEstRS(L_, bd, b_, o.X3); U = rng.standard_normal((60, 16)); qs, cs = [], []
+        ubar = None; buf = [None] * L_; Qr = Cr = None; kq = kc = 0
+        for i, u in enumerate(U):
+            ys.update(i, u)
+            old = buf[0]
+            if i >= L_ + 4:
+                bq = max(o.X3["beta_min"], 1 / (kq + 1)); Qr = u @ u if Qr is None else (1 - bq) * Qr + bq * (u @ u); kq += 1
+                bc = max(o.X3["beta_min"], 1 / (kc + 1)); Cr = u @ old if Cr is None else (1 - bc) * Cr + bc * (u @ old); kc += 1
+            ubar = u.copy() if ubar is None else (1 - bd) * ubar + bd * u; buf = buf[1:] + [ubar.copy()]
+            if i == L_ + 4 + 9:
+                qm = float(np.mean([v @ v for v in U[L_ + 4:i + 1]]))
+                okm = abs(ys.Q - qm) < 1e-12 * qm
+        rep(f"YEstRS (bd = {bd:g}): Q = running mean for k < 1/beta_min, then EMA; C likewise; no restart on "
+            "stationary data", okm and abs(ys.Q - Qr) < 1e-12 * abs(Qr) and abs(ys.C - Cr) < 1e-9 * abs(Qr)
+            and ys.nrst == 0, f"Q {ys.Q:.5g} ref {Qr:.5g}")
+    ys = YEstRS(L_, 1.0, b_, o.X3); U = rng.standard_normal((80, 16)); U[40] *= 10.0; U[60:] *= 10.0
+    log = []
+    for i, u in enumerate(U):
+        ys.update(i, u); log.append((i, ys.restarted, ys.C is None))
+    rst = [i for i, r, _ in log if r]
+    d_ = int(o.X3["d"]); cnone = [i for i, _, cn in log if cn and i >= 60]
+    exp_r = [60 + d_ - 1] if d_ > 1 else [40, 60]
+    rep(f"YEstRS restart: single spike (block 40) ignored for d = {d_}; step at 60 -> restart at {60 + d_ - 1}; "
+        f"C resumes L - d + 1 blocks later", rst == exp_r and cnone == list(range(60 + d_ - 1, 60 + L_)),
+        f"restarts {rst}, C None at {cnone}")
+    # 18. early value: X-invariant; SFY3 early phase with fixed n_e
+    me = o.mu_e; Pq = copy.copy(P); Pq.dopt_k = o.X3["early_k"]
+    r2 = np.array([rho_delay(m * P.h, P.c) for m in EARLY_GRID]) ** 2
+    m7 = float(EARLY_GRID[int(np.argmin(dopt_curve(7.0, 0.0, Pq, grid=EARLY_GRID, rho2=r2)))])
+    rep(f"early value (dopt with N = 0, K '{o.X3['early_k']}', T = {P.dopt_T}) X-invariant", m7 == me,
+        f"mu_early = {me:.3f} (a = {me * P.h:.4f}; a*/h_eff = {P.mu_D:.3f}; 'excl1': {mu_early_value(P, 'excl1'):.3f}; "
+        f"40-point delayopt grid at (1, 0): {mu_delayopt(1.0, 0.0, P):.3f})")
+    X3f = dict(o.X3, n_early=20)
+    rl = SFY3("estX", 0.03, P, o.X2, X3f, True, False, me); sim = simulate(dd, Rall, st, rl, nb=60)
+    ms = sim["tr"]["mu_state"]; ea = sim["tr"]["early"]
+    rep("SFY3 early (n_early = 20): mu_state = mu_early for blocks 0-20, early flag 0-19, handover at 19, then the "
+        "delayopt EMA", np.all(ms[:21] == me) and np.all(ea[:20] == 1) and np.all(ea[20:] == 0) and rl.handover == [19]
+        and abs(ms[21] - min(max(0.97 * me + 0.03 * sim["tr"]["target"][20], 0), MU_MAX)) < 1e-15)
+    rl = SFY3("estX", 0.03, P, o.X2, o.X3, True, True, me); sim = simulate(dd, Rall, st, rl, nb=300)
+    rep("SFY3 early+rs on G_s0 (300 blocks): handover at the trust rule (<= ne_max), no restart", len(rl.handover) == 1
+        and rl.handover[0] <= o.X3["ne_max"] - 1 and not rl.restarts, f"handover {rl.handover} restarts {rl.restarts}")
+    # 19. pcb data: segments equal pc_s0 / original; path_of
+    dp = T.data("pc_s0"); db = data_pcb("pcb_s0"); n1, n2 = (int(t * FS) for t in PCB_T); n0 = PC_BLOCK * B
+    xo = D.build(dp["x"])["d"]
+    rep("pcb data: d = original before 10 s and after 20 s, = pc path in 15-20 s (== pc_s0); path_of 0/1/0",
+        np.array_equal(db["x"], dp["x"]) and np.array_equal(db["d"][:n1], xo[:n1]) and np.array_equal(db["d"][n2:], xo[n2:])
+        and np.array_equal(db["d"][n0:n2], dp["d"][n0:n2]) and np.array_equal(dp["d"][:n0], xo[:n0])
+        and [path_of(db, i) for i in (0, n1 // B - 1, n1 // B, n2 // B - 1, n2 // B, 3749)] == [0, 0, 1, 1, 0, 0])
+    return ok
+
+
 # ==============================================================================================
 # Report
 # ==============================================================================================
@@ -988,6 +1413,8 @@ def cls_of(tag):
 
 
 def cdesc(c):
+    if c == "pcb":
+        return "path change at 10 s and back at 20 s (alpha 1.45)"
     if c in CLASS_DESC:
         return CLASS_DESC[c]
     if c.startswith("II"):
@@ -1085,7 +1512,8 @@ def rep_c2(J, full=True):
     return L
 
 
-def rep_c2x(J):
+def rep_c2x(J, ests=None):
+    """ests: estimator rows to show (default: own (if present) + the EST2 shadows)."""
     L = []
     for t, r in J.items():
         rules = r["rules"]
@@ -1100,6 +1528,8 @@ def rep_c2x(J):
         for rn, x in rules.items():
             xs = x["xstats"]
             for k in (["own"] if "own" in xs[phs[0]] else []) + list(EST2):
+                if ests is not None and k not in ests:
+                    continue
                 L.append(f"| {rn} | {k} | " + " | ".join(f"{fm(xs[p][k]['xr'], 3)} ({fm(xs[p][k]['x0'], 2)})" for p in phs) + " |")
         L += ["", "N_hat / N_true at the probe blocks (median; N_true = mean |u|^2 with w frozen at the SF fixed point "
               "of that path over the 32 blocks around the probe):", "",
@@ -1107,6 +1537,8 @@ def rep_c2x(J):
         for rn, x in rules.items():
             xs = x["xstats"]
             for k in (["own"] if "own" in xs[phs[0]] else []) + list(EST2):
+                if ests is not None and k not in ests:
+                    continue
                 L.append(f"| {rn} | {k} | " + " | ".join(fm(xs[p][k]["nr"], 3) for p in phs) + " |")
         L += ["", "Scale (median over the phase, per driver): X_true and N_true.", "",
               "| driver | quantity | " + " | ".join(phs) + " |", "|---" * (len(phs) + 2) + "|"]
@@ -1166,6 +1598,98 @@ def report2(o):
     print("wrote", p, f"({len(L)} lines)")
 
 
+def rep_c4_extra(J4):
+    """pcb windows, early handover, restarts (per input class, mean over seeds)."""
+    L = []
+    byc = {}
+    for t, r in J4.items():
+        byc.setdefault(cls_of(t), []).append(r)
+    pcbs = {c: rs for c, rs in byc.items() if rs[0].get("pcb")}
+    for c, rs in pcbs.items():
+        names = list(dict.fromkeys(k for r in rs for k in r["rules"]))
+        ks = ["10-12", "15-20", "20-22", "25-30"]
+        L += [f"### {c}: change windows (path -> pc path at 10 s, back at 20 s; tags: {', '.join(sorted(r['tag'] for r in rs))})", "",
+              "| rule | " + " | ".join(f"L1 {k} s" for k in ks) + " | " + " | ".join(f"ex {k} s" for k in ks) + " | n |",
+              "|---" * (2 * len(ks) + 2) + "|"]
+        for k in names:
+            okr = [r["rules"][k] for r in rs if k in r["rules"] and not r["rules"][k]["div"] and "pcb" in r["rules"][k]]
+            mean = lambda f: float(np.mean([f(x) for x in okr])) if okr else np.nan
+            cells = [mean(lambda x, w=w: x["pcb"]["L1_" + w]) for w in ks] + [mean(lambda x, w=w: x["pcb"]["ex_" + w]) for w in ks]
+            L.append(f"| {k} | " + " | ".join(fm(x) for x in cells) + f" | {len(okr)} |")
+        L.append("")
+    L += ["### Early phase and restarts (protoC3 rules; mean over seeds)", "",
+          "handover = first block where the early phase ends (n_e - 1); early frac = fraction of all blocks in an early "
+          "phase (incl. after restarts); restarts: false = restarts not within 1 s after a true change, per 30 s; delay = "
+          "blocks from the change to the first restart within 1 s (in brackets: number of missed changes over all seeds).", "",
+          "| input | rule | handover (blocks) | early frac | false restarts / 30 s | delay change 1 | delay change 2 |",
+          "|---|---|---|---|---|---|---|"]
+    for c, rs in byc.items():
+        names = [k for k in dict.fromkeys(k for r in rs for k in r["rules"]) if k.split()[-1] in VARS3[1:]]
+        for k in names:
+            rows = [r["rules"][k] for r in rs if k in r["rules"]]
+            ho = [x["handover"][0] for x in rows if x.get("handover")]
+            ef = [x["early_frac"] for x in rows if "early_frac" in x]
+            rsr = [x["rs"] for x in rows if "rs" in x]
+            fr = fm(float(np.mean([q["false_per30"] for q in rsr]))) if rsr else "-"
+            dl = []
+            for j in range(2):
+                v = [q["delays"][j] for q in rsr if len(q["delays"]) > j]
+                if not v:
+                    dl.append("-"); continue
+                fin = [x for x in v if np.isfinite(x)]
+                dl.append(f"{fm(float(np.mean(fin)), 1) if fin else 'NaN'} ({len(v) - len(fin)})")
+            L.append(f"| {c} | {k} | {fm(float(np.mean(ho)), 1) if ho else '-'} | {fm(float(np.mean(ef)), 3) if ef else '-'} | "
+                     f"{fr} | {dl[0]} | {dl[1]} |")
+    L.append("")
+    return L
+
+
+def report3(o):
+    smoke = o.smoke
+    J4, JX = load("C4", smoke), load("C4X", smoke)
+    par = next(iter(J4.values()), next(iter(JX.values()), {})).get("par", par3_desc(o))
+    X3 = {k[3:]: v for k, v in par.items() if k.startswith("x3_")}
+    L = ["# RESULTS protoC3: early phase from theory and adaptive smoothing with restarts (SF-Y, 1/g, delayopt; prototype)", "",
+         f"Generated by `python protoC.py report3{' --smoke' if smoke else ''}` from out/{'protoC_smoke' if smoke else 'protoC'}/"
+         "protoC_C4_*.json and protoC_C4X_*.json.  dB conventions as in RESULTS_protoC.md (more negative is better).", "",
+         "Constants: " + ", ".join(f"{k} = {fm(v, 4) if isinstance(v, float) else v}" for k, v in par.items()), "",
+         f"Variants (suffix of 'SF-Y <est91|estX> delayopt g gam<.03|.1>'; no suffix = the protoC2 rule, bitwise):", "",
+         f"- early: internal step = mu_early = {fm(X3.get('mu_early', np.nan), 3)} (delayopt model with N = 0, injection "
+         f"mu^2 [1 + (2tau_m-1) f] h_eff^2 x for K '{X3.get('early_k')}', T = {par.get('dopt_T')}, 1e-3 grid; a constant) "
+         f"for the first n_e blocks after the start and after every restart; n_e = "
+         + (f"{X3.get('n_early')} (fixed)" if X3.get("n_early") else
+            f"the first block where X_hat is trusted (estimator ok, >= 2L blocks, Q <= {X3.get('trust_q')} x mean |u|^2 of "
+            f"the last L blocks and that mean >= {X3.get('trust_dec')} x the mean of the L blocks before), at most "
+            f"{X3.get('ne_max')}") + "; then the delayopt EMA from mu_state = mu_early.",
+         f"- rs: outer EMAs of C and Q with beta_k = max({X3.get('beta_min')}, 1/(k+1)), k = updates since the last "
+         f"(re)start; restart when |u_n|^2 > {X3.get('r_thr')} x Q_(n-1) for {X3.get('d')} consecutive blocks: C, Q reset, "
+         "ubar / delayed buffer rebuilt from the previous trigger blocks (C resumes after L - d + 1 blocks), mu_state = "
+         "mu_early with early, else kept.", "",
+         "## C4: closed loop", ""]
+    L += rep_c1(J4) if J4 else ["(no outputs)", ""]
+    if J4:
+        L += rep_c4_extra(J4)
+    L += ["## C4X: estimator diagnostic (driver's own X_hat, N_hat)", "",
+          "As C2X in RESULTS_protoC2.md (X_true, N_true definitions there); pc also split after the change "
+          "(+0-63, +64-255, +256.. blocks).", ""]
+    L += rep_c2x(JX, ests=("own",)) if JX else ["(no outputs)", ""]
+    if JX:
+        L += ["### Restarts and handover (C4X runs)", "", "| tag | driver | handover | restarts (blocks) | true change | "
+              "delay | false / 30 s |", "|---|---|---|---|---|---|---|"]
+        for t, r in JX.items():
+            for rn, x in r["rules"].items():
+                q = x.get("rs")
+                L.append(f"| {t} | {rn} | {x.get('handover', [])[:4]} | "
+                         + (f"{q['restarts'][:12]}{' ...' if len(q['restarts']) > 12 else ''} | {r.get('changes')} | "
+                            f"{q['delays']} | {fm(q['false_per30'])} |" if q else "- | " + f"{r.get('changes')} | - | - |"))
+        L.append("")
+    p = os.path.join(HERE, "RESULTS_protoC3.md") if not smoke else os.path.join(OUT_SMOKE, "RESULTS_protoC3_smoke.md")
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    with open(p, "w") as f:
+        f.write("\n".join(L) + "\n")
+    print("wrote", p, f"({len(L)} lines)")
+
+
 def report(o):
     smoke = o.smoke
     J1, J2 = load("C1", smoke), load("C2", smoke)
@@ -1202,7 +1726,7 @@ def report(o):
 # ==============================================================================================
 def parse(argv):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=["check", "report", "c1", "c2", "c3", "c2x", "report2"])
+    ap.add_argument("cmd", choices=["check", "report", "c1", "c2", "c3", "c2x", "report2", "c4", "c4x", "report3"])
     ap.add_argument("--classes"); ap.add_argument("--seeds"); ap.add_argument("--tags")
     ap.add_argument("--nb", type=int, default=None); ap.add_argument("--procs", type=int, default=2)
     ap.add_argument("--force", action="store_true"); ap.add_argument("--smoke", action="store_true")
@@ -1222,12 +1746,27 @@ def parse(argv):
     ap.add_argument("--det-rel", type=float, default=X2_DEF["det_rel"], help="estX: relative |det| threshold (keep previous)")
     ap.add_argument("--no-aq-cap", action="store_true", help="estX: do not cap the a of the Q cross term at h_eff mu_fmax")
     ap.add_argument("--no-oracle", action="store_true", help="c2x: skip the continuation argmin (oracle) at the sampled blocks")
+    ap.add_argument("--early-k", choices=["full", "excl1"], default=X3_DEF["early_k"],
+                    help="protoC3 early value: injection with the '1' of K (full, spec) or without (excl1)")
+    ap.add_argument("--n-early", type=int, default=X3_DEF["n_early"], help="protoC3: fixed early length (0 = trust rule)")
+    ap.add_argument("--ne-max", type=int, default=X3_DEF["ne_max"], help="protoC3: max early length (blocks)")
+    ap.add_argument("--trust-q", type=float, default=X3_DEF["trust_q"])
+    ap.add_argument("--trust-dec", type=float, default=X3_DEF["trust_dec"])
+    ap.add_argument("--beta-min", type=float, default=X3_DEF["beta_min"])
+    ap.add_argument("--r-thr", type=float, default=X3_DEF["r_thr"], help="protoC3 restart: |u|^2 > r_thr * Q")
+    ap.add_argument("--rs-d", type=int, default=X3_DEF["d"], help="protoC3 restart: consecutive blocks")
+    ap.add_argument("--rs-kmin", type=int, default=X3_DEF["rs_kmin"], help="protoC3 restart: min Q updates since restart")
     o = ap.parse_args(argv)
     o.rules = o.rules.split(";") if o.rules else None
     o.X2 = dict(kappa=o.kappa, amode=o.estx_a, det_rel=o.det_rel, aq_cap=not o.no_aq_cap)
     o.oracle = not o.no_oracle
     o.P = Par(f=o.f, ta=o.tau_a, tm=o.tau_m, heff=0.95 * H if o.heff is None else o.heff,
               ck=[float(v) for v in o.ck.split(",")], gz=o.gz, gm=o.gm, dopt_T=o.dopt_T, dopt_k=o.dopt_k, mu_fmax=o.mu_fmax)
+    o.X3 = dict(early_k=o.early_k, n_early=o.n_early, ne_max=o.ne_max, trust_q=o.trust_q, trust_dec=o.trust_dec,
+                beta_min=o.beta_min, r_thr=o.r_thr, d=o.rs_d, rs_kmin=o.rs_kmin)
+    o.mu_e = mu_early_value(o.P, o.early_k)
+    if o.cmd in ("c4", "c4x", "check"):
+        print(f"protoC3 early step mu_early = {o.mu_e:.3f} (K '{o.early_k}', N = 0, T = {o.P.dopt_T})", flush=True)
     return o
 
 
@@ -1239,5 +1778,7 @@ if __name__ == "__main__":
         report(o)
     elif o.cmd == "report2":
         report2(o)
+    elif o.cmd == "report3":
+        report3(o)
     else:
         main_jobs(o.cmd, o)

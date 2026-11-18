@@ -85,6 +85,13 @@ def fixed_point(theta, path=0):
 
 
 def path_of(data, i):
+    sg = data.get("pseg")             # optional [(first block, path), ...] (protoC3 'pcb'); absent for all other inputs
+    if sg is not None:
+        p = 0
+        for b0, q in sg:
+            if i >= b0:
+                p = q
+        return p
     return 1 if (data.get("pc") and i >= PC_BLOCK) else 0
 
 
