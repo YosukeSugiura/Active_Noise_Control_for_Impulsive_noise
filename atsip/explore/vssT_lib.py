@@ -476,8 +476,9 @@ class Wrap(Rule):
 # ----------------------------------------------------------------------------------------------
 # Simulation loop (identical arithmetic to simx.run) with Phi-excess every block
 # ----------------------------------------------------------------------------------------------
-def simulate(data, Rall, st, rule, nb=None, w0=None, hook=None, fps=None):
+def simulate(data, Rall, st, rule, nb=None, w0=None, hook=None, fps=None, error_frame=None):
     """fps: optional dict name -> (v_fp path 0, v_fp path 1): extra Phi-excess curves relative to w = wM + v_fp.
+    error_frame: optional callable (block, w, actual_errors, actual_secondary_block) -> error spectrum.
     Returns e (length nb*B), w, ex (per block, after the update), ex_<name>, div, traces."""
     d, xq, hS = data["d"], data["xq"], data["hS"]
     nbmax = len(d) // B; nb = nbmax if nb is None else min(nb, nbmax)
@@ -491,7 +492,7 @@ def simulate(data, Rall, st, rule, nb=None, w0=None, hook=None, fps=None):
         Xb = swv[s0 + N - M + 1:s0 + N - M + 1 + B][:, ::-1]
         ys, zi = signal.lfilter(hS, [1.0], Xb @ w, zi=zi)
         e_all[s0:s0 + B] = d[s0:s0 + B] + ys
-        E = ML.frame_E(e_all, s0, M)
+        E = ML.frame_E(e_all, s0, M) if error_frame is None else error_frame(i, w, e_all, ys)
         c = Ctx(i, Rall[i], E, st, w)
         mf = rule.mu_formula(i)
         mu, dv = rule.block(i, c)
@@ -505,7 +506,7 @@ def simulate(data, Rall, st, rule, nb=None, w0=None, hook=None, fps=None):
             ex[i] = exP(w - wr, Jr)
             for k, vv in exf.items():
                 vv[i] = exP(w - wr - fps[k][p], Jr)
-            div = not (ex[i] < DIV_EX)
+            div = not np.isfinite(ex[i]) or ex[i] > DIV_EX
         if div:
             e_all[s0 + B:] = np.nan; ex[i:] = np.nan
             for vv in exf.values():
