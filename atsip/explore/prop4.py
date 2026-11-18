@@ -46,16 +46,21 @@ ND0 = q3.ND0
 COLUMNS = q.COLUMNS + ("n_trial", "n_rollback")
 
 
-def config(K=None, theta=0.5, restart=True):
+WINDOWS = {"M": M, "2B": 2 * B, "B": B}       # samples used for rho; "B" = only the samples no update has used yet
+
+
+def config(K=None, theta=0.5, restart=True, win="M"):
+    assert K is None or (isinstance(K, int) and 0 < K < 64), K      # shorter than the detector's guard interval
+    assert win in WINDOWS, win
     c = q.config(ND0["early"], ND0["mu_e"], ND0["end"], restart=restart)
-    c.update(K=K, theta=float(theta))
+    c.update(K=K, theta=float(theta), win=win)
     return c
 
 
 def name_of(c):
     s = q.name_of(c).replace("P2 ", "P4 ", 1)
     if c["restart"]:
-        s += " ver-" if c["K"] is None else f" ver{c['K']}/{c['theta']:g}"
+        s += " ver-" if c["K"] is None else f" ver{c['K']}/{c['theta']:g}" + ("" if c["win"] == "M" else f" w{c['win']}")
     return s
 
 
@@ -66,10 +71,14 @@ class Frame4(q.Frame):
         s.end, s.e_all = (i + 1) * B, e_all
         return super().__call__(i, w, e_all, ys)
 
-    def trial_energy(s, w):
+    def trial_frame(s, w):
+        """Last M error samples rebuilt with the coefficients w (time domain)."""
         end = s.end; start = max(0, end - M); n = end - start
         frozen = np.fft.irfft(np.fft.rfft(s.ref[end:end + 2 * M - 1], N) * np.fft.rfft(w, N), N)
-        t = (s.e_all[start:end] - s.sec[-n:]) + frozen[2 * M - 1 - n:2 * M - 1]
+        return (s.e_all[start:end] - s.sec[-n:]) + frozen[2 * M - 1 - n:2 * M - 1]
+
+    def trial_energy(s, w, L=M):
+        t = s.trial_frame(w)[-L:]
         return float(t @ t)
 
 
@@ -89,10 +98,15 @@ class P4(q.P2):
         rolled = False
         if s.pending is not None and i == s.pending["block"] + s.c["K"]:
             w0 = s.pending["w0"]
-            e_new, e_old = s.frame.trial_energy(c.w), s.frame.trial_energy(w0)
-            rho = e_new / e_old if e_old > 0 else np.inf
-            ok = bool(rho <= s.c["theta"])
-            s.trials.append(dict(block=int(s.pending["block"]), decide=int(i), rho=float(rho), ok=ok))
+            t_new, t_old = s.frame.trial_frame(c.w), s.frame.trial_frame(w0)
+            rhos = {}
+            for k, L in WINDOWS.items():                # all windows are logged; the configured one decides
+                a, b = float(t_new[-L:] @ t_new[-L:]), float(t_old[-L:] @ t_old[-L:])
+                rhos[k] = a / b if b > 0 else float("inf")
+            rho = rhos[s.c["win"]]
+            ok = bool(np.isfinite(rho) and rho <= s.c["theta"])
+            s.trials.append(dict(block=int(s.pending["block"]), decide=int(i), rho=float(rho), ok=ok,
+                                 rho_M=rhos["M"], rho_2B=rhos["2B"], rho_B=rhos["B"]))
             if ok:
                 s.restarts.append(s.pending["block"])
             else:                                       # w <- w0: the simulator applies w - KD * mu * dv
@@ -132,7 +146,7 @@ def out_dir(smoke):
 def specs():
     out = [config(restart=False), config()]
     out += [config(K=k) for k in (4, 8, 16)]
-    out += [config(K=8, theta=t) for t in (0.25, 0.7)]
+    out += [config(K=8, win=w) for w in ("2B", "B")] + [config(K=4, win="B"), config(K=16, win="B")]
     return out
 
 
@@ -188,17 +202,19 @@ def report(smoke):
 
     def write_trials(h):
         w = csv.writer(h, lineterminator="\n")
-        w.writerow(["class", "seed", "rule", "block", "time_s", "decide_block", "true_change", "rho", "rho_db", "confirmed"])
+        w.writerow(["class", "seed", "rule", "block", "time_s", "decide_block", "true_change", "rho", "rho_db", "confirmed",
+                    "rho_M", "rho_2B", "rho_B"])
         for r in rows:
             for t in r.get("trials") or []:
                 rdb = 10 * math.log10(t["rho"]) if 0 < t["rho"] < math.inf else ""
                 w.writerow([r["class"], r["seed"], r["rule"], t["block"], t["block"] / BPS, t["decide"], int(t["true"]),
-                            t["rho"], rdb, int(t["ok"])])
+                            t["rho"], rdb, int(t["ok"]), t["rho_M"], t["rho_2B"], t["rho_B"]])
     ab.atomic_write(dest / "RESULTS_dev3_trials.csv", write_trials)
 
     L = ["# dev3：再始動の試行と検証（E10）", "",
          "表は自動生成。値は dB（小さいほど良い）。クラス内で seed 平均、クラス間で等重み平均。件数は合計。",
          "規則名：ver- は検証なし（検出したら必ず再始動）、ver8/0.5 は検出の 8 ブロック後に ρ = E(w)/E(w0) ≤ 0.5 を確かめ、"
+         "wB / w2B は ρ を最新の B / 2B サンプルだけで測る（無印は直近 M サンプル）。"
          "満たさなければ係数を w0 に戻す。nors は再始動なし。false_rs / missed_rs は確定した再始動だけを数える。", ""]
     if rows:
         L += ["## 試行ごとの ρ（dB）", "", "| 規則 | クラス | 種別 | 件数 | 最小 | 中央 | 最大 | 確定 |", "|---|---|---|---:|---:|---:|---:|---:|"]
@@ -211,6 +227,18 @@ def report(smoke):
             if v:
                 L.append(f"| {q.md_cell(rule)} | {cls} | {kind} | {len(ts)} | {min(v):.2f} | {np.median(v):.2f} | {max(v):.2f} | "
                          f"{sum(t['ok'] for t in ts)} |")
+        L += ["", "## 窓ごとの ρ（dB。K ごとに、全試行について 3 つの窓の値を記録したもの）", "",
+              "| K | 窓 | 経路変化：件数 | 最小 | 中央 | 最大 | それ以外：件数 | 最小 | 中央 | 最大 | 間隔（それ以外の最小 − 経路変化の最大） |",
+              "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
+        for K in (4, 8, 16):
+            nm = name_of(config(K=K))
+            ts = [t for r in rows if r["rule"] == nm for t in r.get("trials") or []]
+            for k in WINDOWS:
+                tv = [10 * math.log10(t["rho_" + k]) for t in ts if t["true"] and 0 < t["rho_" + k] < math.inf]
+                fv = [10 * math.log10(t["rho_" + k]) for t in ts if not t["true"] and 0 < t["rho_" + k] < math.inf]
+                if tv and fv:
+                    L.append(f"| {K} | {k} | {len(tv)} | {min(tv):.2f} | {np.median(tv):.2f} | {max(tv):.2f} | {len(fv)} | "
+                             f"{min(fv):.2f} | {np.median(fv):.2f} | {max(fv):.2f} | {min(fv) - max(tv):.2f} |")
         L.append("")
         groups = (("経路変化あり（pc、pcb、EVpc）", ("pc", "pcb", "EVpc")), ("誤差側の外乱（ENm20、ENm10、EN0）", ("ENm20", "ENm10", "EN0")),
                   ("入力の色の変化（SC）", ("SC",)), ("変化なし（G、BU、PS、II300、a145、a120）", q.BASE6))
