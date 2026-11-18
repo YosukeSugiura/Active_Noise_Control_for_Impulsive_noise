@@ -162,9 +162,14 @@ class Stats:
     def __init__(s, data, Rall):
         sh = X.Shared(data["S2"]); nb = len(Rall); E0 = np.zeros(NBIN, complex)
         s.Srr = np.empty((nb, NBIN)); s.Pbar = np.empty(nb); s.eps = np.empty(nb)
-        for i in range(nb):
-            q = sh.step(Rall[i], E0); s.Srr[i] = q["Srr"]; s.Pbar[i] = q["Pbar"]; s.eps[i] = q["eps"]
-        s.g = np.mean(np.abs(Rall) ** 2, axis=1) / s.Pbar
+        # Shared also computes coherence, which is unused here and undefined during leading silence.
+        with np.errstate(invalid="ignore"):
+            for i in range(nb):
+                q = sh.step(Rall[i], E0)
+                s.Srr[i], s.Pbar[i], s.eps[i] = q["Srr"], q["Pbar"], q["eps"]
+        ref_power = np.mean(np.abs(Rall) ** 2, axis=1)
+        s.g_zero = (ref_power == 0) & (s.Pbar == 0)
+        s.g = np.divide(ref_power, s.Pbar, out=np.ones_like(ref_power), where=~s.g_zero)
         s.pi = {k: pi_seq(data, nb, k) for k in PI_DEFS}
 
 
@@ -499,13 +504,13 @@ def simulate(data, Rall, st, rule, nb=None, w0=None, hook=None, fps=None):
             hook(i, w, mu, dv, c, rule, mf, zi=zi, e_all=e_all)
         w = w - 2 * mu * B / M * dv
         p = path_of(data, i); wr, _, Jr = REFS[p]
-        if not np.isfinite(w).all():
+        if not (np.isfinite(w).all() and np.isfinite(e_all[s0:s0 + B]).all()):
             div = True
         else:
             ex[i] = exP(w - wr, Jr)
             for k, vv in exf.items():
                 vv[i] = exP(w - wr - fps[k][p], Jr)
-            div = not (ex[i] < DIV_EX)
+            div = not np.isfinite(ex[i]) or ex[i] > DIV_EX
         if div:
             e_all[s0 + B:] = np.nan; ex[i:] = np.nan
             for vv in exf.values():
@@ -563,7 +568,7 @@ def continuation(data, Rall, st, w, zi, e_all, i, dv_i, mu, T, kind, om_fn):
         if not np.isfinite(w).all():
             break
         out[t] = exP(w - wr, Jr)
-        if t == T - 1 or j + 1 >= len(Rall) or not out[t] < DIV_EX:
+        if t == T - 1 or j + 1 >= len(Rall) or not np.isfinite(out[t]) or out[t] > DIV_EX:
             break
         j += 1; s0 = j * B
         Xb = swv[s0 + N - M + 1:s0 + N - M + 1 + B][:, ::-1]
@@ -584,30 +589,38 @@ def full_error(data, w):
 # Metrics
 # ----------------------------------------------------------------------------------------------
 def l2db(e, d):
-    return float(10 * np.log10(np.sum(e ** 2) / np.sum(d ** 2)))
+    power = float(np.sum(d ** 2))
+    error_power = float(np.sum(e ** 2))
+    if power == 0:
+        return np.nan if error_power == 0 else np.inf
+    return float(10 * np.log10(error_power / power)) if error_power > 0 else -np.inf
 
 
 def metrics(sim, data):
     """L1 = ANR mean (dB) whole / first 5 s / last 10 %; L2 = 10 log10(sum e^2 / sum d^2) on the same windows.
-    For full-length path-change runs also MFm.score_pc (L1 15-17 s, 25-30 s, whole; L2 same windows)."""
+    amp flags positive L1 last10. For a single change, also return the complete 15–17 s and 25–30 s windows."""
     nan3 = [float("nan")] * 3
     e = sim["e"]; d = data["d"][:len(e)]
     if sim["div"] or not np.isfinite(e).all():
-        out = dict(L1=nan3, L2=nan3, div=True)
+        out = dict(L1=nan3, L2=nan3, div=True, amp=False)
         if data.get("pc"):
             out["pc"] = dict(L1a=np.nan, L1b=np.nan, L1w=np.nan, L2a=np.nan, L2b=np.nan)
         return out
     anr = O.anr_curve(e, d); n10 = len(anr) // 10; n5 = 5 * FS // 64
     L = len(e); s5 = min(L, 5 * FS); s10 = L - L // 10
-    out = dict(L1=[float(anr.mean()), float(anr[:n5].mean()), float(anr[-n10:].mean()) if n10 else float("nan")],
-               L2=[l2db(e, d), l2db(e[:s5], d[:s5]), l2db(e[s10:], d[s10:])], div=False)
+    last10 = float(anr[-n10:].mean()) if n10 else np.nan
+    out = dict(L1=[float(anr.mean()), float(anr[:n5].mean()), last10],
+               L2=[l2db(e, d), l2db(e[:s5], d[:s5]), l2db(e[s10:], d[s10:])], div=False, amp=bool(last10 > 0))
     if data.get("pc"):
+        times = (63 + 64 * np.arange(len(anr))) / FS
+        out["pc"] = dict(L1a=np.nan, L1b=np.nan, L1w=np.nan, L2a=np.nan, L2b=np.nan)
+        for key, start, end in (("a", 15, 17), ("b", 25, 30)):
+            if len(e) >= end * FS:
+                win = slice(start * FS, end * FS)
+                out["pc"]["L1" + key] = float(anr[(times >= start) & (times < end)].mean())
+                out["pc"]["L2" + key] = l2db(e[win], d[win])
         if len(e) == len(data["d"]):
-            sc = MFm.score_pc(dict(e=e, w=sim["w"]), data)
-            out["pc"] = {k: float(sc[k]) for k in ("L1a", "L1b", "L1w", "L2a", "L2b")}
-            out["div"] = bool(sc.get("div", 0))
-        else:
-            out["pc"] = dict(L1a=np.nan, L1b=np.nan, L1w=np.nan, L2a=np.nan, L2b=np.nan)
+            out["pc"]["L1w"] = out["L1"][0]
     return out
 
 

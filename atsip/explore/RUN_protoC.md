@@ -299,37 +299,35 @@ the three variants; on pc_s0 (up to the change + 150 blocks) every restart sets 
 flag, the statistic exceeds threshold x reference at the restart block, restarts are >= guard apart, and rsN2
 detects the change (rsN / rsG restart counts printed).
 
-## 15. Smoke runs (about 30 s; max 2 processes)
+## 15. Smoke runs
 
 ```bash
-python protoC.py c5 --tags BU_s0,a120_s0,a145_s0,II300_s0 --nb 1250 --procs 2 --n-early 64 --force   # 12 rules, 15 s
-python protoC.py c5 --tags pc_s0,pcb_s0 --nb 3000 --procs 2 --n-early 64 --force \
-  --rules "SF-Y est91 delayopt g gam.03 early+rsN;SF-Y est91 delayopt g gam.03 early+rsN2;SF-Y est91 delayopt g gam.03 early+rsG;SF-Y est91 delayopt g gam.03 early+rs;SF-Y estX delayopt g gam.03 early+rsN2"   # 10 s
-python protoC.py report4 --smoke     # -> out/protoC_smoke/RESULTS_protoC4_smoke.md
+python protoC.py c5 --preset final --tags G_s0,BU_s0 --nb 300 --procs 2 --force
+python protoC.py report4 --preset final --smoke --tags G_s0,BU_s0
 ```
 
-`--n-early 64`: the protoC3 full run (RESULTS_protoC3.md, `x3_n_early = 64`) used a fixed early length of 64, so the
-early / early+rs controls of c5 reproduce the protoC3 numbers. Note: a finished tag (`done`) is skipped even when the
-constants differ; use `--force` when changing constants.
+`--preset final` fixes the published model settings, including `--n-early 64 --early-k full --dopt-k excl1`.
+Explicit matching settings are accepted. Conflicting settings produce an argument error. Smoke outputs go to
+`out/fix0/smoke/`.
 
 ## 16. Full runs
 
 ```bash
-python protoC.py c5 --procs 2 --n-early 64   # G, BU, PS, a145, a120, pc, pcb, II300 x seeds 0,1,2 = 24 jobs, 12 rules each
-python protoC.py report4                     # -> atsip/explore/RESULTS_protoC4.md
+rules='SF-Y est91 delayopt g gam.03 early+rsN2;SF-Y est91 delayopt g gam.03 early;SF-Y est91 delayopt g gam.03;SF-V2;SF+ramp'
+python protoC.py check --preset final
+python protoC.py c5 --preset final --procs 2 --force --classes G,BU,PS,a145,a120,pc,pcb,II300 --seeds 0,1,2 --rules "$rules"
+python protoC.py report4 --preset final --rules "$rules"
 ```
 
-Inputs / seeds: `--classes G,BU,PS,a145,a120,pc,pcb,II300 --seeds 0,1,2` (default) or `--tags`. Then commit
-`RESULTS_protoC4.md` only (nothing under `out/`).
+Use the same tag selection and rule list for `c5` and `report4`. The report requires completed JSON for every requested
+tag, each with the same `par`. An unfinished run resumes with the stored rules only when settings and length match.
+Remove `--force` to resume or to skip matching complete tags. Failed jobs produce a nonzero exit status.
 
-Estimated full runtime: ~20 s per job (smoke: 4 jobs x 12 rules x 1250 blocks in 15 s with 2 procs) -> ~5 min for 24
-jobs with 2 procs; report4 < 5 s. Peak RSS < 300 MB per process. Resume as c4 (`out/protoC/protoC_C5_<tag>.json/.npz`,
-rewritten after every rule, resumes at the first missing rule; a stored `par` that differs -> recomputed from
-scratch for unfinished tags; `--force` recomputes).
+## 17. Outputs (fix0)
 
-## 17. Outputs (protoC4)
-
-| file | content |
+| File | Content |
 |---|---|
-| `out/protoC/protoC_C5_<tag>.json/.npz` | as C4; `par` also with `x4_*` (z_beta, z_thr, z_d, guard); per SFY3 / SFY4 rule `handover`, `early_frac`, `rs` (restart blocks, delays per change, false restarts, per 30 s); npz traces of SFY4 also `rsstat` (z_n or |y|^2/g^2) and `rsref` (zbar_{n-1} or its EMA) |
-| `RESULTS_protoC4.md` | `python protoC.py report4`: C5 tables in the C1 format, pcb change windows, early / restart table (as report3), restart table (false restarts per 30 s with min / max over seeds, total restarts per 30 s, delay and missed count per change) |
+| `out/fix0/protoC_C5_<tag>.json` | Settings in `par`, numeric divergence and amplification, clipping counts, matched and censored changes, detected and first-applied restart blocks, `g_zero_count`. |
+| `out/fix0/protoC_C5_<tag>.npz` | Per-block traces, including `g_zero`, `early_end`, `restart_detect_block` and `restart_apply_block`. Event traces contain the zero-based block index at events and −1 elsewhere. |
+| `out/fix0/RESULTS_protoC4.md` | Diagnostic report generated from the selected completed C5 outputs. |
+| `RESULTS_fix0.md`, `RESULTS_fix0.csv` | Comparison to the previous results and per-seed results for the full run above. |

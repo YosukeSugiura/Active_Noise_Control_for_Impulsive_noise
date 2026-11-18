@@ -11,7 +11,7 @@ Changes tested
         Q = (1 + f) X + N - h mu [(2tm-2) f X + (ta - 1) N]
      (identical to protoA.solve91 with tm -> 2 tm - 1).  mu in the forms = mu_state, capped at mu_fmax (default:
      h mu (ta - 1) <= 0.75, i.e. the Q coefficient of N stays >= 0.25; the forms are first order in h mu).
-     X_hat clipped to [0, Q/(1+f)], N_hat = max(N, 0) from the unclipped solve.
+     If X or N is negative, set it to zero and solve the Q equation for the other component.
   3. step targets
      onestep   mu_1 = [X/h_eff - mu ((ta-1) N + (2tm-2) f X) / 2]_+ / Q            (Sec. 9.3 style)
      delaycap  min(mu_1, a*/h_eff),  a* = argmin_a rho(a) of the delayed recursion v+ = v - a sum_k c_k v_{-k}
@@ -86,6 +86,11 @@ from multiprocessing import Pool
 
 OUT_FULL = os.path.join(HERE, "out", "protoC")
 OUT_SMOKE = os.path.join(HERE, "out", "protoC_smoke")
+OUT_FIX0 = os.path.join(HERE, "out", "fix0")
+FINAL_RULE = "SF-Y est91 delayopt g gam.03 early+rsN2"
+FINAL_SETTINGS = dict(n_early=64, early_k="full", dopt_k="excl1")
+XCLIP_FLAGS = {1: "xclip_x_zero", 2: "xclip_n_zero", 3: "xclip_b1_keep"}
+XCLIP_COUNTS = tuple(XCLIP_FLAGS.values())
 C_DEF = (0.238, 0.247, 0.247, 0.247, 0.010)
 MU_MAX, MU_INIT, DP_LO, DP_HI = 1.5, 0.3, 0.1, 10.0
 EPS_REG = 1e-2
@@ -137,9 +142,9 @@ class Par:
                     L=s.L, beta_d=s.bd, beta=s.b, gmin=s.gmin)
 
 
-def solve_xn(C, Q, mu, P):
+def solve_xn(C, Q, mu, P, prev=None):
     """Sec. 9.1 forms with tm -> 2 tm - 1 (Sec. 10.2) and h = h_eff, solved for (X, N).
-    Returns X (clipped to [0, Q/(1+f)]), N (>= 0, from the unclipped solve), clip flag (1 if X was clipped)."""
+    Returns X, N and a code in XCLIP_FLAGS (0 for an unconstrained solution)."""
     h, f, ta, tme = P.h, P.f, P.ta, 2 * P.tm - 1
     lbar = P.L + (1 - P.bd) / P.bd
     a1 = 1 + h * mu * (lbar - tme * f) + (1 + h * mu) * f * P.gm
@@ -148,8 +153,14 @@ def solve_xn(C, Q, mu, P):
     b2 = 1 - h * mu * (ta - 1)
     det = a1 * b2 - a2 * b1
     X = (C * b2 - a2 * Q) / det; Nn = (a1 * Q - b1 * C) / det
-    Xc = min(max(X, 0.0), Q / (1 + P.f))
-    return Xc, max(Nn, 0.0), int(Xc != X)
+    if X < 0:
+        return 0.0, Q / b2, 1
+    if Nn < 0:
+        if b1 <= 0:
+            X, Nn = prev if prev is not None else (np.nan, np.nan)
+            return X, Nn, 3
+        return Q / b1, 0.0, 2
+    return X, Nn, 0
 
 
 def mu_onestep(X, Nn, Q, mu, P):
@@ -216,8 +227,9 @@ class SFY(Rule):
         super().__init__()
         s.coord, s.target, s.corr, s.gamma, s.P = coord, target, corr, gamma, P
         s.est = YEst(P.L, P.bd, P.b); s.mu_state = mu_init; s.Qy = None; s.last = {}
+        s.prev_xn = None
         s.tr.update({k: [] for k in ("mu_state", "target", "X", "N", "C", "Q", "ypow", "dpclip", "mufclamp",
-                                     "xclip", "stclip")})
+                                     "xclip", "stclip", *XCLIP_COUNTS)})
         s.e2 = None
         if est is not None:
             s.e2 = Est2(est, P, X2 or X2_DEF); s.est = s.e2.y
@@ -239,6 +251,12 @@ class SFY(Rule):
     def ema_y(s, Qy, py):
         return py if Qy is None else (1 - s.P.b) * Qy + s.P.b * py
 
+    def record_xclip(s, code):
+        if s.e2 is not None and s.e2.kind == "estX":
+            code = 0
+        for flag, key in XCLIP_FLAGS.items():
+            s.tr[key].append(int(code == flag))
+
     def block(s, i, c):
         dv, y, _ = sf_y(c)
         py = float(y @ y)
@@ -251,7 +269,10 @@ class SFY(Rule):
             return s.block2(i, mu, mus, dv, py, clp, fac, Qy0)
         if s.est.C is not None and s.est.Q > 0:
             muf = min(mus, s.P.mu_fmax); mfc = int(muf != mus)
-            X, Nn, xc = solve_xn(s.est.C, s.est.Q, muf, s.P)
+            X, Nn, xc = solve_xn(s.est.C, s.est.Q, muf, s.P, s.prev_xn)
+            if xc != 3:
+                s.prev_xn = (X, Nn)
+        if np.isfinite(X):
             if s.target == "delayopt":
                 tgt = mu_delayopt(X, Nn, s.P)
             else:
@@ -264,8 +285,9 @@ class SFY(Rule):
         t = s.tr
         for k, v in (("mu_app", mu), ("mu_state", mus), ("target", tgt), ("X", X), ("N", Nn),
                      ("C", s.est.C if s.est.C is not None else np.nan), ("Q", s.est.Q if s.est.Q is not None else np.nan),
-                     ("ypow", py), ("dpclip", clp), ("mufclamp", mfc), ("xclip", xc), ("stclip", stc)):
+                     ("ypow", py), ("dpclip", clp), ("mufclamp", mfc), ("xclip", int(xc != 0)), ("stclip", stc)):
             t[k].append(v)
+        s.record_xclip(xc)
         return mu, dv
 
     def block2(s, i, mu, mus, dv, py, clp, fac, Qy0):
@@ -286,9 +308,10 @@ class SFY(Rule):
         t = s.tr
         for k, v in (("mu_app", mu), ("mu_state", mus), ("target", tgt), ("X", X), ("N", Nn),
                      ("C", s.est.C if s.est.C is not None else np.nan), ("Q", s.est.Q if s.est.Q is not None else np.nan),
-                     ("ypow", py), ("dpclip", clp), ("mufclamp", mfc), ("xclip", xc), ("stclip", stc),
+                     ("ypow", py), ("dpclip", clp), ("mufclamp", mfc), ("xclip", int(xc != 0)), ("stclip", stc),
                      ("a", s.e2.a), ("rho", s.e2.rho), ("detkeep", keep)):
             t[k].append(v)
+        s.record_xclip(xc)
         return mu, dv
 
 
@@ -368,8 +391,10 @@ class Est2:
             return np.nan, np.nan, 0, 0, 0, False
         if s.kind != "estX":
             muf = min(mus, s.P.mu_fmax)
-            X, Nn, xc = solve_xn(C, Q, muf, s.Pe)
-            return X, Nn, xc, int(muf != mus), 0, True
+            X, Nn, xc = solve_xn(C, Q, muf, s.Pe, s.prev)
+            if xc != 3:
+                s.prev = (X, Nn)
+            return X, Nn, xc, int(muf != mus), 0, s.prev is not None
         P = s.P
         s.a = P.h * (float(np.mean(s.hist)) if s.hist else mus)
         s.rho = float(np.interp(s.a, s.ag, s.rg))
@@ -433,23 +458,29 @@ def make_rules(nbr, P, X2=None):
 # ==============================================================================================
 # Output helpers
 # ==============================================================================================
-def outdir(nb):
-    d = OUT_FULL if nb is None else OUT_SMOKE
+def output_dir(nb, preset=None):
+    if preset == "final":
+        return OUT_FIX0 if nb is None else os.path.join(OUT_FIX0, "smoke")
+    return OUT_FULL if nb is None else OUT_SMOKE
+
+
+def outdir(nb, preset=None):
+    d = output_dir(nb, preset)
     os.makedirs(d, exist_ok=True); return d
 
 
-def fpath(exp, tag, nb, ext="json"):
-    return os.path.join(outdir(nb), f"protoC_{exp}_{tag}.{ext}")
+def fpath(exp, tag, nb, ext="json", preset=None):
+    return os.path.join(outdir(nb, preset), f"protoC_{exp}_{tag}.{ext}")
 
 
-def save(exp, tag, nb, js, arrs=None):
-    p = fpath(exp, tag, nb)
+def save(exp, tag, nb, js, arrs=None, preset=None):
+    p = fpath(exp, tag, nb, preset=preset)
+    if arrs:
+        q = fpath(exp, tag, nb, "npz", preset=preset)
+        np.savez_compressed(q + ".tmp.npz", **arrs); os.replace(q + ".tmp.npz", q)
     with open(p + ".tmp", "w") as f:
         json.dump(js, f, default=lambda o: float(o) if np.isscalar(o) else np.asarray(o, float).tolist())
     os.replace(p + ".tmp", p)
-    if arrs:
-        q = fpath(exp, tag, nb, "npz")
-        np.savez_compressed(q + ".tmp.npz", **arrs); os.replace(q + ".tmp.npz", q)
 
 
 def dbm(a):
@@ -515,7 +546,7 @@ def c1_job(tag, o, exp="C1"):
     dd, Rall, st = T.prep(tag, nb)
     nbr = (len(dd["d"]) // B) if nb is None else nb
     RR = make_rules(nbr, P, o.X2)
-    pdesc = P.desc() if exp == "C1" else par2_desc(o)
+    pdesc = job_par(exp.lower(), o)
     p0 = fpath(exp, tag, nb)
     res = dict(tag=tag, nb=nbr, pc=dd["pc"], par=pdesc, rules={}, done=False)
     arrs = dict(g=np.asarray(st.g[:nbr], np.float32))
@@ -533,7 +564,6 @@ def c1_job(tag, o, exp="C1"):
         sim = simulate(dd, Rall, st, RR[name](), nb=nbr)
         mt = metrics(sim, dd)
         r = dict(**mt, **summaries(sim, dd, nbr, o.rec_db), sec=time.time() - t1)
-        r["amp"] = bool((not r["div"]) and np.isfinite(r["L1"][0]) and r["L1"][0] > 0)
         tr = sim["tr"]; arrs[name + "|ex"] = np.asarray(sim["ex"], np.float32)
         for k, v in tr.items():
             arrs[name + "|" + k] = np.asarray(v, np.float32)
@@ -575,7 +605,7 @@ def continuation_corr(data, Rall, st, w, zi, e_all, i, dv_i, fac_i, Qy, mu_int, 
         if not np.isfinite(w).all():
             break
         out[t] = exP(w - wr, Jr)
-        if t == Tn - 1 or j + 1 >= len(Rall) or not out[t] < DIV_EX:
+        if t == Tn - 1 or j + 1 >= len(Rall) or not np.isfinite(out[t]) or out[t] > DIV_EX:
             break
         j += 1; s0 = j * B
         Xb = swv[s0 + N - M + 1:s0 + N - M + 1 + B][:, ::-1]
@@ -617,7 +647,7 @@ def c2_job(tag, o):
     if dd["pc"]:
         blocks = sorted(set(blocks + [PC_BLOCK + k for k in C2_PC if PC_BLOCK + k < nbr - Tmax]))
     RR = make_rules(nbr, P)
-    res = dict(tag=tag, nb=nbr, par=P.desc(), blocks=blocks, rules={}, done=False)
+    res = dict(tag=tag, nb=nbr, par=job_par("c2", o), blocks=blocks, rules={}, done=False)
     for name in (o.rules or C2_RULES):
         hk = C2Hook(dd, Rall, st, blocks, Tmax)
         sim = simulate(dd, Rall, st, RR[name](), nb=nbr, hook=hk)
@@ -747,7 +777,7 @@ def c2x_job(tag, o):
         probes = sorted(set(probes + [PC_BLOCK + k for k in C2_PC if PC_BLOCK + k < nbr]))
         oblocks = sorted(set(oblocks + [PC_BLOCK + k for k in C2_PC if PC_BLOCK + k < nbr - Tmax]))
     RR = make_rules(nbr, P, o.X2)
-    res = dict(tag=tag, nb=nbr, pc=dd["pc"], par=par2_desc(o), blocks=oblocks, probes=probes, rules={}, done=False)
+    res = dict(tag=tag, nb=nbr, pc=dd["pc"], par=job_par("c2x", o), blocks=oblocks, probes=probes, rules={}, done=False)
     arrs = {}
     for name in (o.rules or C2X_RULES):
         rule = RR[name]()
@@ -847,7 +877,8 @@ class SFY3(SFY):
         if rs:
             s.e2.y = YEstRS(s.e2.y.L, s.e2.y.bd, s.e2.y.b, X3); s.est = s.e2.y
         s.in_early = bool(early); s.ke = 0; s.qh = []; s.handover = []; s.restarts = []
-        s.tr.update({k: [] for k in ("early", "restart")})
+        s.tr.update({k: [] for k in ("early", "restart", "early_end", "restart_detect_block",
+                                     "restart_apply_block")})
 
     def trusted(s, ok):
         X3, L = s.X3, s.P.L
@@ -869,6 +900,7 @@ class SFY3(SFY):
         u = fac * y
         s.est.update(i, u)
         rst = int(bool(s.rs and s.est.restarted))
+        applied = s.early and bool(s.restarts) and s.restarts[-1] == i - 1
         if rst:
             s.restarts.append(i); s.e2.prev = None; s.qh = []
             if s.early:
@@ -889,9 +921,12 @@ class SFY3(SFY):
         t = s.tr
         for k, v in (("mu_app", mu), ("mu_state", mus), ("target", tgt), ("X", X), ("N", Nn),
                      ("C", s.est.C if s.est.C is not None else np.nan), ("Q", s.est.Q if s.est.Q is not None else np.nan),
-                     ("ypow", py), ("dpclip", clp), ("mufclamp", mfc), ("xclip", xc), ("stclip", stc),
-                     ("a", s.e2.a), ("rho", s.e2.rho), ("detkeep", keep), ("early", ine), ("restart", rst)):
+                     ("ypow", py), ("dpclip", clp), ("mufclamp", mfc), ("xclip", int(xc != 0)), ("stclip", stc),
+                     ("a", s.e2.a), ("rho", s.e2.rho), ("detkeep", keep), ("early", ine), ("restart", rst),
+                     ("early_end", i if ine and not s.in_early else -1),
+                     ("restart_detect_block", i if rst else -1), ("restart_apply_block", i if applied else -1)):
             t[k].append(v)
+        s.record_xclip(xc)
         return mu, dv
 
 
@@ -953,19 +988,29 @@ def change_blocks(dd):
     return [PC_BLOCK] if dd.get("pc") else []
 
 
-def restart_stats(rst, changes, nbr):
-    """Restart blocks vs true change blocks: delay (blocks) of the first restart within RS_TRUE_WIN after each change
-    (NaN: missed), false restarts = all others, per 30 s of run."""
-    rst = list(rst); used = set(); delays = []
-    for cb in changes:
+def restart_stats(rst, changes, nbr, apply_blocks=()):
+    """Match chronologically, consuming each detection at most once."""
+    detected = sorted(int(r) for r in rst)
+    applied = {int(b) for b in apply_blocks if b >= 0}
+    available = set(detected)
+    events = []
+    for cb in sorted(changes):
         if cb >= nbr:
-            continue
-        hit = [r for r in rst if cb <= r < cb + RS_TRUE_WIN]
-        delays.append(float(hit[0] - cb) if hit else np.nan)
-        if hit:
-            used.add(hit[0])
-    nf = sum(1 for r in rst if r not in used)
-    return dict(restarts=[int(r) for r in rst], delays=delays, n_false=nf, false_per30=nf / (nbr / BPS / 30.0))
+            break
+        end = cb + RS_TRUE_WIN
+        hit = next((r for r in detected if cb <= r < min(end, nbr) and r in available), None)
+        if hit is not None:
+            available.remove(hit)
+        status = "censored" if end > nbr else ("detected" if hit is not None else "missed")
+        events.append(dict(change_block=int(cb), detection_block=hit, status=status))
+    n_false = len(available)
+    return dict(restarts=detected, apply_blocks=[r + 1 if r + 1 in applied else None for r in detected],
+                changes=events, false_blocks=sorted(available), n_false=n_false,
+                n_missed=sum(e["status"] == "missed" for e in events),
+                n_censored=sum(e["status"] == "censored" for e in events),
+                delays=[e["detection_block"] - e["change_block"] if e["status"] == "detected" else np.nan
+                        for e in events],
+                false_per30=n_false / (nbr / BPS / 30.0) if nbr else np.nan)
 
 
 def pcb_summ(sim, dd, nbr):
@@ -996,19 +1041,22 @@ def c4_job(tag, o, exp="C4"):
     dd, Rall, st = prep3(tag, nb)
     nbr = (len(dd["d"]) // B) if nb is None else nb
     if exp == "C5":
-        RR = make_rules4(nbr, P, o.X2, o.X3, o.X4, o.mu_e, dd); pdesc = par4_desc(o); rdef = C5_RULES
+        RR = make_rules4(nbr, P, o.X2, o.X3, o.X4, o.mu_e, dd); rdef = C5_RULES
     else:
-        RR = make_rules3(nbr, P, o.X2, o.X3, o.mu_e); pdesc = par3_desc(o); rdef = C4_RULES
-    p0 = fpath(exp, tag, nb); chg = change_blocks(dd)
+        RR = make_rules3(nbr, P, o.X2, o.X3, o.mu_e); rdef = C4_RULES
+    pdesc = job_par(exp.lower(), o)
+    p0 = fpath(exp, tag, nb, preset=o.preset); chg = change_blocks(dd)
     res = dict(tag=tag, nb=nbr, pc=dd["pc"], pcb=bool(dd.get("pseg")), changes=chg, par=pdesc, rules={}, done=False)
-    arrs = dict(g=np.asarray(st.g[:nbr], np.float32))
+    arrs = dict(g=np.asarray(st.g[:nbr], np.float32), g_zero=st.g_zero[:nbr])
+    res["g_zero_count"] = int(st.g_zero[:nbr].sum())
     if os.path.exists(p0) and not o.force:
         old = json.load(open(p0))
         if old.get("nb") == nbr and old.get("par") == json.loads(json.dumps(pdesc)):
             res["rules"] = old["rules"]
-            q = fpath(exp, tag, nb, "npz")
+            q = fpath(exp, tag, nb, "npz", preset=o.preset)
             if os.path.exists(q):
                 arrs.update(dict(np.load(q)))
+    save(exp, tag, nb, res, preset=o.preset)
     for name in (o.rules or rdef):
         if name in res["rules"]:
             continue
@@ -1016,7 +1064,6 @@ def c4_job(tag, o, exp="C4"):
         sim = simulate(dd, Rall, st, rule, nb=nbr)
         mt = metrics(sim, dd)
         r = dict(**mt, **summaries(sim, dd, nbr, o.rec_db), sec=time.time() - t1)
-        r["amp"] = bool((not r["div"]) and np.isfinite(r["L1"][0]) and r["L1"][0] > 0)
         if res["pcb"]:
             r["pcb"] = pcb_summ(sim, dd, nbr)
         tr = sim["tr"]; arrs[name + "|ex"] = np.asarray(sim["ex"], np.float32)
@@ -1031,19 +1078,21 @@ def c4_job(tag, o, exp="C4"):
             for k in ("dpclip", "mufclamp", "xclip", "stclip", "detkeep"):
                 if k in tr and len(tr[k]):
                     r["frac_" + k] = float(np.mean(tr[k]))
+        if isinstance(rule, SFY):
+            r["xclip_counts"] = {k: int(np.sum(tr[k])) for k in XCLIP_COUNTS}
         if isinstance(rule, SFY3):
             r["handover"] = [int(b) for b in rule.handover]
             r["early_frac"] = float(np.mean(tr["early"])) if len(tr["early"]) else np.nan
             if rule.rs:
-                r["rs"] = restart_stats(rule.restarts, chg, len(mua))
+                r["rs"] = restart_stats(rule.restarts, chg, len(mua), tr["restart_apply_block"])
         res["rules"][name] = r
-        save(exp, tag, nb, res, arrs)
+        save(exp, tag, nb, res, arrs, preset=o.preset)
         extra = ""
         if isinstance(rule, SFY3):
             extra = f" handover {r['handover'][:4]}" + (f" restarts {r['rs']['restarts'][:6]}" if rule.rs else "")
         print(f"[{exp} {tag}] {name}: L1 {np.round(r['L1'], 2)} ex1s {r['ex_first1']:.2f} last10 {r['ex_last10']:.2f} dB "
               f"div={r['div']} amp={r['amp']}{extra} ({r['sec']:.1f} s, total {time.time() - t0:.0f} s)", flush=True)
-    res["done"] = True; save(exp, tag, nb, res, arrs)
+    res["done"] = True; save(exp, tag, nb, res, arrs, preset=o.preset)
     return tag
 
 
@@ -1061,7 +1110,7 @@ def c4x_job(tag, o):
         probes = sorted(set(probes + [PC_BLOCK + k for k in C2_PC if PC_BLOCK + k < nbr]))
     RR = make_rules3(nbr, P, o.X2, o.X3, o.mu_e)
     chg = change_blocks(dd)
-    res = dict(tag=tag, nb=nbr, pc=dd["pc"], changes=chg, par=par3_desc(o), probes=probes, rules={}, done=False)
+    res = dict(tag=tag, nb=nbr, pc=dd["pc"], changes=chg, par=job_par("c4x", o), probes=probes, rules={}, done=False)
     arrs = {}
     for name in (o.rules or C4X_RULES):
         rule = RR[name]()
@@ -1072,12 +1121,12 @@ def c4x_job(tag, o):
         if isinstance(rule, SFY3):
             x["handover"] = [int(b) for b in rule.handover]
             if rule.rs:
-                x["rs"] = restart_stats(rule.restarts, chg, len(sim["tr"]["mu_app"]))
+                x["rs"] = restart_stats(rule.restarts, chg, len(sim["tr"]["mu_app"]), sim["tr"]["restart_apply_block"])
         res["rules"][name] = x
         for k, v in hk.rec.items():
             arrs[name + "|" + k] = np.asarray(v, float)
         arrs[name + "|own_X"] = own["X"]; arrs[name + "|own_N"] = own["N"]
-        for k in ("early", "restart", "mu_state"):
+        for k in ("early", "restart", "mu_state", "early_end", "restart_detect_block", "restart_apply_block"):
             if k in sim["tr"]:
                 arrs[name + "|" + k] = np.asarray(sim["tr"][k], float)
         save("C4X", tag, nb, res, arrs)
@@ -1099,11 +1148,12 @@ def rwin_energy(dd, nbr, W=M):
     """sum r^2 over the error window of every block: samples [i B + B - W, i B + B); W = M (default, rsN) = the M
     errors in Ctx.E; W = 2M (rsN2) also covers the r samples that reach the window's errors through the M-tap filter.
     r = data['r'] = hS * x, the filtered reference (Rall = rfft(hS, N) x rfft(x frame), the same hS)."""
-    r = np.asarray(dd["r"], float); cs = np.concatenate([[0.0], np.cumsum(r * r)])
+    r = np.asarray(dd["r"], float)
     out = np.empty(nbr)
     for i in range(nbr):
-        hi = min(i * B + B, len(r)); lo = max(0, i * B + B - W)
-        out[i] = cs[hi] - cs[lo]
+        hi = i * B + B
+        window = r[max(0, hi - W):hi]
+        out[i] = window @ window
     return out
 
 
@@ -1242,23 +1292,59 @@ def _dispatch(a):
         return f"{tag} FAILED: {ex}"
 
 
+def job_par(cmd, o):
+    if cmd == "c5":
+        par = par4_desc(o)
+    elif cmd in ("c4", "c4x"):
+        par = par3_desc(o)
+    elif cmd in ("c3", "c2x"):
+        par = par2_desc(o)
+    else:
+        par = o.P.desc()
+    par.update(preset=o.preset, output_schema=2)
+    if cmd in ("c1", "c3", "c4", "c5"):
+        par["rec_db"] = o.rec_db
+    if cmd == "c2x":
+        par["oracle"] = o.oracle
+    return par
+
+
+def rules_for(cmd, o):
+    return o.rules or {"c1": C1_RULES, "c2": C2_RULES, "c3": C3_RULES, "c2x": C2X_RULES,
+                       "c4": C4_RULES, "c4x": C4X_RULES, "c5": C5_RULES}[cmd]
+
+
 def main_jobs(cmd, o):
     todo = []
-    for t in tags_of(cmd, o):
-        p = fpath(cmd.upper(), t, o.nb)
-        if os.path.exists(p) and not o.force and json.load(open(p)).get("done") and not (cmd in ("c1", "c3", "c4", "c5") and o.rules):
-            print("skip (done):", p); continue
+    par = job_par(cmd, o)
+    rules = set(rules_for(cmd, o))
+    for t in dict.fromkeys(tags_of(cmd, o)):
+        p = fpath(cmd.upper(), t, o.nb, preset=o.preset)
+        if os.path.exists(p) and not o.force:
+            with open(p) as f:
+                saved = json.load(f)
+            same_length = o.nb is None or saved.get("nb") == o.nb
+            if same_length and saved.get("done") and saved.get("par") == par and rules <= saved["rules"].keys():
+                print("skip (done):", p)
+                continue
         todo.append((cmd, t, o))
     print(f"{cmd.upper()}: {len(todo)} jobs, procs={o.procs}, nb={o.nb}, a*={o.P.astar:.4f} mu_D={o.P.mu_D:.3f}", flush=True)
     t0 = time.time()
+
+    def print_results(results):
+        success = True
+        for result in results:
+            print("finished", result, flush=True)
+            success &= " FAILED:" not in result
+        return success
+
     if o.procs <= 1:
-        for a in todo:
-            print("finished", _dispatch(a), flush=True)
+        success = print_results(map(_dispatch, todo))
     else:
         with Pool(min(o.procs, 2), maxtasksperchild=1) as pl:
-            for r in pl.imap_unordered(_dispatch, todo):
-                print("finished", r, flush=True)
-    print(f"{cmd.upper()}: all done in {time.time() - t0:.0f} s", flush=True)
+            success = print_results(pl.imap_unordered(_dispatch, todo))
+    print(f"{cmd.upper()}: {'all done' if success else 'failed'} in {time.time() - t0:.0f} s", flush=True)
+    return success
 
 
 # ==============================================================================================
@@ -1338,6 +1424,7 @@ def check(o):
     ok &= check2(o, dd, Rall, st)
     ok &= check3(o, dd, Rall, st)
     ok &= check4(o, dd, Rall, st)
+    ok &= check5()
     print("ALL CHECKS PASSED" if ok else "SOME CHECKS FAILED", flush=True)
     return ok
 
@@ -1365,23 +1452,9 @@ def check2(o, dd, Rall, st):
         ok &= bool(cond); print(f"[{'OK ' if cond else 'FAIL'}] {name} {msg}", flush=True)
 
     P = o.P; nbq = 200
-    same = lambda a, b: (np.array_equal(a["w"], b["w"]) and np.array_equal(a["e"], b["e"], equal_nan=True)
-                         and a["tr"].keys() == b["tr"].keys()
-                         and all(np.array_equal(a["tr"][k], b["tr"][k], equal_nan=True) for k in a["tr"]))
-    # 9. existing rules bitwise unchanged against the protoC.py of REF_COMMIT
-    try:
-        R0 = _ref_module()
-    except Exception as ex:
-        rep(f"reference module {REF_COMMIT} loads", False, str(ex)); R0 = None
-    if R0 is not None:
-        P0 = R0.Par(f=P.f, ta=P.ta, tm=P.tm, heff=P.h, ck=P.c, gz=P.gz, gm=P.gm, dopt_T=P.dopt_T, dopt_k=P.dopt_k,
-                    mu_fmax=None if abs(P.mu_fmax - 0.75 / (P.h * (P.ta - 1))) < 1e-15 else P.mu_fmax)
-        RRn, RRo = make_rules(nbq, P), R0.make_rules(nbq, P0); bad = []
-        for k in R0.SFY_NAMES:
-            if not same(simulate(dd, Rall, st, RRn[k](), nb=nbq), simulate(dd, Rall, st, RRo[k](), nb=nbq)):
-                bad.append(k)
-        rep(f"all {len(R0.SFY_NAMES)} protoC SF-Y/SF-E rules bitwise == {REF_COMMIT} (w, e, traces; {nbq} blocks)",
-            not bad and R0.SFY_NAMES == SFY_NAMES, f"mismatch: {bad[:3]}" if bad else "")
+    # 9. The published protoC rule names are still available with the corrected estimator.
+    R0 = _ref_module()
+    rep(f"protoC SF-Y/SF-E rule names == {REF_COMMIT}", R0.SFY_NAMES == SFY_NAMES)
     # 10. est91 through the solver interface == the protoC rule (bitwise w, e and the shared traces)
     RR = make_rules(300, P, o.X2); bad = []
     for t in TARGETS2:
@@ -1446,6 +1519,15 @@ def check2(o, dd, Rall, st):
 REF_COMMIT3 = "ac8eb5b"     # protoC.py before the protoC3 extension
 
 
+def uses_solve_xn(rule):
+    return isinstance(rule, SFY) and (rule.e2 is None or rule.e2.kind != "estX")
+
+
+def same_legacy_run(new, old):
+    return (np.array_equal(new["w"], old["w"]) and np.array_equal(new["e"], old["e"], equal_nan=True)
+            and all(np.array_equal(new["tr"][key], values, equal_nan=True) for key, values in old["tr"].items()))
+
+
 def check3(o, dd, Rall, st):
     """protoC3 checks (15-20)."""
     ok = True
@@ -1455,10 +1537,7 @@ def check3(o, dd, Rall, st):
         ok &= bool(cond); print(f"[{'OK ' if cond else 'FAIL'}] {name} {msg}", flush=True)
 
     P = o.P; nbq = 200
-    same = lambda a, b: (np.array_equal(a["w"], b["w"]) and np.array_equal(a["e"], b["e"], equal_nan=True)
-                         and a["tr"].keys() == b["tr"].keys()
-                         and all(np.array_equal(a["tr"][k], b["tr"][k], equal_nan=True) for k in a["tr"]))
-    # 15. all existing rules bitwise == ac8eb5b (protoC + protoC2 rules and the protoC2 controls)
+    # 15. Compare rules unaffected by the linear-estimator correction to the historical implementation.
     try:
         R0 = _ref_module(REF_COMMIT3)
     except Exception as ex:
@@ -1468,10 +1547,11 @@ def check3(o, dd, Rall, st):
                     mu_fmax=None if abs(P.mu_fmax - 0.75 / (P.h * (P.ta - 1))) < 1e-15 else P.mu_fmax)
         names = R0.SFY_NAMES + R0.C3_RULES
         RRn, RRo = make_rules3(nbq, P, o.X2, o.X3, o.mu_e), R0.make_rules(nbq, P0, o.X2); bad = []
-        for k in names:
-            if not same(simulate(dd, Rall, st, RRn[k](), nb=nbq), simulate(dd, Rall, st, RRo[k](), nb=nbq)):
+        unchanged = [k for k in names if not uses_solve_xn(RRn[k]())]
+        for k in unchanged:
+            if not same_legacy_run(simulate(dd, Rall, st, RRn[k](), nb=nbq), simulate(dd, Rall, st, RRo[k](), nb=nbq)):
                 bad.append(k)
-        rep(f"all {len(names)} protoC / protoC2 rules bitwise == {REF_COMMIT3} (w, e, traces; {nbq} blocks)",
+        rep(f"{len(unchanged)} unaffected protoC / protoC2 rules bitwise == {REF_COMMIT3} ({nbq} blocks)",
             not bad and R0.SFY_NAMES == SFY_NAMES and R0.C3_RULES == C3_RULES, f"mismatch: {bad[:3]}" if bad else "")
     # path_of unchanged for the existing inputs (pseg absent)
     dpc = dict(pc=True); dG = dict(pc=False)
@@ -1550,11 +1630,7 @@ def check4(o, dd, Rall, st):
         ok &= bool(cond); print(f"[{'OK ' if cond else 'FAIL'}] {name} {msg}", flush=True)
 
     P = o.P
-    same = lambda a, b: (np.array_equal(a["w"], b["w"]) and np.array_equal(a["e"], b["e"], equal_nan=True)
-                         and a["tr"].keys() == b["tr"].keys()
-                         and all(np.array_equal(a["tr"][k], b["tr"][k], equal_nan=True) for k in a["tr"]))
-    # 21. every protoC3 rule (incl. all SFY3 variants) and every existing rule bitwise == 0073387, on G_s0 and on
-    #     a120_s0 (where the old rs restarts)
+    # 21. Compare rules unaffected by the linear-estimator correction to the historical implementation.
     try:
         R0 = _ref_module(REF_COMMIT4)
     except Exception as ex:
@@ -1565,21 +1641,22 @@ def check4(o, dd, Rall, st):
         names_old = list(R0.make_rules3(10, P, o.X2, X3, o.mu_e).keys())
         bad = []; nbq = 200
         RRn, RRo = make_rules4(nbq, P, o.X2, X3, o.X4, o.mu_e, dd), R0.make_rules3(nbq, P, o.X2, X3, o.mu_e)
-        for k in names_old:
-            if not same(simulate(dd, Rall, st, RRn[k](), nb=nbq), simulate(dd, Rall, st, RRo[k](), nb=nbq)):
+        unchanged = [k for k in names_old if not uses_solve_xn(RRn[k]())]
+        for k in unchanged:
+            if not same_legacy_run(simulate(dd, Rall, st, RRn[k](), nb=nbq), simulate(dd, Rall, st, RRo[k](), nb=nbq)):
                 bad.append(k)
-        rep(f"all {len(names_old)} existing rules (protoC / protoC2 / protoC3) bitwise == {REF_COMMIT4} on G_s0 "
+        rep(f"{len(unchanged)} unaffected rules bitwise == {REF_COMMIT4} on G_s0 "
             f"({nbq} blocks)", not bad and names_new == names_old and R0.C4_RULES == C4_RULES,
             f"mismatch: {bad[:3]}" if bad else "")
         da, Ra, sa = prep3("a120_s0", 600); bad = []; nr = []
         RRn, RRo = make_rules4(600, P, o.X2, X3, o.X4, o.mu_e, da), R0.make_rules3(600, P, o.X2, X3, o.mu_e)
-        for k in [n for n in names_old if isinstance(RRo[n](), R0.SFY3)]:
+        for k in [n for n in unchanged if isinstance(RRo[n](), R0.SFY3)]:
             rn, ro = RRn[k](), RRo[k]()
-            if not same(simulate(da, Ra, sa, rn, nb=600), simulate(da, Ra, sa, ro, nb=600)) or rn.restarts != ro.restarts:
+            if not same_legacy_run(simulate(da, Ra, sa, rn, nb=600), simulate(da, Ra, sa, ro, nb=600)) or rn.restarts != ro.restarts:
                 bad.append(k)
             if getattr(rn, "rs", False):
                 nr.append(len(rn.restarts))
-        rep(f"all protoC3 SFY3 rules bitwise == {REF_COMMIT4} on a120_s0 (600 blocks, old rs restarts: {nr})",
+        rep(f"protoC3 SFY3 estX rules bitwise == {REF_COMMIT4} on a120_s0 (600 blocks, old rs restarts: {nr})",
             not bad and sum(nr) > 0, f"mismatch: {bad[:3]}" if bad else "")
     # 22. YEstRSX: 'G' with g = 1 and guard 0 == YEstRS (C, Q, restarts); 'N' logic on a synthetic z sequence
     rng = np.random.default_rng(5); L_, b_ = P.L, P.b
@@ -1639,6 +1716,67 @@ def check4(o, dd, Rall, st):
 # ==============================================================================================
 # Report
 # ==============================================================================================
+def check5():
+    """Regression checks for the corrected linear estimator and C5 edge cases."""
+    P = Par()
+    mu = 0.678
+    a = P.h * mu
+    lbar = P.L + (1 - P.bd) / P.bd
+
+    def moments(x, n, a):
+        C = (1 + a * (lbar - (2 * P.tm - 1) * P.f)) * x - a * P.ta * n
+        Q = ((1 + P.f) - a * (2 * P.tm - 2) * P.f) * x + (1 - a * (P.ta - 1)) * n
+        return C, Q
+
+    C, Q = moments(1.0, 0.0, a)
+    X, Nn, _ = solve_xn(C, Q, mu, P)
+    old = Q / (1 + P.f)
+    x0 = solve_xn(*moments(-0.1, 1.0, a), mu, P)
+    n0 = solve_xn(*moments(1.0, -0.1, a), mu, P)
+    held = solve_xn(*moments(1.0, -1.0, 0.5), 0.5 / P.h, P, (0.2, 0.3))
+    ok_xn = (np.allclose((X, Nn), (1.0, 0.0), rtol=0, atol=1e-12)
+             and x0[0] == 0 and x0[2] == 1 and n0[1] == 0 and n0[2] == 2 and held == (0.2, 0.3, 3))
+    print(f"[{'OK ' if ok_xn else 'FAIL'}] check5 solve_xn: X={X:.6f} N={Nn:.6g}, old cap={old:.6f}; "
+          "both boundary branches and b1 hold")
+
+    # Deterministic stress case: an impulse on the Gaussian segment, two primary-path changes 0.3 s apart.
+    nb = 400
+    x = np.random.default_rng(7).standard_normal(nb * B)
+    x[:FS] = 0
+    x[int(1.25 * FS)] = 1e6
+    sample_changes = [int(t * FS) for t in (2.0, 2.3)]
+    boundaries = [n // B for n in sample_changes]
+    dd = D.build(x)
+    d_new = signal.lfilter(T._hP_pc(), [1.0], x)
+    lo, hi = sample_changes
+    dd["d"][lo:hi] = d_new[lo:hi]
+    dd.update(pc=False, pseg=list(zip(boundaries, (1, 0))), tag="check5_s0")
+    Rall = ML.prepass(dd)["Rall"]
+    st = Stats(dd, Rall)
+    X3 = dict(X3_DEF, n_early=FINAL_SETTINGS["n_early"])
+    rule = make_rules4(nb, P, X2_DEF, X3, X4_DEF, mu_early_value(P), dd)[FINAL_RULE]()
+    sim = simulate(dd, Rall, st, rule, nb=nb)
+    tr = sim["tr"]
+    stats = restart_stats(rule.restarts, change_blocks(dd), len(tr["mu_app"]), tr["restart_apply_block"])
+    agg = metrics(sim, dd)
+    colliding = restart_stats([60], [20, 58, 180], 200, [61])
+    frozen = dict(sim, e=2 * dd["d"], div=False)
+    amplified = [metrics(frozen, dict(dd, pc=pc)) for pc in (True, False)]
+    late_rms = rwin_energy(dd, nb, 2 * M)[int(1.5 * BPS)]
+    ok_sim = (not agg["div"] and np.isfinite(agg["L1"]).all() and int(st.g_zero.sum()) == BPS
+              and np.all(st.g[st.g_zero] == 1) and late_rms > 0 and tr["early_end"][63] == 63
+              and [r for r in tr["restart_detect_block"] if r >= 0] == rule.restarts
+              and all(tr["mu_state"][b] == rule.mu_e for b in stats["apply_blocks"] if b is not None)
+              and stats["n_censored"] == 1
+              and [ev["detection_block"] for ev in colliding["changes"]] == [60, None, None]
+              and (colliding["n_false"], colliding["n_missed"], colliding["n_censored"]) == (0, 1, 1)
+              and colliding["apply_blocks"] == [61] and all(r["amp"] and not r["div"] for r in amplified))
+    print(f"[{'OK ' if ok_sim else 'FAIL'}] check5 synthetic: g=0/0 {st.g_zero.sum()}, "
+          f"div={agg['div']}, amp={agg['amp']}, detections={stats['restarts']}, applied={stats['apply_blocks']}, "
+          f"false={stats['n_false']}, missed={stats['n_missed']}, censored={stats['n_censored']}")
+    return ok_xn and ok_sim
+
+
 def load(exp, smoke):
     d = OUT_SMOKE if smoke else OUT_FULL
     J = {}
@@ -1679,7 +1817,7 @@ def rep_c1(J):
         L += [f"### {c}: {cdesc(c)} (tags: {', '.join(sorted(r['tag'] for r in rs))}; nb = {rs[0]['nb']})", ""]
         hdr = (["L1 15-17 s", "L1 25-30 s", "L1 whole", "L2 15-17 s", "L2 25-30 s", "ex 0-1 s", "ex 0-5 s", "ex 15-17 s", "ex 25-30 s"]
                if pc else ["L1 whole", "L1 first5", "L1 last10", "L2 whole", "L2 first5", "L2 last10", "ex 0-1 s", "ex 0-5 s", "ex last10"])
-        L += ["| rule | " + " | ".join(hdr) + " | n | div | amp |", "|---" * (len(hdr) + 4) + "|"]
+        L += ["| rule | " + " | ".join(hdr) + " | n | div_num | amp |", "|---" * (len(hdr) + 4) + "|"]
         rows2 = []
         for k in names:
             rows = [r["rules"][k] for r in rs if k in r["rules"]]
@@ -1844,7 +1982,7 @@ def report2(o):
     print("wrote", p, f"({len(L)} lines)")
 
 
-def rep_c4_extra(J4, vars_=VARS3[1:]):
+def rep_c4_extra(J4, vars_=VARS3[1:], include_restarts=True):
     """pcb windows, early handover, restarts (per input class, mean over seeds)."""
     L = []
     byc = {}
@@ -1863,6 +2001,8 @@ def rep_c4_extra(J4, vars_=VARS3[1:]):
             cells = [mean(lambda x, w=w: x["pcb"]["L1_" + w]) for w in ks] + [mean(lambda x, w=w: x["pcb"]["ex_" + w]) for w in ks]
             L.append(f"| {k} | " + " | ".join(fm(x) for x in cells) + f" | {len(okr)} |")
         L.append("")
+    if not include_restarts:
+        return L
     L += ["### Early phase and restarts (protoC3 rules; mean over seeds)", "",
           "handover = first block where the early phase ends (n_e - 1); early frac = fraction of all blocks in an early "
           "phase (incl. after restarts); restarts: false = restarts not within 1 s after a true change, per 30 s; delay = "
@@ -1939,11 +2079,10 @@ def report3(o):
 def rep_c5_rs(J5):
     """Restart table per input class and rule (seeds pooled)."""
     L = ["### Restarts (rs / rsN / rsG rules; per input, over seeds)", "",
-         "false / 30 s = restarts not within 1 s after a true change, per 30 s of run (mean over seeds; [min, max]); "
-         "total = all restarts per 30 s; delay = blocks from the change to the first restart within 1 s (mean over the "
-         "detected changes); missed = changes with no restart within 1 s (count over seeds / number of changes).", "",
-         "| input | rule | false / 30 s | [min, max] | total / 30 s | delay change 1 | missed 1 | delay change 2 | missed 2 | n |",
-         "|---|---|---|---|---|---|---|---|---|---|"]
+         "false / 30 s = unmatched restarts (mean over seeds; [min, max]); detection delay is in blocks. "
+         "Missed and censored changes are counts over seeds.", "",
+         "| input | rule | false / 30 s | [min, max] | delay change 1 | delay change 2 | missed | censored | n |",
+         "|---|---|---|---|---|---|---|---|---|"]
     byc = {}
     for t, r in J5.items():
         byc.setdefault(cls_of(t), []).append(r)
@@ -1954,27 +2093,52 @@ def rep_c5_rs(J5):
             if not q:
                 continue
             fr = [x["false_per30"] for x in q]
-            tot = [len(x["restarts"]) / (r["nb"] / BPS / 30.0) for x, r in zip(q, [r for r in rs if k in r["rules"] and "rs" in r["rules"][k]])]
-            cells = []
+            delays = []
             for j in range(2):
-                v = [x["delays"][j] for x in q if len(x["delays"]) > j]
-                fin = [x for x in v if np.isfinite(x)]
-                cells += ([fm(float(np.mean(fin)), 1) if fin else "NaN", f"{len(v) - len(fin)} / {len(v)}"] if v else ["-", "-"])
-            L.append(f"| {c} | {k} | {fm(float(np.mean(fr)))} | [{fm(min(fr))}, {fm(max(fr))}] | {fm(float(np.mean(tot)))} | "
-                     + " | ".join(cells) + f" | {len(q)} |")
+                v = [x["delays"][j] for x in q if len(x["delays"]) > j and np.isfinite(x["delays"][j])]
+                delays.append(fm(float(np.mean(v)), 1) if v else "-")
+            missed = sum(x["n_missed"] for x in q)
+            censored = sum(x["n_censored"] for x in q)
+            L.append(f"| {c} | {k} | {fm(float(np.mean(fr)))} | [{fm(min(fr))}, {fm(max(fr))}] | "
+                     f"{delays[0]} | {delays[1]} | {missed} | {censored} | {len(q)} |")
     L.append("")
     return L
 
 
+def load_completed_c5(o, directory):
+    results = {}
+    par = None
+    rules = rules_for("c5", o)
+    for tag in dict.fromkeys(tags_of("c5", o)):
+        path = os.path.join(directory, f"protoC_C5_{tag}.json")
+        try:
+            with open(path) as f:
+                result = json.load(f)
+        except (OSError, ValueError) as ex:
+            raise ValueError(f"{path}: {ex}") from ex
+        if result.get("tag") != tag or result.get("done") is not True or not isinstance(result.get("par"), dict):
+            raise ValueError(f"{path}: invalid tag, par, or done flag")
+        if par is not None and result["par"] != par:
+            raise ValueError(f"{path}: par differs from the other tags")
+        par = result["par"]
+        missing = set(rules) - result.get("rules", {}).keys()
+        if missing:
+            raise ValueError(f"{path}: missing rules: {', '.join(sorted(missing))}")
+        result["rules"] = {name: result["rules"][name] for name in rules}
+        results[tag] = result
+    return results
+
+
 def report4(o):
     smoke = o.smoke
-    J5 = load("C5", smoke)
-    par = next(iter(J5.values()), {}).get("par", par4_desc(o))
+    d = output_dir(1 if smoke else None, o.preset)
+    J5 = load_completed_c5(o, d)
+    par = next(iter(J5.values()))["par"]
     X3 = {k[3:]: v for k, v in par.items() if k.startswith("x3_")}
     X4 = {k[3:]: v for k, v in par.items() if k.startswith("x4_")}
     L = ["# RESULTS protoC4: restart statistics rsN / rsG (SF-Y, 1/g, delayopt, early; prototype)", "",
-         f"Generated by `python protoC.py report4{' --smoke' if smoke else ''}` from out/{'protoC_smoke' if smoke else 'protoC'}/"
-         "protoC_C5_*.json.  dB conventions as in RESULTS_protoC.md (more negative is better).", "",
+         f"Generated by `python protoC.py report4{' --smoke' if smoke else ''}` from {os.path.relpath(d, HERE)}/"
+         "protoC_C5_*.json. div_num counts nonfinite runs or Phi-excess > 1e8; amp counts L1 last10 > 0 dB.", "",
          "Constants: " + ", ".join(f"{k} = {fm(v, 4) if isinstance(v, float) else v}" for k, v in par.items()), "",
          "Variants (suffix of 'SF-Y <est91|estX> delayopt g gam.03'); early and rs as in RESULTS_protoC3.md "
          f"(mu_early = {fm(X3.get('mu_early', np.nan), 3)}, n_e = "
@@ -1990,11 +2154,11 @@ def report4(o):
          f"- rsN and rsG: no restart within {X4.get('guard')} blocks of the previous restart; restart actions as rs "
          "(C, Q, k, ubar / delayed buffer reset, estX's kept (X, N) cleared, mu_state = mu_early and a new early phase).", "",
          "## C5: closed loop", ""]
-    L += rep_c1(J5) if J5 else ["(no outputs)", ""]
-    if J5:
-        L += rep_c4_extra(J5, VARS3[1:] + VARS4)
-        L += rep_c5_rs(J5)
-    p = os.path.join(HERE, "RESULTS_protoC4.md") if not smoke else os.path.join(OUT_SMOKE, "RESULTS_protoC4_smoke.md")
+    L += rep_c1(J5)
+    L += rep_c4_extra(J5, VARS3[1:] + VARS4, include_restarts=False)
+    L += rep_c5_rs(J5)
+    name = "RESULTS_protoC4_smoke.md" if smoke else "RESULTS_protoC4.md"
+    p = os.path.join(d if smoke or o.preset else HERE, name)
     os.makedirs(os.path.dirname(p), exist_ok=True)
     with open(p, "w") as f:
         f.write("\n".join(L) + "\n")
@@ -2008,7 +2172,7 @@ def report(o):
     L = ["# RESULTS protoC: Sec. 10.6 method changes on the SF direction (prototype)", "",
          f"Generated by `python protoC.py report{' --smoke' if smoke else ''}` from out/{'protoC_smoke' if smoke else 'protoC'}/protoC_*.json. "
          "All dB values: more negative is better (L1 = ANR mean in dB, L2 = 10log10(sum e^2/sum d^2), "
-         "ex = 10log10 of the mean Phi-excess v'Phi v/Jo over the window; div = numeric divergence, amp = L1 whole > 0 "
+         "ex = 10log10 of the mean Phi-excess v'Phi v/Jo over the window; div_num = numeric divergence, amp = L1 last10 > 0 "
          "without divergence; means over non-diverged seeds).", "",
          "Constants: " + ", ".join(f"{k} = {fm(v, 4) if isinstance(v, float) else v}" for k, v in par.items()), "",
          "Rule names: SF-Y = statistics in y coordinates, SF-E = the same rule with statistics on Delta; "
@@ -2042,6 +2206,7 @@ def parse(argv):
     ap.add_argument("--nb", type=int, default=None); ap.add_argument("--procs", type=int, default=2)
     ap.add_argument("--force", action="store_true"); ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--rules", default=None, help="';'-separated rule names")
+    ap.add_argument("--preset", choices=["final"], help="freeze the published C5 settings and use out/fix0")
     ap.add_argument("--f", type=float, default=0.85); ap.add_argument("--tau-a", type=float, default=3.8)
     ap.add_argument("--tau-m", type=float, default=4.0)
     ap.add_argument("--heff", type=float, default=None, help="h_eff (default 0.95 h = 0.2375)")
@@ -2059,7 +2224,7 @@ def parse(argv):
     ap.add_argument("--no-oracle", action="store_true", help="c2x: skip the continuation argmin (oracle) at the sampled blocks")
     ap.add_argument("--early-k", choices=["full", "excl1"], default=X3_DEF["early_k"],
                     help="protoC3 early value: injection with the '1' of K (full, spec) or without (excl1)")
-    ap.add_argument("--n-early", type=int, default=X3_DEF["n_early"], help="protoC3: fixed early length (0 = trust rule)")
+    ap.add_argument("--n-early", type=int, help="protoC3: fixed early length (0 = trust rule)")
     ap.add_argument("--ne-max", type=int, default=X3_DEF["ne_max"], help="protoC3: max early length (blocks)")
     ap.add_argument("--trust-q", type=float, default=X3_DEF["trust_q"])
     ap.add_argument("--trust-dec", type=float, default=X3_DEF["trust_dec"])
@@ -2073,6 +2238,31 @@ def parse(argv):
     ap.add_argument("--rs-guard", type=int, default=X4_DEF["guard"], help="protoC4 rsN / rsG: no restart within this "
                     "many blocks of the previous one")
     o = ap.parse_args(argv)
+    if o.preset == "final":
+        if o.cmd not in ("c5", "report4", "check"):
+            ap.error("--preset final is available for c5, report4 and check")
+        settings = ("f", "tau_a", "tau_m", "heff", "ck", "gz", "gm", "dopt_T", "dopt_k", "mu_fmax", "rec_db",
+                    "kappa", "estx_a", "det_rel", "no_aq_cap", "early_k", "n_early", "ne_max", "trust_q", "trust_dec",
+                    "beta_min", "r_thr", "rs_d", "rs_kmin", "z_beta", "z_thr", "z_d", "rs_guard")
+        for key in settings:
+            expected = FINAL_SETTINGS.get(key, ap.get_default(key))
+            value = getattr(o, key)
+            if value == expected or (key == "n_early" and value is None):
+                continue
+            if key == "heff" and value == 0.95 * H:
+                continue
+            if key == "mu_fmax" and value == 0.75 / (0.95 * H * (o.tau_a - 1)):
+                continue
+            if key == "ck" and tuple(float(v) for v in value.split(",")) == C_DEF:
+                continue
+            option = "--" + key.replace("_", "-") if key != "dopt_T" else "--dopt-T"
+            ap.error(f"{option}={value} conflicts with --preset final")
+        for key, value in FINAL_SETTINGS.items():
+            setattr(o, key, value)
+        o.heff = o.mu_fmax = None
+        o.ck = ap.get_default("ck")
+    elif o.n_early is None:
+        o.n_early = X3_DEF["n_early"]
     o.rules = o.rules.split(";") if o.rules else None
     o.X2 = dict(kappa=o.kappa, amode=o.estx_a, det_rel=o.det_rel, aq_cap=not o.no_aq_cap)
     o.oracle = not o.no_oracle
@@ -2098,6 +2288,9 @@ if __name__ == "__main__":
     elif o.cmd == "report3":
         report3(o)
     elif o.cmd == "report4":
-        report4(o)
+        try:
+            report4(o)
+        except ValueError as ex:
+            sys.exit(f"report4: {ex}")
     else:
-        main_jobs(o.cmd, o)
+        sys.exit(0 if main_jobs(o.cmd, o) else 1)
