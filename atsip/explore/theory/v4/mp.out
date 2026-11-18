@@ -1,0 +1,27 @@
+(1) spectrum of A_n
+  Me=  128 c= 4.00: lambda_max 9.948 (MP (1+sqrt c)^2 = 9.000), mean lambda^2 4.963 (1 + c = 5.000), bound a < 0.201 (MP 0.222)
+  Me=  256 c= 2.00: lambda_max 7.673 (MP (1+sqrt c)^2 = 5.828), mean lambda^2 3.180 (1 + c = 3.000), bound a < 0.261 (MP 0.343)
+  Me=  512 c= 1.00: lambda_max 5.799 (MP (1+sqrt c)^2 = 4.000), mean lambda^2 1.955 (1 + c = 2.000), bound a < 0.345 (MP 0.500)
+  Me= 1024 c= 0.50: lambda_max 3.906 (MP (1+sqrt c)^2 = 2.914), mean lambda^2 1.463 (1 + c = 1.500), bound a < 0.512 (MP 0.686)
+  Me= 2048 c= 0.25: lambda_max 2.982 (MP (1+sqrt c)^2 = 2.250), mean lambda^2 1.302 (1 + c = 1.250), bound a < 0.671 (MP 0.889)
+(2) recursion with sliding windows (hop B): excess after 16/32/64 blocks (dB re initial), 3 runs each
+  Me=512 a=0.100:    -19.4    -31.7    -55.4
+  Me=512 a=0.200:    -22.2    -43.0    -82.3
+  Me=512 a=0.300:    -26.2    -50.8    -97.9
+  Me=512 a=0.375:    -35.8    -62.8   -110.4
+  Me=512 a=0.450:    -28.7    -59.9   -114.3
+  Me=512 a=0.500:    -28.8    -54.0    -97.7
+  Me=512 a=0.550:    -28.3    -55.1    -86.1
+  Me=512 a=0.625:     -2.1      1.3     31.8
+  Me=512 a=0.750:     29.3     63.7    182.5
+  Me=128 a=0.050:     -9.0    -18.8    -31.4
+  Me=128 a=0.100:    -13.7    -20.9    -47.1
+  Me=128 a=0.150:    -16.8    -32.3    -65.0
+  Me=128 a=0.200:    -20.7    -37.4    -74.1
+  Me=128 a=0.250:    -17.2    -32.1    -61.2
+  Me=128 a=0.300:    -13.7    -23.8    -36.1
+  Me=128 a=0.400:     13.1     16.3     28.7
+(3) split coherence, windows of L samples
+  L=128: mismatch coh mean 0.195 sd 0.047 (1/(1+M/L) = 0.200); noise coh mean +0.000 sd 0.044 (1/sqrt(M) = 0.044)
+  L=256: mismatch coh mean 0.334 sd 0.046 (1/(1+M/L) = 0.333); noise coh mean +0.000 sd 0.043 (1/sqrt(M) = 0.044)
+  L=512: mismatch coh mean 0.505 sd 0.035 (1/(1+M/L) = 0.500); noise coh mean +0.000 sd 0.043 (1/sqrt(M) = 0.044)
