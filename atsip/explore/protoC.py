@@ -32,15 +32,31 @@ Delay-opt model (scalar, per block, constant mu over the horizon):
   K = [1 + (2tm-1) f] h^2 x + ta N because the mean recursion already contains the mean's own mu^2 h^2 m^2
   term exactly; 'full' takes Sec. 10.2's K literally.
 
-Subcommands:  check | c1 | c2 | report [--smoke]
+protoC2 (THEORY_vss2.md Sec. 11, estimator variants for the SF-Y rules with the 1/g correction; class Est2):
+  est91  the protoC estimator (L = 4, beta_d = 0.1, lbar = 13, Sec. 9.1 linear forms); bitwise = 'SF-Y <t> g <gam>'
+  estL4  beta_d = 1 (ubar_{n-L} = u_{n-L}), lbar = 4, same linear forms
+  estX   estL4 statistics + Sec. 11.2 (b)-(d): C = kappa rho(a)^{-L} X + (N + f X)[r(L) - a sum_{j>=1} lam^{j-1}
+         (r(L-j) + r(L+j))], lam = max(1 - a, 0), r(k) = (1 - |k|/4)_+ (all nonzero terms of the sum);
+         Q = kappa (1+f) X + N - a_Q [(2tm-2) f X + (ta-1) N], a_Q = min(a, h_eff mu_fmax);
+         a = h_eff * mean applied mu over blocks n-L..n-1, rho from a 1e-3 grid of the delayed-recursion root;
+         2x2 solve, |det| < det_rel (|cX qN| + |cN qX|) keeps the previous (X, N); X, N >= 0.
+  rules 'SF-Y <est> <delayopt|onestep> g gam<.03|.1>'
+  c3   closed loop as c1 (12 estimator rules + controls SF-Y delayopt g gam.03, SF-V2, SF-D g gam0.03 a0 1, SF+ramp)
+  c2x  estimator diagnostic: every block X_true = H^2 |P_M F v|^2 (v relative to the SF fixed point of the active
+       path) next to the driver's own X_hat and shadow est91 / estL4 / estX fed with the same u and applied mu;
+       N_true / Q_frz from frozen probes at sampled blocks; C2 oracle argmin for the SF-Y drivers (--no-oracle)
+  report2 -> RESULTS_protoC2.md
+
+Subcommands:  check | c1 | c2 | report [--smoke] | c3 | c2x | report2 [--smoke]
   c1  closed loop, one job per tag (Pool <= 2), out/protoC/protoC_C1_<tag>.json/.npz (rewritten after every rule;
       a rerun resumes at the first missing rule)
   c2  tracking check: at sampled blocks, mu_state and target vs argmin of the T-step mean Phi-excess of a
       constant-internal-step continuation with the same power-correction policy (T = 4, 8, 16)
 Options: --tags / --classes --seeds, --nb (smoke -> out/protoC_smoke/), --procs, --force, --rules "a;b",
   --f --tau-a --tau-m --heff --ck --gz --gm --dopt-T --dopt-k --mu-fmax --rec-db
+  protoC2: --kappa --estx-a applied|state --det-rel --no-aq-cap --no-oracle
 """
-import os, sys, json, time, glob, argparse
+import os, sys, json, time, glob, argparse, copy
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from vssT_lib import *        # noqa: F401,F403
@@ -61,8 +77,8 @@ DOPT_GRID = np.linspace(0.0, 1.5, 40)
 HGRID = np.concatenate([[0.0], np.geomspace(0.01, 3.0, 40)])    # C2 continuation grid (internal step)
 TS = (4, 8, 16)
 BPS = FS // B                                                    # 125 blocks per second
-DEF_CLASSES = {"c1": "G,BU,SM,PS,II300,a145,a120,pc", "c2": "G,a145,pc"}
-DEF_SEEDS = {"c1": "0,1,2", "c2": "0"}
+DEF_CLASSES = {"c1": "G,BU,SM,PS,II300,a145,a120,pc", "c2": "G,a145,pc", "c3": "G,BU,a145,pc", "c2x": "G,pc"}
+DEF_SEEDS = {"c1": "0,1,2", "c2": "0", "c3": "0,1,2", "c2x": "0"}
 
 
 # ==============================================================================================
@@ -172,15 +188,21 @@ def sf_y(c):
 
 
 class SFY(Rule):
-    """coord 'Y' (y-coordinate statistics) or 'E' (statistics on Delta); target in TARGETS; corr in CORRS."""
+    """coord 'Y' (y-coordinate statistics) or 'E' (statistics on Delta); target in TARGETS; corr in CORRS.
+    est (Sec. 11 variants, protoC2): None = the protoC estimator (original code path, unchanged); 'est91' = the same
+    estimator through the solver interface; 'estL4' / 'estX' (see Est2)."""
     kind = "SF"
 
-    def __init__(s, coord, target, corr, gamma, P, mu_init=MU_INIT):
+    def __init__(s, coord, target, corr, gamma, P, mu_init=MU_INIT, est=None, X2=None):
         super().__init__()
         s.coord, s.target, s.corr, s.gamma, s.P = coord, target, corr, gamma, P
         s.est = YEst(P.L, P.bd, P.b); s.mu_state = mu_init; s.Qy = None; s.last = {}
         s.tr.update({k: [] for k in ("mu_state", "target", "X", "N", "C", "Q", "ypow", "dpclip", "mufclamp",
                                      "xclip", "stclip")})
+        s.e2 = None
+        if est is not None:
+            s.e2 = Est2(est, P, X2 or X2_DEF); s.est = s.e2.y
+            s.tr.update({k: [] for k in ("a", "rho", "detkeep")})
 
     def mu_formula(s, i):
         return s.mu_state
@@ -206,6 +228,8 @@ class SFY(Rule):
         mus = s.mu_state; mu = mus * fac
         s.est.update(i, fac * (y if s.coord == "Y" else KD * dv))
         tgt = X = Nn = np.nan; mfc = xc = stc = 0
+        if s.e2 is not None:
+            return s.block2(i, mu, mus, dv, py, clp, fac, Qy0)
         if s.est.C is not None and s.est.Q > 0:
             muf = min(mus, s.P.mu_fmax); mfc = int(muf != mus)
             X, Nn, xc = solve_xn(s.est.C, s.est.Q, muf, s.P)
@@ -225,6 +249,123 @@ class SFY(Rule):
             t[k].append(v)
         return mu, dv
 
+    def block2(s, i, mu, mus, dv, py, clp, fac, Qy0):
+        """Sec. 11 estimator variants (s.est = s.e2.y has already been updated with u_n)."""
+        tgt = np.nan; stc = 0
+        X, Nn, xc, mfc, keep, ok = s.e2.solve(mus)
+        if ok:
+            if s.target == "delayopt":
+                tgt = mu_delayopt(X, Nn, s.P)
+            else:
+                tgt = mu_onestep(X, Nn, s.est.Q, min(mus, s.P.mu_fmax), s.P)
+                if s.target == "delaycap":
+                    tgt = min(tgt, s.P.mu_D)
+            ns = (1 - s.gamma) * mus + s.gamma * tgt
+            s.mu_state = min(max(ns, 0.0), MU_MAX); stc = int(s.mu_state != ns)
+        s.e2.push_mu(mu, fac)
+        s.last = dict(mu_state=mus, target=tgt, fac=fac, Qy_after=s.Qy, Qy_before=Qy0)
+        t = s.tr
+        for k, v in (("mu_app", mu), ("mu_state", mus), ("target", tgt), ("X", X), ("N", Nn),
+                     ("C", s.est.C if s.est.C is not None else np.nan), ("Q", s.est.Q if s.est.Q is not None else np.nan),
+                     ("ypow", py), ("dpclip", clp), ("mufclamp", mfc), ("xclip", xc), ("stclip", stc),
+                     ("a", s.e2.a), ("rho", s.e2.rho), ("detkeep", keep)):
+            t[k].append(v)
+        return mu, dv
+
+
+# ==============================================================================================
+# Sec. 11 estimator variants (protoC2)
+# ==============================================================================================
+EST2 = ("est91", "estL4", "estX")
+X2_DEF = dict(kappa=1.0, amode="applied", det_rel=1e-3, aq_cap=True)
+_RHO_GRID = {}
+
+
+def rho_table(c, amax=3.0, step=1e-3):
+    """rho(a) of the delayed recursion on a grid (cached per c); np.interp between grid points, clamped at amax."""
+    key = tuple(np.round(np.asarray(c, float), 12))
+    if key not in _RHO_GRID:
+        g = np.arange(0.0, amax + step / 2, step)
+        _RHO_GRID[key] = (g, np.array([rho_delay(a, c) for a in g]))
+    return _RHO_GRID[key]
+
+
+def r_tri(k, width=4.0):
+    return max(1.0 - abs(k) / width, 0.0)
+
+
+def geo_sum(lam, L, width=4.0):
+    """S = sum_{j>=1} lam^{j-1} (r(L-j) + r(L+j)), triangular r, all nonzero terms (j = 1 .. L + width - 1)."""
+    S = 0.0
+    for j in range(1, int(L + width)):
+        S += lam ** (j - 1) * (r_tri(L - j, width) + r_tri(L + j, width))
+    return S
+
+
+def estx_coefs(a, aq, P, kappa, rho):
+    """Sec. 11.2 (b)-(c): C = cX X + cN N, Q = qX X + qN N.
+    a: h_eff * mean applied mu over the last L blocks (rho and the geometric C cross terms, lam = max(1 - a, 0));
+    aq: the a of the Q cross term (capped at h_eff mu_fmax by default, as the protoC Q form)."""
+    L, f = P.L, P.f
+    lam = max(1.0 - a, 0.0)
+    gC = r_tri(L) - a * geo_sum(lam, L)               # Gamma_L - a sum lam^{j-1}(Gamma_{L-j} + Gamma_{L+j}) per (N + fX)
+    cX = kappa * rho ** (-L) + f * gC; cN = gC
+    qX = kappa * (1 + f) - aq * (2 * P.tm - 2) * f; qN = 1.0 - aq * (P.ta - 1)
+    return cX, cN, qX, qN
+
+
+class Est2:
+    """Estimator variants for the SF-Y rules (statistics u = fac * y as in SFY):
+      est91  YEst(L, beta_d = 0.1) + solve_xn (lbar = 13), identical arithmetic to the protoC rule
+      estL4  YEst(L, beta_d = 1): ubar_{n-L} = u_{n-L}; solve_xn with lbar = 4 (Sec. 9.1 linear forms)
+      estX   YEst(L, beta_d = 1) + Sec. 11.2 (b)-(d): rho(a)^{-L} X, geometric noise cross terms with triangular
+             r(k) = (1 - |k|/4)_+ for the zeta and m parts, 2x2 solve; |det| < det_rel (|cX qN| + |cN qX|) keeps
+             the previous (X, N); X, N clipped at >= 0.
+    a = h_eff * mean(mu over blocks n-L .. n-1), mu = applied mu (amode 'applied', the Sec. 11.2 text) or mu_state
+    = applied mu / factor (amode 'state'; with the 1/g correction this is the step of the mean recursion when the
+    direction scales with g)."""
+
+    def __init__(s, kind, P, X2):
+        s.kind, s.P, s.X2 = kind, P, X2
+        if kind == "est91":
+            s.Pe = P; s.y = YEst(P.L, P.bd, P.b)
+        elif kind in ("estL4", "estX"):
+            s.Pe = copy.copy(P); s.Pe.bd = 1.0; s.y = YEst(P.L, 1.0, P.b)
+        else:
+            raise ValueError(kind)
+        s.hist = []; s.prev = None; s.a = np.nan; s.rho = np.nan
+        if kind == "estX":
+            s.ag, s.rg = rho_table(P.c)
+
+    def push_mu(s, mu_app, fac):
+        s.hist.append(mu_app if s.X2["amode"] == "applied" else mu_app / fac)
+        if len(s.hist) > s.P.L:
+            s.hist.pop(0)
+
+    def solve(s, mus):
+        """-> X, N, xclip, mufclamp, detkeep, ok (ok False: no estimate, mu_state not updated)."""
+        C, Q = s.y.C, s.y.Q
+        if C is None or not Q > 0:
+            return np.nan, np.nan, 0, 0, 0, False
+        if s.kind != "estX":
+            muf = min(mus, s.P.mu_fmax)
+            X, Nn, xc = solve_xn(C, Q, muf, s.Pe)
+            return X, Nn, xc, int(muf != mus), 0, True
+        P = s.P
+        s.a = P.h * (float(np.mean(s.hist)) if s.hist else mus)
+        s.rho = float(np.interp(s.a, s.ag, s.rg))
+        aq = min(s.a, P.h * P.mu_fmax) if s.X2["aq_cap"] else s.a
+        cX, cN, qX, qN = estx_coefs(s.a, aq, P, s.X2["kappa"], s.rho)
+        det = cX * qN - cN * qX
+        if abs(det) < s.X2["det_rel"] * (abs(cX * qN) + abs(cN * qX)):
+            if s.prev is None:
+                return np.nan, np.nan, 0, int(aq != s.a), 1, False
+            return s.prev[0], s.prev[1], 0, int(aq != s.a), 1, True
+        X = (C * qN - cN * Q) / det; Nn = (cX * Q - qX * C) / det
+        Xc, Nc = max(X, 0.0), max(Nn, 0.0)
+        s.prev = (Xc, Nc)
+        return Xc, Nc, int(Xc != X or Nc != Nn), int(aq != s.a), 0, True
+
 
 def gl(g):
     return "gam" + (f"{g:g}".lstrip("0"))
@@ -241,8 +382,23 @@ C2_RULES = [rule_name("Y", "delayopt", "dp", 0.03), rule_name("Y", "delaycap", "
             rule_name("Y", "delayopt", "g", 0.03), rule_name("Y", "delaycap", "g", 0.03)]
 
 
-def make_rules(nbr, P):
+def rule_name2(est, target, corr, gamma):
+    return f"SF-Y {est} {target} {corr} {gl(gamma)}"
+
+
+TARGETS2 = ("delayopt", "onestep")
+EST2_NAMES = [rule_name2(e, t, "g", g) for e in EST2 for t in TARGETS2 for g in GAMS]
+CONTROLS2 = [rule_name("Y", "delayopt", "g", 0.03), "SF-V2", "SF-D g gam0.03 a0 1", "SF+ramp"]
+C3_RULES = EST2_NAMES + CONTROLS2
+C2X_RULES = EST2_NAMES + ["SF+ramp"]
+
+
+def make_rules(nbr, P, X2=None):
     R = {}
+    for e in EST2:
+        for t in TARGETS2:
+            for g in GAMS:
+                R[rule_name2(e, t, "g", g)] = (lambda e=e, t=t, g=g: SFY("Y", t, "g", g, P, est=e, X2=X2))
     base = VT.rules_all(nbr)
     for k in ("SF-D g gam0.03 a0 1", "SF+ramp", "SF-V2", "SF mu.1"):
         R[k] = base[k]
@@ -334,22 +490,24 @@ def summaries(sim, dd, nbr, rec_db):
     return out
 
 
-def c1_job(tag, o):
+def c1_job(tag, o, exp="C1"):
+    """exp 'C1' (protoC rules) or 'C3' (protoC2: Sec. 11 estimator variants + controls); same code otherwise."""
     nb = o.nb; t0 = time.time(); P = o.P
     dd, Rall, st = T.prep(tag, nb)
     nbr = (len(dd["d"]) // B) if nb is None else nb
-    RR = make_rules(nbr, P)
-    p0 = fpath("C1", tag, nb)
-    res = dict(tag=tag, nb=nbr, pc=dd["pc"], par=P.desc(), rules={}, done=False)
+    RR = make_rules(nbr, P, o.X2)
+    pdesc = P.desc() if exp == "C1" else par2_desc(o)
+    p0 = fpath(exp, tag, nb)
+    res = dict(tag=tag, nb=nbr, pc=dd["pc"], par=pdesc, rules={}, done=False)
     arrs = dict(g=np.asarray(st.g[:nbr], np.float32))
     if os.path.exists(p0) and not o.force:
         old = json.load(open(p0))
-        if old.get("nb") == nbr and old.get("par") == json.loads(json.dumps(P.desc())):
+        if old.get("nb") == nbr and old.get("par") == json.loads(json.dumps(pdesc)):
             res["rules"] = old["rules"]
-            q = fpath("C1", tag, nb, "npz")
+            q = fpath(exp, tag, nb, "npz")
             if os.path.exists(q):
                 arrs.update(dict(np.load(q)))
-    for name in (o.rules or C1_RULES):
+    for name in (o.rules or (C1_RULES if exp == "C1" else C3_RULES)):
         if name in res["rules"]:
             continue
         t1 = time.time()
@@ -366,14 +524,14 @@ def c1_job(tag, o):
             r["mu_app_ph"]["pc15-17"] = float(np.mean(mua[PC_BLOCK:PC_BLOCK + 2 * BPS]))
         if "mu_state" in tr:
             r["zero_frac"], r["zero_run"] = zero_stats(tr["mu_state"])
-            for k in ("dpclip", "mufclamp", "xclip", "stclip"):
+            for k in ("dpclip", "mufclamp", "xclip", "stclip", "detkeep"):
                 if k in tr and len(tr[k]):
                     r["frac_" + k] = float(np.mean(tr[k]))
         res["rules"][name] = r
-        save("C1", tag, nb, res, arrs)
-        print(f"[C1 {tag}] {name}: L1 {np.round(r['L1'], 2)} ex1s {r['ex_first1']:.2f} last10 {r['ex_last10']:.2f} dB "
+        save(exp, tag, nb, res, arrs)
+        print(f"[{exp} {tag}] {name}: L1 {np.round(r['L1'], 2)} ex1s {r['ex_first1']:.2f} last10 {r['ex_last10']:.2f} dB "
               f"div={r['div']} amp={r['amp']} ({r['sec']:.1f} s, total {time.time() - t0:.0f} s)", flush=True)
-    res["done"] = True; save("C1", tag, nb, res, arrs)
+    res["done"] = True; save(exp, tag, nb, res, arrs)
     return tag
 
 
@@ -453,9 +611,150 @@ def c2_job(tag, o):
 
 
 # ==============================================================================================
+# C2X: estimator diagnostic (protoC2)
+# ==============================================================================================
+C2X_PROBE = [8, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 2560, 3072, 3600]
+PROBE_HALF = 16                     # frozen probe window: blocks [i - 16, i + 16) on the same path
+
+
+def par2_desc(o):
+    return dict(o.P.desc(), **{"x2_" + k: v for k, v in o.X2.items()})
+
+
+def phases2(nbr, pc):
+    """Diagnostic phases (blocks): early < 64, 64-256, 256-1024, > 1024 (pc: up to 15 s), pc: after 15 s."""
+    end1 = min(nbr, PC_BLOCK) if pc else nbr
+    ph = {"8-63": (8, min(64, end1)), "64-255": (64, min(256, end1)), "256-1023": (256, min(1024, end1)),
+          ">=1024": (1024, end1)}
+    if pc:
+        ph["pc >=15 s"] = (PC_BLOCK, nbr)
+    return {k: v for k, v in ph.items() if v[1] > v[0]}
+
+
+def x_true(v, F):
+    """y-coordinate X of v: H^2 |P_M (F v)|^2 (F: that block's minimum-phase factor; P_M: lags 0..M-1).
+    E u = kappa_y * H P_M F v with u = y / max(g, gmin); kappa_y ~ 0.96-0.98 at G_s0 (check 13)."""
+    Fv = np.fft.irfft(np.fft.rfft(v, N) * F, N)[:M]
+    return H * H * float(Fv @ Fv)
+
+
+def probe_u(data, Rall, st, w, blocks, gmin):
+    """u = y / max(g, gmin) at the given blocks with the coefficients frozen at w."""
+    lo = max(0, blocks[0] * B + B - M); hi = blocks[-1] * B + B
+    es = frozen_error(data, w, lo, hi); out = []
+    for j in blocks:
+        E = frame_from(es, lo, j * B)
+        _, x, _ = SFm.sf_dir(Rall[j], E, st.Srr[j], st.Pbar[j], st.eps[j], EPS_REG, ret_y=True)
+        out.append((1.0 / max(st.g[j], gmin)) * (KD * x[:N // 2]))
+    return np.array(out)
+
+
+class XHook:
+    """Every block: X_true (x_true of v = w - (w_ref + v_fp(path))) and shadow estimators est91 / estL4 / estX fed
+    with u = (1/max(g, gmin)) y and the driver's applied mu (solve mu: the driver's mu_state for SF-Y rules, else
+    applied mu * max(g, gmin)).  At the probe blocks: N_true = mean |u|^2 with w frozen at w_ref + v_fp (path of
+    that block) and Q_frz = mean |u|^2 with w frozen at the current w, over [i - 16, i + 16) on the same path.
+    An optional inner hook (C2Hook, oracle argmin) is called as well."""
+
+    def __init__(s, data, Rall, st, P, X2, vfp, probes, nbr, inner=None):
+        s.data, s.Rall, s.st, s.P, s.X2, s.vfp, s.probes, s.nbr, s.inner = data, Rall, st, P, X2, vfp, set(probes), nbr, inner
+        s.sh = {k: Est2(k, P, X2) for k in EST2}
+        s.rec = {k: [] for k in ["i", "Xtrue", "ex0"] + [f"{k}_{q}" for k in EST2 for q in ("X", "N")]}
+        s.prb = {k: [] for k in ("i", "Ntrue", "Qfrz")}
+
+    def __call__(s, i, w, mu, dv, c, rule, mf, zi=None, e_all=None):
+        if s.inner is not None:
+            s.inner(i, w, mu, dv, c, rule, mf, zi=zi, e_all=e_all)
+        if not np.isfinite(w).all():
+            return
+        _, y, F = sf_y(c)
+        fac = 1.0 / max(c.g, s.P.gmin); u = fac * y
+        mus = rule.last["mu_state"] if isinstance(rule, SFY) else mu / fac
+        p = path_of(s.data, i); wr, _, Jr = REFS[p]; v = w - wr - s.vfp[p]
+        s.rec["i"].append(i); s.rec["Xtrue"].append(x_true(v, F)); s.rec["ex0"].append(exP(w - wr, Jr))
+        for k, e in s.sh.items():
+            e.y.update(i, u)
+            X, Nn, _, _, _, ok = e.solve(mus)
+            e.push_mu(mu, fac)
+            s.rec[f"{k}_X"].append(X if ok else np.nan); s.rec[f"{k}_N"].append(Nn if ok else np.nan)
+        if i in s.probes:
+            p0 = PC_BLOCK if p == 1 else 0; p1 = s.nbr if p == 1 or not s.data["pc"] else PC_BLOCK
+            bl = list(range(max(8, p0, i - PROBE_HALF), min(p1, i + PROBE_HALF, len(s.Rall))))
+            Uf = probe_u(s.data, s.Rall, s.st, wr + s.vfp[p], bl, s.P.gmin)
+            Uw = probe_u(s.data, s.Rall, s.st, w, bl, s.P.gmin)
+            s.prb["i"].append(i); s.prb["Ntrue"].append(float(np.mean(np.sum(Uf ** 2, 1))))
+            s.prb["Qfrz"].append(float(np.mean(np.sum(Uw ** 2, 1))))
+
+
+def xstats(rec, prb, own, nbr, pc):
+    """Per phase: median X_hat / X_true, fraction X_hat == 0, median N_hat / N_true at the probe blocks."""
+    ii = np.asarray(rec["i"]); Xt = np.asarray(rec["Xtrue"], float)
+    pi_ = np.asarray(prb["i"]); Nt = np.asarray(prb["Ntrue"], float)
+    cols = {k: k for k in EST2}
+    if own is not None:
+        cols = dict(own="own", **cols)
+    out = {}
+    for ph, (a, b) in phases2(nbr, pc).items():
+        m = (ii >= a) & (ii < b); mp = (pi_ >= a) & (pi_ < b); d = {}
+        for k in cols:
+            X = np.asarray(own["X"] if k == "own" else rec[f"{k}_X"], float)
+            Nn = np.asarray(own["N"] if k == "own" else rec[f"{k}_N"], float)
+            mm = m & np.isfinite(X) & (Xt > 0)
+            d[k] = dict(xr=float(np.median(X[mm] / Xt[mm])) if mm.any() else np.nan,
+                        x0=float(np.mean(X[mm] == 0)) if mm.any() else np.nan)
+            pos = {int(b): q for q, b in enumerate(ii)}
+            nr = [Nn[pos[int(b)]] / t for b, t in zip(pi_[mp], Nt[mp])
+                  if int(b) in pos and np.isfinite(Nn[pos[int(b)]]) and t > 0]
+            d[k]["nr"] = float(np.median(nr)) if nr else np.nan
+        d["Xtrue_med"] = float(np.median(Xt[m])) if m.any() else np.nan
+        d["Ntrue_med"] = float(np.median(Nt[mp])) if mp.any() else np.nan
+        out[ph] = d
+    return out
+
+
+def c2x_job(tag, o):
+    nb = o.nb; t0 = time.time(); P = o.P
+    dd, Rall, st = T.prep(tag, nb)
+    nbr = (len(dd["d"]) // B) if nb is None else nb
+    vfp = {0: fixed_point(("SF",), 0), 1: fixed_point(("SF",), 1)}
+    probes = [b for b in C2X_PROBE if b < nbr]
+    Tmax = max(TS)
+    oblocks = [b for b in C2_BLOCKS if b < nbr - Tmax]
+    if dd["pc"]:
+        probes = sorted(set(probes + [PC_BLOCK + k for k in C2_PC if PC_BLOCK + k < nbr]))
+        oblocks = sorted(set(oblocks + [PC_BLOCK + k for k in C2_PC if PC_BLOCK + k < nbr - Tmax]))
+    RR = make_rules(nbr, P, o.X2)
+    res = dict(tag=tag, nb=nbr, pc=dd["pc"], par=par2_desc(o), blocks=oblocks, probes=probes, rules={}, done=False)
+    arrs = {}
+    for name in (o.rules or C2X_RULES):
+        rule = RR[name]()
+        inner = C2Hook(dd, Rall, st, oblocks, Tmax) if (o.oracle and isinstance(rule, SFY)) else None
+        hk = XHook(dd, Rall, st, P, o.X2, vfp, probes, nbr, inner)
+        sim = simulate(dd, Rall, st, rule, nb=nbr, hook=hk)
+        own = None
+        if isinstance(rule, SFY):
+            n_ = len(hk.rec["i"]); own = dict(X=sim["tr"]["X"][:n_], N=sim["tr"]["N"][:n_])
+        x = {k: [r.get(k, np.nan) for r in inner.recs] for k in (inner.recs[0].keys() if inner and inner.recs else [])}
+        x.update(div=sim["div"], probe=hk.prb, xstats=xstats(hk.rec, hk.prb, own, nbr, dd["pc"]))
+        res["rules"][name] = x
+        for k, v in hk.rec.items():
+            arrs[name + "|" + k] = np.asarray(v, float)
+        if own is not None:
+            arrs[name + "|own_X"] = own["X"]; arrs[name + "|own_N"] = own["N"]
+        save("C2X", tag, nb, res, arrs)
+        print(f"[C2X {tag}] {name}: div={sim['div']} ({time.time() - t0:.0f} s)", flush=True)
+    res["done"] = True; save("C2X", tag, nb, res, arrs)
+    return tag
+
+
+# ==============================================================================================
 # Job dispatch
 # ==============================================================================================
-JOBS = {"c1": c1_job, "c2": c2_job}
+def c3_job(tag, o):
+    return c1_job(tag, o, "C3")
+
+
+JOBS = {"c1": c1_job, "c2": c2_job, "c3": c3_job, "c2x": c2x_job}
 
 
 def _dispatch(a):
@@ -471,7 +770,7 @@ def main_jobs(cmd, o):
     todo = []
     for t in tags_of(cmd, o):
         p = fpath(cmd.upper(), t, o.nb)
-        if os.path.exists(p) and not o.force and json.load(open(p)).get("done") and not (cmd == "c1" and o.rules):
+        if os.path.exists(p) and not o.force and json.load(open(p)).get("done") and not (cmd in ("c1", "c3") and o.rules):
             print("skip (done):", p); continue
         todo.append((cmd, t, o))
     print(f"{cmd.upper()}: {len(todo)} jobs, procs={o.procs}, nb={o.nb}, a*={o.P.astar:.4f} mu_D={o.P.mu_D:.3f}", flush=True)
@@ -560,7 +859,109 @@ def check(o):
                              snap["last"]["Qy_after"], 0.2, 12, rl)
     dc = np.max(np.abs(cont - full["ex"][50:62]) / full["ex"][50:62])
     rep("continuation_corr (dp+g) == simulation (gamma = 0)", dc < 1e-9, f"rel diff {dc:.1e}")
+    ok &= check2(o, dd, Rall, st)
     print("ALL CHECKS PASSED" if ok else "SOME CHECKS FAILED", flush=True)
+    return ok
+
+
+REF_COMMIT = "1b0f256"      # protoC.py before the protoC2 extension (reference for the bitwise check)
+
+
+def _ref_module():
+    import subprocess, importlib.util, tempfile
+    src = subprocess.run(["git", "show", f"{REF_COMMIT}:atsip/explore/protoC.py"], cwd=HERE, capture_output=True,
+                         text=True, check=True).stdout
+    d = tempfile.mkdtemp(prefix="protoC_ref_"); f = os.path.join(d, "protoC_ref.py")
+    open(f, "w").write(src.replace("HERE = os.path.dirname(os.path.abspath(__file__))", f"HERE = {HERE!r}"))
+    spec = importlib.util.spec_from_file_location("protoC_ref", f); m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+def check2(o, dd, Rall, st):
+    """protoC2 checks (9-14)."""
+    ok = True
+
+    def rep(name, cond, msg=""):
+        nonlocal ok
+        ok &= bool(cond); print(f"[{'OK ' if cond else 'FAIL'}] {name} {msg}", flush=True)
+
+    P = o.P; nbq = 200
+    same = lambda a, b: (np.array_equal(a["w"], b["w"]) and np.array_equal(a["e"], b["e"], equal_nan=True)
+                         and a["tr"].keys() == b["tr"].keys()
+                         and all(np.array_equal(a["tr"][k], b["tr"][k], equal_nan=True) for k in a["tr"]))
+    # 9. existing rules bitwise unchanged against the protoC.py of REF_COMMIT
+    try:
+        R0 = _ref_module()
+    except Exception as ex:
+        rep(f"reference module {REF_COMMIT} loads", False, str(ex)); R0 = None
+    if R0 is not None:
+        P0 = R0.Par(f=P.f, ta=P.ta, tm=P.tm, heff=P.h, ck=P.c, gz=P.gz, gm=P.gm, dopt_T=P.dopt_T, dopt_k=P.dopt_k,
+                    mu_fmax=None if abs(P.mu_fmax - 0.75 / (P.h * (P.ta - 1))) < 1e-15 else P.mu_fmax)
+        RRn, RRo = make_rules(nbq, P), R0.make_rules(nbq, P0); bad = []
+        for k in R0.SFY_NAMES:
+            if not same(simulate(dd, Rall, st, RRn[k](), nb=nbq), simulate(dd, Rall, st, RRo[k](), nb=nbq)):
+                bad.append(k)
+        rep(f"all {len(R0.SFY_NAMES)} protoC SF-Y/SF-E rules bitwise == {REF_COMMIT} (w, e, traces; {nbq} blocks)",
+            not bad and R0.SFY_NAMES == SFY_NAMES, f"mismatch: {bad[:3]}" if bad else "")
+    # 10. est91 through the solver interface == the protoC rule (bitwise w, e and the shared traces)
+    RR = make_rules(300, P, o.X2); bad = []
+    for t in TARGETS2:
+        for g in GAMS:
+            a = simulate(dd, Rall, st, RR[rule_name2("est91", t, "g", g)](), nb=300)
+            b = simulate(dd, Rall, st, RR[rule_name("Y", t, "g", g)](), nb=300)
+            if not (np.array_equal(a["w"], b["w"]) and np.array_equal(a["e"], b["e"])
+                    and all(np.array_equal(a["tr"][k], b["tr"][k], equal_nan=True) for k in b["tr"])):
+                bad.append((t, g))
+    rep("SF-Y est91 <t> g <gam> == SF-Y <t> g <gam> (bitwise, 300 blocks)", not bad, str(bad) if bad else "")
+    # 11. forms: estL4 = solve_xn with lbar = 4; estX forward forms reproduce (C, Q); limits; rho table
+    e4 = Est2("estL4", P, o.X2); e4.y.C, e4.y.Q = 0.21, 1.0
+    X4, N4, xc4, _, _, _ = e4.solve(0.2)
+    h, f, ta, tm = P.h, P.f, P.ta, P.tm
+    C4 = (1 + h * 0.2 * (4 - (2 * tm - 1) * f)) * X4 - h * 0.2 * ta * N4
+    Q4 = (1 + f) * X4 + N4 - h * 0.2 * ((2 * tm - 2) * f * X4 + (ta - 1) * N4)
+    rep("estL4: lbar = 4 forms reproduce (C, Q)", abs(C4 - 0.21) < 1e-12 and abs(Q4 - 1.0) < 1e-12 and xc4 == 0,
+        f"X {X4:.4f} N {N4:.4f}")
+    ex_ = Est2("estX", P, o.X2); ex_.y.C, ex_.y.Q = 0.3, 1.0; ex_.hist = [0.5, 0.6, 0.55, 0.5]
+    Xx, Nx, xcx, _, kx, okx = ex_.solve(0.5)
+    cX, cN, qX, qN = estx_coefs(ex_.a, min(ex_.a, P.h * P.mu_fmax), P, o.X2["kappa"], ex_.rho)
+    rep("estX: forward forms reproduce (C, Q)", okx and kx == 0 and xcx == 0 and abs(cX * Xx + cN * Nx - 0.3) < 1e-12
+        and abs(qX * Xx + qN * Nx - 1.0) < 1e-12, f"a {ex_.a:.4f} rho {ex_.rho:.4f} X {Xx:.4f} N {Nx:.4f}")
+    c0 = estx_coefs(0.0, 0.0, P, 1.0, 1.0)
+    ag, rg = rho_table(P.c); aa = np.random.default_rng(1).uniform(0, 2.5, 50)
+    dr = max(abs(np.interp(a_, ag, rg) - rho_delay(a_, P.c)) for a_ in aa)
+    rep("estX limits: a = 0 -> C = kappa X, Q = (1+f) X + N; geo_sum(lam=1) = 4; rho table vs roots",
+        c0 == (1.0, 0.0, 1 + P.f, 1.0) and abs(geo_sum(1.0, 4) - 4.0) < 1e-14 and dr < 1e-4
+        and abs(geo_sum(0.5, 4) - sum(0.5 ** (j - 1) * r_tri(4 - j) for j in range(1, 8))) < 1e-15,
+        f"(geo_sum(0.5) = {geo_sum(0.5, 4):.4f} = 0.25 + 0.5 lam + 0.75 lam^2 + lam^3 + 0.75 lam^4 + ...; the closed form "
+        f"printed in Sec. 11.2 gives {0.75 + 0.25 + 0.0625:.4f}); "
+        f"max |rho_interp - rho| {dr:.1e}")
+    # 12. det keep
+    X2k = dict(o.X2, det_rel=10.0); ek = Est2("estX", P, X2k); ek.y.C, ek.y.Q = 0.3, 1.0; ek.hist = [0.5] * 4
+    r1 = ek.solve(0.5); ek.X2 = o.X2; r2 = ek.solve(0.5); ek.X2 = X2k; ek.y.C = 0.1; r3 = ek.solve(0.5)
+    rep("estX det keep: no previous -> no estimate; previous kept", (not r1[5]) and r1[4] == 1 and r2[5] and r2[4] == 0
+        and r3[5] and r3[4] == 1 and r3[:2] == r2[:2])
+    # 13. X_true scale: frozen w = 0, E u vs H P_M F v
+    vfp = fixed_point(("SF",), 0); bl = list(range(60, 300)); U = probe_u(dd, Rall, st, np.zeros(M), bl, P.gmin)
+    v0 = -wM - vfp; Fv = []
+    for j in bl:
+        _, _, Fj = SFm.sf_dir(Rall[j], np.zeros(NBIN, complex), st.Srr[j], st.Pbar[j], st.eps[j], EPS_REG, ret_y=True)
+        Fv.append(H * np.fft.irfft(np.fft.rfft(v0, N) * Fj, N)[:M])
+    um, pm = U.mean(0), np.mean(Fv, 0); kap = float(um @ um) / float(np.mean([q @ q for q in Fv]))
+    cs = float(um @ pm) / np.sqrt(float(um @ um) * float(pm @ pm))
+    rep("X_true scale (frozen w = 0, 240 blocks): kappa_y = |E u|^2 / X_true in [0.85, 1.1], cos > 0.99",
+        0.85 < kap < 1.1 and cs > 0.99, f"kappa_y {kap:.3f} cos {cs:.4f}")
+    # 14. shadow estimators in XHook == the rule's own X, N (bitwise)
+    probes = [40, 120]; bad = []
+    for e in EST2:
+        rl = RR[rule_name2(e, "delayopt", "g", 0.1)]()
+        hk = XHook(dd, Rall, st, P, o.X2, {0: vfp, 1: vfp}, probes, 300)
+        sim = simulate(dd, Rall, st, rl, nb=300, hook=hk)
+        if not (np.array_equal(np.asarray(hk.rec[f"{e}_X"]), sim["tr"]["X"], equal_nan=True)
+                and np.array_equal(np.asarray(hk.rec[f"{e}_N"]), sim["tr"]["N"], equal_nan=True)):
+            bad.append(e)
+    rep("XHook shadow estimators == own X_hat, N_hat (bitwise, delayopt g gam.1, 300 blocks)", not bad,
+        f"{bad}; probe N_true {np.round(hk.prb['Ntrue'], 5)} Q_frz {np.round(hk.prb['Qfrz'], 5)}")
     return ok
 
 
@@ -647,11 +1048,11 @@ def rep_c1(J):
     return L
 
 
-def rep_c2(J):
+def rep_c2(J, full=True):
     L = []
     for t, r in J.items():
         for rn, x in r["rules"].items():
-            if "i" not in x:
+            if "i" not in x or not full:
                 continue
             L += [f"### {t} / {rn} (div = {x.get('div')})", "",
                   "| block | path | g | mu_state | target | mu_app | X_hat | N_hat | Q | argmin T=4 | T=8 | T=16 | ex0 dB |",
@@ -663,6 +1064,8 @@ def rep_c2(J):
                                              fm(g_("or_T4"), 3), fm(g_("or_T8"), 3), fm(g_("or_T16"), 3),
                                              fm(10 * np.log10(g_("ex0")))]) + " |")
             L.append("")
+        if not any("i" in x for x in r["rules"].values()):
+            continue
         L += [f"#### {t}: median log2(mu_state / argmin) and log2(target / argmin) by phase (0 = exact)", "",
               "| rule | T | quantity | early (<256) | mid (256-1023) | late (>=1024, path 0) | after pc |", "|---|---|---|---|---|---|---|"]
         for rn, x in r["rules"].items():
@@ -680,6 +1083,87 @@ def rep_c2(J):
                     L.append(f"| {rn} | {Tn} | {q} | " + " | ".join(cells) + " |")
         L.append("")
     return L
+
+
+def rep_c2x(J):
+    L = []
+    for t, r in J.items():
+        rules = r["rules"]
+        if not rules:
+            continue
+        phs = list(next(iter(rules.values()))["xstats"].keys())
+        L += [f"### {t} (nb = {r['nb']})", "",
+              "X_hat / X_true: median over the blocks of the phase (in brackets: fraction of blocks with X_hat = 0). "
+              "Driver = the rule that runs the loop; estimator = 'own' (the driver's own X_hat) or a shadow estimator "
+              "fed with the driver's u = y / max(g, 0.25) and applied mu.", "",
+              "| driver | estimator | " + " | ".join(phs) + " |", "|---" * (len(phs) + 2) + "|"]
+        for rn, x in rules.items():
+            xs = x["xstats"]
+            for k in (["own"] if "own" in xs[phs[0]] else []) + list(EST2):
+                L.append(f"| {rn} | {k} | " + " | ".join(f"{fm(xs[p][k]['xr'], 3)} ({fm(xs[p][k]['x0'], 2)})" for p in phs) + " |")
+        L += ["", "N_hat / N_true at the probe blocks (median; N_true = mean |u|^2 with w frozen at the SF fixed point "
+              "of that path over the 32 blocks around the probe):", "",
+              "| driver | estimator | " + " | ".join(phs) + " |", "|---" * (len(phs) + 2) + "|"]
+        for rn, x in rules.items():
+            xs = x["xstats"]
+            for k in (["own"] if "own" in xs[phs[0]] else []) + list(EST2):
+                L.append(f"| {rn} | {k} | " + " | ".join(fm(xs[p][k]["nr"], 3) for p in phs) + " |")
+        L += ["", "Scale (median over the phase, per driver): X_true and N_true.", "",
+              "| driver | quantity | " + " | ".join(phs) + " |", "|---" * (len(phs) + 2) + "|"]
+        for rn, x in rules.items():
+            xs = x["xstats"]
+            for q in ("Xtrue_med", "Ntrue_med"):
+                L.append(f"| {rn} | {q[:-4]} | " + " | ".join(f"{xs[p][q]:.3g}" if np.isfinite(xs[p][q]) else "NaN" for p in phs) + " |")
+        L.append("")
+    return L
+
+
+def report2(o):
+    smoke = o.smoke
+    J3, JX = load("C3", smoke), load("C2X", smoke)
+    par = next(iter(J3.values()), next(iter(JX.values()), {})).get("par", par2_desc(o))
+    L = ["# RESULTS protoC2: Sec. 11 estimator variants on the SF-Y rules with the 1/g correction (prototype)", "",
+         f"Generated by `python protoC.py report2{' --smoke' if smoke else ''}` from out/{'protoC_smoke' if smoke else 'protoC'}/"
+         "protoC_C3_*.json and protoC_C2X_*.json.  dB conventions as in RESULTS_protoC.md (more negative is better).", "",
+         "Constants: " + ", ".join(f"{k} = {fm(v, 4) if isinstance(v, float) else v}" for k, v in par.items()), "",
+         "Estimators (THEORY_vss2.md Sec. 9.1 / 11): est91 = protoC (L = 4, beta_d = 0.1, lbar = 13, linear forms); "
+         "estL4 = beta_d = 1 (ubar_{n-L} = u_{n-L}), lbar = 4, same linear forms; estX = estL4 statistics + Sec. 11.2 "
+         "(b)-(d): rho(a)^{-L} X, a = h_eff * mean applied mu over the last L blocks, geometric noise cross terms with "
+         "r(k) = (1 - |k|/4)_+ (all nonzero terms), Q form of Sec. 11.2 (a of the Q form capped at h_eff mu_fmax), "
+         "2x2 solve, |det| below the relative threshold keeps the previous solution, X, N >= 0.  "
+         "Rule 'SF-Y delayopt g gam.03' = protoC (identical to 'SF-Y est91 delayopt g gam.03'). "
+         "Second C3 table column 'X clip' = X or N clipped at 0 (estX) / X clipped (est91, estL4); "
+         "'mu_f clamp' = the mu (est91, estL4) or a (estX Q form) of the forms capped.", "",
+         "## C3: closed loop", ""]
+    L += rep_c1(J3) if J3 else ["(no outputs)", ""]
+    if J3:
+        L += ["estX: fraction of blocks where the previous (X, N) was kept (|det| below threshold), mean over seeds:", "",
+              "| input | " + " | ".join(n for n in EST2_NAMES if "estX" in n) + " |", "|---" * (1 + sum('estX' in n for n in EST2_NAMES)) + "|"]
+        byc = {}
+        for t, r in J3.items():
+            byc.setdefault(cls_of(t), []).append(r)
+        for c, rs in byc.items():
+            cells = []
+            for n in EST2_NAMES:
+                if "estX" not in n:
+                    continue
+                v = [r["rules"][n].get("frac_detkeep", np.nan) for r in rs if n in r["rules"]]
+                cells.append(fm(float(np.mean(v)), 4) if v else "NaN")
+            L.append(f"| {c} | " + " | ".join(cells) + " |")
+        L.append("")
+    L += ["## C2X: estimator diagnostic", "",
+          "X_true = H^2 |P_M F v|^2 (y coordinates, the block's minimum-phase factor F, v = w - (w_ref + v_fp) with v_fp "
+          "the SF model fixed point of the active path, theory/transient/model.py via vssT_lib.fixed_point); the "
+          "estimators' X is the mean part |E u|^2 = kappa_y X_true with kappa_y ~ 0.96 (check 13), so a ratio near "
+          "1 is exact.  Phases in blocks (8 blocks = 64 ms); pc: '>=1024' ends at 15 s.", ""]
+    L += rep_c2x(JX) if JX else ["(no outputs)", ""]
+    if JX and any("i" in x for r in JX.values() for x in r["rules"].values()):
+        L += ["### Tracking (as C2 of RESULTS_protoC.md, summary only)", ""] + rep_c2(JX, full=False)
+    p = os.path.join(HERE, "RESULTS_protoC2.md") if not smoke else os.path.join(OUT_SMOKE, "RESULTS_protoC2_smoke.md")
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    with open(p, "w") as f:
+        f.write("\n".join(L) + "\n")
+    print("wrote", p, f"({len(L)} lines)")
 
 
 def report(o):
@@ -718,7 +1202,7 @@ def report(o):
 # ==============================================================================================
 def parse(argv):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=["check", "report", "c1", "c2"])
+    ap.add_argument("cmd", choices=["check", "report", "c1", "c2", "c3", "c2x", "report2"])
     ap.add_argument("--classes"); ap.add_argument("--seeds"); ap.add_argument("--tags")
     ap.add_argument("--nb", type=int, default=None); ap.add_argument("--procs", type=int, default=2)
     ap.add_argument("--force", action="store_true"); ap.add_argument("--smoke", action="store_true")
@@ -732,8 +1216,16 @@ def parse(argv):
     ap.add_argument("--dopt-T", type=int, default=8); ap.add_argument("--dopt-k", choices=["excl1", "full"], default="excl1")
     ap.add_argument("--mu-fmax", type=float, default=None, help="cap of mu in the Sec. 9.1 forms (default 0.75/(h_eff (tau_a-1)))")
     ap.add_argument("--rec-db", type=float, default=-20.0, help="PS recovery level (dB)")
+    ap.add_argument("--kappa", type=float, default=X2_DEF["kappa"], help="estX: kappa of Sec. 11.2 (default 1)")
+    ap.add_argument("--estx-a", choices=["applied", "state"], default=X2_DEF["amode"],
+                    help="estX: a = h_eff * mean of applied mu (default) or of mu_state over the last L blocks")
+    ap.add_argument("--det-rel", type=float, default=X2_DEF["det_rel"], help="estX: relative |det| threshold (keep previous)")
+    ap.add_argument("--no-aq-cap", action="store_true", help="estX: do not cap the a of the Q cross term at h_eff mu_fmax")
+    ap.add_argument("--no-oracle", action="store_true", help="c2x: skip the continuation argmin (oracle) at the sampled blocks")
     o = ap.parse_args(argv)
     o.rules = o.rules.split(";") if o.rules else None
+    o.X2 = dict(kappa=o.kappa, amode=o.estx_a, det_rel=o.det_rel, aq_cap=not o.no_aq_cap)
+    o.oracle = not o.no_oracle
     o.P = Par(f=o.f, ta=o.tau_a, tm=o.tau_m, heff=0.95 * H if o.heff is None else o.heff,
               ck=[float(v) for v in o.ck.split(",")], gz=o.gz, gm=o.gm, dopt_T=o.dopt_T, dopt_k=o.dopt_k, mu_fmax=o.mu_fmax)
     return o
@@ -745,5 +1237,7 @@ if __name__ == "__main__":
         sys.exit(0 if check(o) else 1)
     elif o.cmd == "report":
         report(o)
+    elif o.cmd == "report2":
+        report2(o)
     else:
         main_jobs(o.cmd, o)

@@ -99,3 +99,72 @@ Total under 25 min; memory with 2 processes < 1 GB.
 | `gam.03`, `gam.1` | mu_state <- clip((1-gamma) mu_state + gamma target, 0, 1.5), start 0.3 |
 | `SF-D g gam0.03 a0 1`, `SF+ramp`, `SF-V2`, `SF mu.1` | controls from vssT (pilot best, baselines) |
 | `SF mu.5` | fixed mu 0.5 (delayed-LMS optimum region; shows the second-order limit) |
+
+---
+
+# protoC2: Sec. 11 estimator variants (same script, new subcommands c3 / c2x / report2)
+
+Spec: THEORY_vss2.md Sec. 11 (with Sec. 10.1-10.3). Only the SF-Y rules with the 1/g correction are varied;
+the protoC rules and outputs are unchanged (check 9 compares all 48 protoC SF-Y/SF-E rules bitwise against the
+protoC.py of commit 1b0f256, loaded with `git show`; run the check inside the git checkout).
+
+## 6. Self-check (11 s, ~200 MB)
+
+```bash
+python protoC.py check      # checks 1-8 (protoC) + 9-14 (protoC2); must end with ALL CHECKS PASSED
+```
+
+New checks: (9) all protoC SF-Y/SF-E rules bitwise == 1b0f256 (w, e, all traces, 200 blocks);
+(10) `SF-Y est91 <t> g <gam>` == `SF-Y <t> g <gam>` bitwise; (11) estL4 forms (lbar = 4) and estX forms reproduce
+(C, Q), a = 0 limits, geometric sum at lam = 1 equals 4, rho grid vs roots < 1e-4; (12) estX det-keep logic;
+(13) X_true scale: frozen w = 0 on G_s0, |E u|^2 / X_true = kappa_y (0.93, cos 0.997); (14) the shadow estimators
+of the c2x hook reproduce each rule's own X_hat, N_hat bitwise.
+
+## 7. Smoke runs (about 3 min in total; max 2 processes)
+
+```bash
+python protoC.py c3 --tags G_s0,BU_s0 --nb 600 --procs 2          # 16 rules each, 5 s
+python protoC.py c3 --tags pc_s0 --nb 2600 --procs 1 --rules "SF-Y estX delayopt g gam.03;SF-Y est91 delayopt g gam.03"
+python protoC.py c2x --tags G_s0 --nb 2000 --procs 1              # 13 drivers, oracle on: 59 s
+python protoC.py c2x --tags pc_s0 --nb 2600 --procs 1             # 97 s (run beside the G_s0 one, not more)
+python protoC.py report2 --smoke     # -> out/protoC_smoke/RESULTS_protoC2_smoke.md
+```
+
+Measured: c3 pc_s0 2600 blocks, 16 rules: 17.6 s, peak RSS 220 MB.
+
+## 8. Full runs
+
+Run one after the other (each uses 2 processes):
+
+```bash
+python protoC.py c3 --procs 2      # G, BU, a145, pc x seeds 0,1,2 = 12 jobs, 16 rules each
+python protoC.py c2x --procs 2     # G_s0, pc_s0; 12 estimator rules + SF+ramp as drivers
+python protoC.py report2           # -> atsip/explore/RESULTS_protoC2.md
+```
+
+Seeds / inputs are CLI-settable: `--classes G,BU,a145,pc --seeds 0,1,2` (c3 default) and
+`--classes G,pc --seeds 0` (c2x default), or `--tags`. Then commit `RESULTS_protoC2.md` only.
+
+Estimated full runtime: c3 ~25 s per job -> ~3 min for 12 jobs with 2 procs; c2x ~2 min (G_s0) and
+~2.5 min (pc_s0) in parallel; report2 < 5 s. Memory < 300 MB per process. Total under 10 min.
+
+Resume: c3 behaves as c1 (per-rule rewrite of `out/protoC/protoC_C3_<tag>.json/.npz`, resume at the first missing
+rule, `--force` recomputes). c2x writes `out/protoC/protoC_C2X_<tag>.json/.npz` after every driver but restarts a
+tag from the first driver if killed (no resume within a tag); finished tags are skipped.
+
+Constants added (stored as `x2_*` in `par` of the C3 / C2X files): `--kappa` [1] (kappa of Sec. 11.2),
+`--estx-a applied|state` [applied] (a from the applied mu, as written in Sec. 11.2, or from mu_state),
+`--det-rel` [1e-3], `--no-aq-cap` (the a of the estX Q form is otherwise capped at h_eff mu_fmax), `--no-oracle`
+(c2x without the continuation argmin).
+
+## 9. Outputs (protoC2)
+
+| file | content |
+|---|---|
+| `out/protoC/protoC_C3_<tag>.json/.npz` | as C1; estX rules also have traces `a`, `rho`, `detkeep` and `frac_detkeep` |
+| `out/protoC/protoC_C2X_<tag>.json` | per driver: `xstats` (per phase: median X_hat/X_true, fraction X_hat = 0, median N_hat/N_true at probes, median X_true, N_true; for `own`, est91, estL4, estX), `probe` (i, Ntrue, Qfrz), oracle records as C2 (SF-Y drivers) |
+| `out/protoC/protoC_C2X_<tag>.npz` | per driver, every block: `i`, `Xtrue`, `ex0`, `<est>_X`, `<est>_N` (shadows), `own_X`, `own_N` |
+| `RESULTS_protoC2.md` | `python protoC.py report2`: C3 tables in the C1 format, estX det-keep fractions, C2X X_hat/X_true and N_hat/N_true tables per phase (8-63, 64-255, 256-1023, >=1024 blocks; pc: >=1024 ends at 15 s, plus after 15 s), tracking summary |
+
+Rule names: `SF-Y <est91|estL4|estX> <delayopt|onestep> g gam<.03|.1>`; controls `SF-Y delayopt g gam.03`
+(= protoC, identical to est91 delayopt g gam.03), `SF-V2`, `SF-D g gam0.03 a0 1`, `SF+ramp`.
