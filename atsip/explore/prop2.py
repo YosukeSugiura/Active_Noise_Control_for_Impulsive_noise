@@ -106,7 +106,7 @@ class P2(p.Rule):
         s.late = mu_late(c["delta"]) if c["mu_l"] is None else c["mu_l"]
         s.length = c["end"][1] if c["end"][0] == "fixed" else NE_MAX
         s.theta = c["end"][1] if c["end"][0] == "qstop" else None
-        s.rw = p.rwin_energy(data, nb, 2 * M)
+        s.rw = p.rwin_energy(data, nb, 2 * M) if c["restart"] else None
         s.det = p.RSNDetector(X4) if c["restart"] else None
         s.until = s.length; s.q = []; s.restarts = []; s.frame = None
         s.phases = [[0, None, None]]                # [first block, first block after the phase, reason]
@@ -127,7 +127,9 @@ class P2(p.Rule):
         if not early:
             s._close(s.until, "fixed" if s.theta is None else "limit")
         internal = s.c["mu_e"] if early else s.late
-        mu = internal / max(c.g, s.gmin)
+        gain = max(c.g, s.gmin)
+        # Match the reference operation order for bitwise SF and ND comparisons.
+        mu = internal * (1.0 / gain) if s.c["early"] == "SF" else internal / gain
         dv, x, _ = p.SFm.sf_dir(c.R, c.E, c.Srr, c.Pbar, c.eps, s.c["eps"], ret_y=True)
         applied = bool(s.restarts) and s.restarts[-1] == i - 1
         restarted = False
@@ -139,7 +141,7 @@ class P2(p.Rule):
                 s.restarts.append(i); s._close(i + 1, "restart")
                 s.until = i + 1 + s.length; s.q = []; s.phases.append([i + 1, None, None])
         if early and not restarted and s.theta is not None:
-            u = T.KD * x[:N // 2] / max(c.g, s.gmin)
+            u = T.KD * x[:N // 2] / gain
             s.q.append(float(u @ u))
             if len(s.q) >= 8 and np.mean(s.q[-4:]) > s.theta * np.mean(s.q[-8:-4]):
                 s.until = i + 1; s._close(i + 1, "qstop")
@@ -203,7 +205,7 @@ def with_model(dd, shat, seed):
     if shat[0] == "g":
         hm = float(shat[1:]) * hS
     elif shat == "d1":
-        hm = np.concatenate([[0.0], hS[:-1]])
+        hm = np.concatenate([[0.0], hS])
     elif shat[0] == "n":
         rng = np.random.default_rng(70_000 + seed)
         e = rng.standard_normal(len(hS))
@@ -218,14 +220,15 @@ def with_model(dd, shat, seed):
 
 def prep(tag, nb=None, shat=None):
     cls, seed = tag.rsplit("_s", 1)
+    if cls not in E5_CLASSES and shat is None:
+        return p.prep3(tag, nb)
     if cls in E5_CLASSES:
         dd = new_data(cls, int(seed)); dd["tag"] = tag
-        Rall = p.ML.prepass(dd)["Rall"]
     else:
-        dd, Rall, _ = p.prep3(tag, None)
+        dd = p.data_pcb(tag) if cls == "pcb" else T.data(tag)
     if shat is not None:
         dd = with_model(dd, shat, int(seed))
-        Rall = p.ML.prepass(dd)["Rall"]
+    Rall = p.ML.prepass(dd)["Rall"]
     if nb is not None:
         Rall = Rall[:min(len(Rall), nb + 64)]
     return dd, Rall, p.Stats(dd, Rall)
@@ -246,8 +249,10 @@ def score(tag, name, rule, sim, data, keep_curve):
     row.update(tag=tag, seed=int(seed), rule=name, div_num=int(div), amp=int((not div) and m["amp"]))
     row["class"] = cls
     if not div:
-        row.update(L1_whole=m["L1"][0], L1_first5=m["L1"][1], L1_last10=m["L1"][2], ex_0_1s=p.dbm(ex[:BPS]),
-                   ex_0_5s=p.dbm(ex[:5 * BPS]), ex_last10=p.dbm(ex[-max(1, nb // 10):]))
+        row.update(L1_whole=m["L1"][0], L1_first5=m["L1"][1], L1_last10=m["L1"][2],
+                   ex_0_1s=p.dbm(ex[:BPS]) if nb >= BPS else None,
+                   ex_0_5s=p.dbm(ex[:5 * BPS]) if nb >= 5 * BPS else None,
+                   ex_last10=p.dbm(ex[-max(1, nb // 10):]))
         anr = p.O.anr_curve(sim["e"], data["d"][:len(sim["e"])]); ts = (63 + 64 * np.arange(len(anr))) / FS
 
         def win(a, b):
@@ -276,6 +281,9 @@ def score(tag, name, rule, sim, data, keep_curve):
         row["n_rebuilt"] = rule.frame.n_rebuilt if rule.frame is not None else 0
     if keep_curve:
         row["curve"] = [db(v) for v in ex[:CURVE_LEN]]
+    for key, value in row.items():
+        if isinstance(value, float) and not math.isfinite(value):
+            row[key] = None
     return row
 
 
@@ -383,7 +391,7 @@ def run_exp(exp, procs, smoke):
         sel.update(select_e2(rows))
     if exp in ("E1", "E2"):
         sel_path(smoke).parent.mkdir(parents=True, exist_ok=True)
-        sel_path(smoke).write_text(json.dumps(sel, indent=1) + "\n")
+        ab.atomic_write(sel_path(smoke), lambda h: h.write(json.dumps(sel, indent=1) + "\n"))
         print("selection:", sel, flush=True)
     return rows
 
@@ -391,16 +399,20 @@ def run_exp(exp, procs, smoke):
 # ----------------------------------------------------------------------------------------------
 # Aggregation (class-equal weights: mean over seeds within a class, then over classes)
 # ----------------------------------------------------------------------------------------------
+def finite(value):
+    return value not in (None, "") and math.isfinite(float(value))
+
+
 def cmean(rows, key):
     by = defaultdict(list)
     for r in rows:
-        if r.get(key) is not None:
+        if finite(r.get(key)):
             by[r["class"]].append(float(r[key]))
     return float(np.mean([np.mean(v) for v in by.values()])) if by else None
 
 
 def csum(rows, key):
-    return int(sum(int(float(r[key])) for r in rows if r.get(key) not in (None, "")))
+    return int(sum(int(float(r[key])) for r in rows if finite(r.get(key))))
 
 
 def by_rule(rows):
@@ -411,7 +423,7 @@ def by_rule(rows):
 
 
 def clean(rows):
-    return all(csum(rows, k) == 0 for k in ("div_num", "amp"))
+    return all(r.get(k) == 0 for r in rows for k in ("div_num", "amp"))
 
 
 def cfg_from_name(nm):
@@ -423,9 +435,11 @@ def select_e1(rows):
     """Per direction: smallest class-mean Phi-excess at block 32 among the steps with no divergence/amplification."""
     out = {}
     for kind in ("SF", "ND"):
-        cand = {n: r for n, r in by_rule(rows).items() if cfg_from_name(n)[0] == kind and clean(r)}
-        key = "ex_b32" if any(cmean(r, "ex_b32") is not None for r in cand.values()) else "ex_b16"
-        best = min(cand, key=lambda n: cmean(cand[n], key))
+        cand = {n: cmean(r, "ex_b32") for n, r in by_rule(rows).items()
+                if cfg_from_name(n)[0] == kind and clean(r) and all(finite(t.get("ex_b32")) for t in r)}
+        if not cand:
+            raise ValueError(f"E1: no eligible {kind} setting with a complete block-32 excess")
+        best = min(cand, key=cand.get)
         out[f"mu_e_{kind}"] = cfg_from_name(best)[1]
     return out
 
@@ -433,11 +447,11 @@ def select_e1(rows):
 def select_e2(rows):
     """End rule from the early=ND results: no divergence / amplification / false or missed restart; smallest
     class-mean L1 whole; a qstop within 0.02 dB of the best is preferred."""
-    cand = {n: r for n, r in by_rule(rows).items() if cfg_from_name(n)[0] == "ND" and clean(r)
-            and csum(r, "false_rs") == 0 and csum(r, "missed_rs") == 0}
-    if not cand:
-        cand = {n: r for n, r in by_rule(rows).items() if cfg_from_name(n)[0] == "ND" and clean(r)}
-    val = {n: cmean(r, "L1_whole") for n, r in cand.items()}
+    val = {n: cmean(r, "L1_whole") for n, r in by_rule(rows).items()
+           if cfg_from_name(n)[0] == "ND" and clean(r)
+           and all(t.get("false_rs") == 0 and t.get("missed_rs") == 0 and finite(t.get("L1_whole")) for t in r)}
+    if not val:
+        raise ValueError("E2: no eligible ND setting with zero divergence, amplification, false or missed restarts")
     best = min(val, key=val.get)
     qs = [n for n in val if cfg_from_name(n)[2][0] == "qstop" and val[n] <= val[best] + 0.02]
     pick = min(qs, key=val.get) if qs else best
@@ -448,15 +462,19 @@ def select_e2(rows):
 # Report: RESULTS_dev1.csv, RESULTS_dev1_curves.csv, RESULTS_dev1.md (tables only)
 # ----------------------------------------------------------------------------------------------
 def fmt(v, nd_=2):
-    return "—" if v is None else f"{v:.{nd_}f}"
+    return f"{v:.{nd_}f}" if finite(v) else "—"
+
+
+def md_cell(label):
+    return label.replace("|", r"\|")
 
 
 def table(rows, fields, counts=("div_num", "amp", "false_rs", "missed_rs")):
     head = ["rule", "n"] + list(fields) + list(counts)
     out = ["| " + " | ".join(head) + " |", "|---|" + "---:|" * (len(head) - 1)]
     for nm, rs in by_rule(rows).items():
-        cells = [nm, str(len(rs))] + [fmt(cmean(rs, f)) for f in fields]
-        cells += [str(csum(rs, c)) if any(r.get(c) not in (None, "") for r in rs) else "—" for c in counts]
+        cells = [md_cell(nm), str(len(rs))] + [fmt(cmean(rs, f)) for f in fields]
+        cells += [str(csum(rs, c)) if any(finite(r.get(c)) for r in rs) else "—" for c in counts]
         out.append("| " + " | ".join(cells) + " |")
     return "\n".join(out)
 
@@ -465,7 +483,7 @@ def per_class(rows, field):
     classes = list(dict.fromkeys(r["class"] for r in rows))
     out = ["| rule | " + " | ".join(classes) + " |", "|---|" + "---:|" * len(classes)]
     for nm, rs in by_rule(rows).items():
-        out.append("| " + nm + " | " + " | ".join(fmt(cmean([r for r in rs if r["class"] == c], field))
+        out.append("| " + md_cell(nm) + " | " + " | ".join(fmt(cmean([r for r in rs if r["class"] == c], field))
                                                  for c in classes) + " |")
     return "\n".join(out)
 
@@ -477,7 +495,7 @@ def paired(rows, a, b, field):
     ib = {(r["class"], r["seed"]): r.get(field) for r in g.get(b, [])}
     per = defaultdict(list)
     for k in ia:
-        if ia[k] is not None and ib.get(k) is not None:
+        if finite(ia[k]) and finite(ib.get(k)):
             per[k[1]].append(float(ia[k]) - float(ib[k]))
     d = [float(np.mean(v)) for v in per.values()]
     if not d:
@@ -497,6 +515,7 @@ def load_rows(smoke):
 def report(smoke):
     rows = load_rows(smoke); sel = load_sel(smoke)
     dest = out_dir(smoke) if smoke else HERE
+    dest.mkdir(parents=True, exist_ok=True)
 
     def write_csv(h):
         w = csv.DictWriter(h, fieldnames=COLUMNS, lineterminator="\n", extrasaction="ignore"); w.writeheader()
@@ -513,7 +532,7 @@ def report(smoke):
                 g[(r["exp"], r["class"], r["rule"])].append(r["curve"])
         for (exp, cls, rule), cs in g.items():
             for b in range(min(len(c) for c in cs)):
-                v = [c[b] for c in cs if c[b] is not None]
+                v = [c[b] for c in cs if finite(c[b])]
                 if v:
                     h.write(f"{exp},{cls},\"{rule}\",{b + 1},{np.mean(v):.3f}\n")
     ab.atomic_write(dest / "RESULTS_dev1_curves.csv", write_curves)
@@ -544,7 +563,7 @@ def report(smoke):
               "### クラスごとの ex 0–1 s", "", per_class(r4, "ex_0_1s"), "", "### 対応差", "",
               "| 左 − 右 | L1 whole | L1 first5 | ex 0–1 s | L1 pc 15–17 | L1 pcb 10–12 | L1 pcb 20–22 |", "|---|---|---|---|---|---|---|"]
         for b in names[1:]:
-            L.append(f"| {names[0]} − {b} | " + " | ".join(
+            L.append(f"| {md_cell(names[0])} − {md_cell(b)} | " + " | ".join(
                 paired(r4, names[0], b, f) for f in ("L1_whole", "L1_first5", "ex_0_1s") + chg) + " |")
         L.append("")
     if E("E5"):
@@ -575,7 +594,7 @@ def report(smoke):
         for b in base:
             for s in SHATS:
                 a = f"{b} | Shat {s}"
-                L.append(f"| {a} | " + " | ".join(paired(r6, a, b, f) for f in ("L1_whole", "L1_first5", "ex_0_1s", "L1_pc15_17")) + " |")
+                L.append(f"| {md_cell(a)} | " + " | ".join(paired(r6, a, b, f) for f in ("L1_whole", "L1_first5", "ex_0_1s", "L1_pc15_17")) + " |")
         L.append("")
     if E("E7"):
         L += ["## E7 正則化 ε と安定の余裕（G、BU、II300、a145）", "", table(E("E7"), main + blk, ("div_num", "amp", "false_rs")), "",
@@ -600,7 +619,8 @@ def check():
     rule, sim = run_p2(data, Rall, st, config("SF", o.mu_e, ("fixed", 64), mu_l=0.05), nb, o.X4)
     for k in ("e", "w", "ex"):
         np.testing.assert_array_equal(sim[k], ref[k])
-    np.testing.assert_array_equal(sim["tr"]["mu_app"], ref["tr"]["mu_app"])
+    for k in ("mu_app", "restart_apply_block"):
+        np.testing.assert_array_equal(sim["tr"][k], ref["tr"][k])
     assert rule.restarts == ref_rule.restarts and len(rule.restarts) == 1, (rule.restarts, ref_rule.restarts)
     print("check 1 ok: early=SF equals the ablation rule; restart at block", rule.restarts)
     # 2. early=ND: the early blocks equal nodelay's SF-ND+g+early; no rebuild afterwards
@@ -608,19 +628,22 @@ def check():
     data, Rall, st = prep("G_s10", nb)
     ref = nd.simulate(data, Rall, st, "SF-ND+g+early", 0.05, 1.0, nb)
     rule, sim = run_p2(data, Rall, st, config("ND", 1.0, ("fixed", 64), restart=False, mu_l=0.05), nb, o.X4)
-    np.testing.assert_allclose(sim["ex"][:64], ref["ex"][:64], rtol=1e-9)
-    np.testing.assert_allclose(sim["e"][:65 * B], ref["e"][:65 * B], rtol=1e-9, atol=1e-12)
+    np.testing.assert_array_equal(sim["ex"][:64], ref["ex"][:64])
+    np.testing.assert_array_equal(sim["e"][:65 * B], ref["e"][:65 * B])
+    np.testing.assert_array_equal(sim["tr"]["mu_app"][:64], ref["tr"]["mu_app"][:64])
     assert rule.frame.n_rebuilt == 64 and not np.allclose(sim["ex"][70:], ref["ex"][70:], rtol=1e-6)
     print("check 2 ok: early=ND equals SF-ND for the 64 early blocks; frames rebuilt:", rule.frame.n_rebuilt)
     # 3. a model equal to the true secondary path changes nothing; qstop ends before the limit and is recorded
     d2, R2, s2 = prep("G_s10", nb, "g1")
     _, sim2 = run_p2(d2, R2, s2, config("ND", 1.0, ("fixed", 64), restart=False, mu_l=0.05), nb, o.X4)
-    np.testing.assert_allclose(sim2["ex"], sim["ex"], rtol=1e-9)
+    for k in ("e", "w", "ex"):
+        np.testing.assert_array_equal(sim2[k], sim[k])
+    np.testing.assert_array_equal(sim2["tr"]["mu_app"], sim["tr"]["mu_app"])
     nb = 400
     data, Rall, st = prep("G_s10", nb)
     rule, sim = run_p2(data, Rall, st, config("ND", 1.0, ("qstop", 0.8)), nb, o.X4)
     a, e, why = rule.phases[0]
-    assert why in ("qstop", "limit") and 8 <= e <= NE_MAX and rule.frame.n_rebuilt == e, rule.phases
+    assert a == 0 and why == "qstop" and 8 <= e < NE_MAX and rule.frame.n_rebuilt == e, rule.phases
     assert np.all(sim["tr"]["mu_state"][e:] == mu_late(0.03))
     print(f"check 3 ok: model = S is neutral; qstop phase {rule.phases}, excess at block 125 {db(sim['ex'][124]):.2f} dB")
     # 4. the E5 classes and the model errors build and run
