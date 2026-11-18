@@ -15,7 +15,7 @@ P4 (early=ND only).  When the rsN2 detector fires at block n0:
 Both energies contain the same disturbance and the same input samples, so the input scale (impulses) and any
 disturbance that is uncorrelated with the reference cancel in the comparison: after a path change the adaptation
 lowers E(w) by many dB within a few blocks; without a mismatch a large step can only raise it.
-Every trial is logged (block, rho, confirmed).
+Every trial is logged with its detection block, decision block, all three ratios and outcome.
 
 Commands (resumable):
   python prop4.py check
@@ -77,15 +77,12 @@ class Frame4(q.Frame):
         frozen = np.fft.irfft(np.fft.rfft(s.ref[end:end + 2 * M - 1], N) * np.fft.rfft(w, N), N)
         return (s.e_all[start:end] - s.sec[-n:]) + frozen[2 * M - 1 - n:2 * M - 1]
 
-    def trial_energy(s, w, L=M):
-        t = s.trial_frame(w)[-L:]
-        return float(t @ t)
-
 
 class P4(q.P2):
     def __init__(s, c, data, nb, X4):
         super().__init__(c, data, nb, X4)
-        s.pending = None; s.trials = []                 # trials: dict(block, decide, rho, ok)
+        s.pending = None
+        s.trials = []
         s.tr["rollback"] = []
 
     def block(s, i, c):
@@ -93,11 +90,11 @@ class P4(q.P2):
         if not early:
             s._close(s.until, "fixed")
         internal = s.c["mu_e"] if early else s.late
-        mu = internal / max(c.g, s.gmin)
-        dv = p.SFm.sf_dir(c.R, c.E, c.Srr, c.Pbar, c.eps, s.c["eps"])
+        applied = s.tr["restart_apply_block"]
+        applied.append(-1)
         rolled = False
         if s.pending is not None and i == s.pending["block"] + s.c["K"]:
-            w0 = s.pending["w0"]
+            w0, trial = s.pending["w0"], s.trials[-1]
             t_new, t_old = s.frame.trial_frame(c.w), s.frame.trial_frame(w0)
             rhos = {}
             for k, L in WINDOWS.items():                # all windows are logged; the configured one decides
@@ -105,34 +102,48 @@ class P4(q.P2):
                 rhos[k] = a / b if b > 0 else float("inf")
             rho = rhos[s.c["win"]]
             ok = bool(np.isfinite(rho) and rho <= s.c["theta"])
-            s.trials.append(dict(block=int(s.pending["block"]), decide=int(i), rho=float(rho), ok=ok,
-                                 rho_M=rhos["M"], rho_2B=rhos["2B"], rho_B=rhos["B"]))
+            trial.update(decide=i, rho=rho, ok=ok, status="confirmed" if ok else "rollback",
+                         rho_M=rhos["M"], rho_2B=rhos["2B"], rho_B=rhos["B"])
             if ok:
-                s.restarts.append(s.pending["block"])
-            else:                                       # w <- w0: the simulator applies w - KD * mu * dv
+                s.restarts.append(trial["block"])
+                start = trial["block"] + 1
+                applied[start] = start
+            else:
                 rolled = True
-                mu, dv = 1.0, (c.w - w0) / T.KD
-                s.until = i + 1; s._close(i + 1, "rollback")
+                s.until = i + 1
+                s._close(i + 1, "rollback")
             s.pending = None
+        if rolled:
+            mu, dv = 1.0, (c.w - w0) / T.KD     # simulator applies w - KD * mu * dv
+        else:
+            mu = internal / max(c.g, s.gmin)
+            dv = p.SFm.sf_dir(c.R, c.E, c.Srr, c.Pbar, c.eps, s.c["eps"])
+        if s.restarts and s.restarts[-1] == i - 1:
+            applied[i] = i
         if s.det is not None:
             rw = float(s.rw[i])
             z = s.frame.energy / rw if rw > 0 else np.nan
             if s.det.update(i, z) and not rolled:
                 s._close(i + 1, "restart")
                 s.until = i + 1 + s.length; s.phases.append([i + 1, None, None])
+                trial = dict(block=i, decide=None, rho=None, ok=None, status="pending",
+                             rho_M=None, rho_2B=None, rho_B=None)
                 if s.c["K"] is None:
                     s.restarts.append(i)
+                    trial.update(decide=i, ok=True, status="immediate")
                 else:
                     s.pending = dict(block=i, w0=c.w.copy())
+                s.trials.append(trial)
         s.tr["mu_app"].append(mu); s.tr["mu_state"].append(internal)
-        s.tr["restart_apply_block"].append(-1); s.tr["early"].append(float(early)); s.tr["rollback"].append(float(rolled))
+        s.tr["early"].append(float(early)); s.tr["rollback"].append(float(rolled))
         return mu, dv
 
 
-def run_p4(data, Rall, st, c, nb, X4):
+def run_p4(data, Rall, st, c, nb, X4, hook=None):
     rule = P4(c, data, nb, X4)
     rule.frame = Frame4(data, rule)
-    sim = p.simulate(data, Rall, st, rule, nb=nb, error_frame=rule.frame)
+    sim = p.simulate(data, Rall, st, rule, nb=nb, error_frame=rule.frame, hook=hook)
+    rule.pending = None     # An unfinished trial remains pending in the log.
     return rule, sim
 
 
@@ -156,7 +167,7 @@ def run_job(job):
     cfgs = specs(); names = [name_of(c) for c in cfgs]
     if f.exists():
         old = json.loads(f.read_text())
-        if [r["rule"] for r in old["rows"]] == names:
+        if old.get("version") == 2 and [r["rule"] for r in old["rows"]] == names:
             return old["rows"]
     t0 = time.monotonic()
     short = 1250 if smoke else None
@@ -168,11 +179,11 @@ def run_job(job):
     for c, nm in zip(cfgs, names):
         rule, sim = run_p4(data, Rall, st, c, nb, o.X4)
         row = q.score(tag, nm, rule, sim, data, False); row["exp"] = "E10"
-        row.update(n_trial=len(rule.trials), n_rollback=sum(not t["ok"] for t in rule.trials))
+        row.update(n_trial=len(rule.trials), n_rollback=sum(t["status"] == "rollback" for t in rule.trials))
         row["trials"] = [dict(t, true=any(cb <= t["block"] < cb + p.RS_TRUE_WIN for cb in changes)) for t in rule.trials]
         rows.append(row)
     f.parent.mkdir(parents=True, exist_ok=True)
-    ab.atomic_write(f, lambda h: json.dump(dict(nb=nb, rows=rows), h))
+    ab.atomic_write(f, lambda h: json.dump(dict(version=2, nb=nb, rows=rows), h))
     print(f"E10 {tag}: {len(rows)} rules, div={sum(r['div_num'] for r in rows)}, {time.monotonic() - t0:.0f} s", flush=True)
     return rows
 
@@ -185,6 +196,10 @@ def run(procs, smoke):
     else:
         with Pool(procs) as pool:
             list(pool.imap(run_job, jobs))
+
+
+def rho_db(rho):
+    return 10 * math.log10(rho) if rho is not None and 0 < rho < math.inf else None
 
 
 def report(smoke):
@@ -202,13 +217,13 @@ def report(smoke):
 
     def write_trials(h):
         w = csv.writer(h, lineterminator="\n")
-        w.writerow(["class", "seed", "rule", "block", "time_s", "decide_block", "true_change", "rho", "rho_db", "confirmed",
+        w.writerow(["class", "seed", "rule", "block", "time_s", "decide_block", "true_change", "rho", "rho_db", "confirmed", "status",
                     "rho_M", "rho_2B", "rho_B"])
         for r in rows:
             for t in r.get("trials") or []:
-                rdb = 10 * math.log10(t["rho"]) if 0 < t["rho"] < math.inf else ""
+                confirmed = None if t["ok"] is None else int(t["ok"])
                 w.writerow([r["class"], r["seed"], r["rule"], t["block"], t["block"] / BPS, t["decide"], int(t["true"]),
-                            t["rho"], rdb, int(t["ok"]), t["rho_M"], t["rho_2B"], t["rho_B"]])
+                            t["rho"], rho_db(t["rho"]), confirmed, t["status"], t["rho_M"], t["rho_2B"], t["rho_B"]])
     ab.atomic_write(dest / "RESULTS_dev3_trials.csv", write_trials)
 
     L = ["# dev3：再始動の試行と検証（E10）", "",
@@ -221,9 +236,11 @@ def report(smoke):
         g = defaultdict(list)
         for r in rows:
             for t in r.get("trials") or []:
+                if t["rho"] is None:
+                    continue
                 g[(r["rule"], r["class"], "経路変化" if t["true"] else "それ以外")].append(t)
         for (rule, cls, kind), ts in g.items():
-            v = [10 * math.log10(t["rho"]) for t in ts if 0 < t["rho"] < math.inf]
+            v = [v for t in ts if (v := rho_db(t["rho"])) is not None]
             if v:
                 L.append(f"| {q.md_cell(rule)} | {cls} | {kind} | {len(ts)} | {min(v):.2f} | {np.median(v):.2f} | {max(v):.2f} | "
                          f"{sum(t['ok'] for t in ts)} |")
@@ -234,8 +251,8 @@ def report(smoke):
             nm = name_of(config(K=K))
             ts = [t for r in rows if r["rule"] == nm for t in r.get("trials") or []]
             for k in WINDOWS:
-                tv = [10 * math.log10(t["rho_" + k]) for t in ts if t["true"] and 0 < t["rho_" + k] < math.inf]
-                fv = [10 * math.log10(t["rho_" + k]) for t in ts if not t["true"] and 0 < t["rho_" + k] < math.inf]
+                tv = [v for t in ts if t["true"] and (v := rho_db(t["rho_" + k])) is not None]
+                fv = [v for t in ts if not t["true"] and (v := rho_db(t["rho_" + k])) is not None]
                 if tv and fv:
                     L.append(f"| {K} | {k} | {len(tv)} | {min(tv):.2f} | {np.median(tv):.2f} | {max(tv):.2f} | {len(fv)} | "
                              f"{min(fv):.2f} | {np.median(fv):.2f} | {max(fv):.2f} | {min(fv) - max(tv):.2f} |")
@@ -266,16 +283,44 @@ def check():
     r4, s4 = run_p4(data, Rall, st, config(), nb, o.X4)
     assert r4.restarts == r3.restarts and len(r4.restarts) == 1
     np.testing.assert_allclose(s4["ex"], s3["ex"], rtol=1e-9)
+    np.testing.assert_array_equal(s4["tr"]["restart_apply_block"], s3["tr"]["restart_apply_block"])
+    assert [(t["status"], t["rho"]) for t in r4.trials] == [("immediate", None)]
     print("check 1 ok: P4 without verification equals P3 without a gate; restart at", r4.restarts)
     # 2. A path change is confirmed, with rho far below the threshold, and the result is unchanged by the test.
     r4v, s4v = run_p4(data, Rall, st, config(K=8), nb, o.X4)
     assert r4v.restarts == r4.restarts and r4v.trials[0]["ok"], r4v.trials
     np.testing.assert_allclose(s4v["ex"], s4["ex"], rtol=1e-9)
+    np.testing.assert_array_equal(s4v["tr"]["restart_apply_block"], s4["tr"]["restart_apply_block"])
     print("check 2 ok: path change confirmed", r4v.trials)
+    unfinished, _ = run_p4(data, Rall, st, config(K=8), r4.restarts[0] + 2, o.X4)
+    assert not unfinished.restarts and len(unfinished.trials) == 1
+    assert unfinished.trials[0]["status"] == "pending" and unfinished.trials[0]["rho"] is None
     # 3. A burst at the error microphone is rolled back, and the coefficients return to those before the trial.
     nb = 1400
     data, Rall, st = q.prep("EN0_s10", nb)
-    rule, sim = run_p4(data, Rall, st, config(K=8), nb, o.X4)
+    captured = {}
+
+    def inspect(i, w, mu, dv, c, rule, mf, **_):
+        t = rule.trials[-1] if rule.trials else None
+        if t is None:
+            return
+        if i == t["block"]:
+            captured["w0"] = w.copy()
+        if i == t["decide"]:
+            frame = rule.frame
+            rebuilt = np.fft.irfft(c.E, N)[-M:]
+            np.testing.assert_allclose(frame.trial_frame(w), rebuilt, atol=1e-12)
+            end = (i + 1) * B
+            start = end - B
+            disturbance = frame.e_all[start:end] - frame.sec[-B:]
+            ref = data["r"][start - M + 1:end]
+            current = disturbance + np.convolve(ref, w, "valid")
+            saved = disturbance + np.convolve(ref, captured["w0"], "valid")
+            np.testing.assert_allclose(t["rho_B"], (current @ current) / (saved @ saved), rtol=1e-12)
+        if t["decide"] is not None and i == t["decide"] + 1:
+            captured["restored"] = w.copy()
+
+    rule, sim = run_p4(data, Rall, st, config(K=8), nb, o.X4, hook=inspect)
     assert rule.trials and not rule.restarts and not any(t["ok"] for t in rule.trials), rule.trials
     t = rule.trials[0]
     before, after = sim["ex"][t["block"] - 1], sim["ex"][t["decide"]]
@@ -283,8 +328,8 @@ def check():
     assert sim["tr"]["mu_state"][t["decide"] + 1] == q.mu_late(0.03)
     print(f"check 3 ok: burst rolled back {rule.trials}; excess before {q.db(before):.2f} dB, "
           f"during the trial {q.db(sim['ex'][t['decide'] - 1]):.2f} dB, after the roll-back {q.db(after):.2f} dB")
-    # 4. trial_energy with the current coefficients equals the energy of the rebuilt frame used by the rule.
-    print("check 4: see REVIEW (compare Frame4.trial_energy(w) with the last M samples of the rebuilt frame)")
+    np.testing.assert_allclose(captured["restored"], captured["w0"], rtol=0, atol=1e-12)
+    print("check 4 ok: rebuilt frame, newest B samples, and restored simulator coefficients")
 
 
 def main():
