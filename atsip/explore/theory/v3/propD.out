@@ -1,0 +1,28 @@
+uniform c_k = 1/m (m = Me/B): a*, rho*, mean stability limit, 1/e blocks
+  m=1: a*=1.0000 rho*=0.0000 limit=2.000 blocks/e=0.00  a*m=1.000
+  m=2: a*=0.3432 rho*=0.4142 limit=2.000 blocks/e=1.13  a*m=0.686
+  m=3: a*=0.2213 rho*=0.5748 limit=1.500 blocks/e=1.81  a*m=0.664
+  m=4: a*=0.1642 rho*=0.6653 limit=1.172 blocks/e=2.45  a*m=0.657
+  m=6: a*=0.1086 rho*=0.7647 limit=0.804 blocks/e=3.73  a*m=0.652
+  m=8: a*=0.0813 rho*=0.8185 limit=0.609 blocks/e=4.99  a*m=0.650
+measured / alternative delay kernels
+  measured Phi i: mean delay 1.54 a*=0.1610 rho*=0.6707 limit=1.147 | rho at a=0.161: 0.6707
+  measured E iii-like: mean delay 1.56 a*=0.1595 rho*=0.6732 limit=1.132 | rho at a=0.161: 0.6745
+  pure delay 1: mean delay 1.00 a*=0.2500 rho*=0.5000 limit=1.000 | rho at a=0.161: 0.7983
+  pure delay 2: mean delay 2.00 a*=0.1482 rho*=0.6667 limit=0.618 | rho at a=0.161: 0.6823
+  pure delay 3: mean delay 3.00 a*=0.1055 rho*=0.7500 limit=0.445 | rho at a=0.161: 0.8148
+  mean delay 2.6 (0.4@2, 0.6@3): mean delay 2.60 a*=0.1178 rho*=0.7278 limit=0.517 | rho at a=0.161: 0.7767
+  uniform 6 (mean 2.5): mean delay 2.50 a*=0.1086 rho*=0.7647 limit=0.804 | rho at a=0.161: 0.8057
+Me=M model full: 1+(2tau-1)f = 2M/B = 8, T=8: argmin a=0.165 (mu=0.695 at h_eff 0.2375, 0.660 at h 0.25), per-block factor of x 0.746; at a=0.161: 0.776
+Me=M model full: 1+(2tau-1)f = 2M/B = 8, T=16: argmin a=0.165 (mu=0.695 at h_eff 0.2375, 0.660 at h 0.25), per-block factor of x 0.705; at a=0.161: 0.746
+Me=M model full: 1+(2tau-1)f = 2M/B = 8, T=32: argmin a=0.165 (mu=0.695 at h_eff 0.2375, 0.660 at h 0.25), per-block factor of x 0.683; at a=0.161: 0.731
+Me=M model excl1: (2tau-1)f = 7, T=8: argmin a=0.165 (mu=0.695 at h_eff 0.2375, 0.660 at h 0.25), per-block factor of x 0.724; at a=0.161: 0.752
+Me=M model excl1: (2tau-1)f = 7, T=16: argmin a=0.165 (mu=0.695 at h_eff 0.2375, 0.660 at h 0.25), per-block factor of x 0.680; at a=0.161: 0.722
+Me=M model excl1: (2tau-1)f = 7, T=32: argmin a=0.165 (mu=0.695 at h_eff 0.2375, 0.660 at h 0.25), per-block factor of x 0.657; at a=0.161: 0.706
+Me=M model mean only, T=8: argmin a=0.470 (mu=1.979 at h_eff 0.2375, 1.880 at h 0.25), per-block factor of x 0.129; at a=0.161: 0.603
+Me=M model mean only, T=16: argmin a=0.372 (mu=1.566 at h_eff 0.2375, 1.488 at h 0.25), per-block factor of x 0.279; at a=0.161: 0.564
+Me=M model mean only, T=32: argmin a=0.183 (mu=0.771 at h_eff 0.2375, 0.732 at h 0.25), per-block factor of x 0.381; at a=0.161: 0.537
+Me=B (no delay), f=4.0: a*=0.200, per-block factor 0.800
+gain multipliers (1.0,): no growing periodic product (length <= 8) for a <= 1.171; worst rate at a=0.161: 0.713, at a=0.375: 0.789
+gain multipliers (0.0, 1.0, 2.0): no growing periodic product (length <= 8) for a <= 0.474; worst rate at a=0.161: 1.000, at a=0.375: 1.000
+gain multipliers (0.5, 1.0, 2.0): no growing periodic product (length <= 8) for a <= 0.530; worst rate at a=0.161: 0.906, at a=0.375: 0.932

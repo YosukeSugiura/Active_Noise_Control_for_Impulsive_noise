@@ -1,0 +1,16 @@
+identity check |P_M F^-1 P_M F P_M - I| = 1.3280538108909101e-16
+Phi = F^T F (all rows) rel err 6.63373119991999e-16
+y metric F_M^T F_M vs Phi_M: generalised eig min 0.1353 median 1.0000 max 1.0000
+  |F_M a|^2/|a|^2_Phi for a = w_M: 1.0000
+  |F_M a|^2/|a|^2_Phi for a = [w_inf]_M - w_M: 0.2823
+M=512 Me=512 N=1024: |A-I|_2=0.069 eig(A) re [0.998,1.038] | state i: h_eff E 1.000 Phi 1.000, nonscalar E 0.000 Phi 0.0000 | |Y V|^2/|V|^2_Phi 1.000 | excess fp -17.06 dB, [w_inf]_M -16.92 dB, |wfp-[w_inf]_M|^2/|[w_inf]_M-wM|^2 -22.9 dB
+M=512 Me=512 N=2048: |A-I|_2=0.001 eig(A) re [0.999,1.000] | state i: h_eff E 1.000 Phi 1.000, nonscalar E 0.000 Phi 0.0000 | |Y V|^2/|V|^2_Phi 1.000 | excess fp -16.92 dB, [w_inf]_M -16.92 dB, |wfp-[w_inf]_M|^2/|[w_inf]_M-wM|^2 -80.9 dB
+M=512 Me=512 N=4096: |A-I|_2=0.001 eig(A) re [0.999,1.000] | state i: h_eff E 1.000 Phi 1.000, nonscalar E 0.000 Phi 0.0000 | |Y V|^2/|V|^2_Phi 1.000 | excess fp -16.92 dB, [w_inf]_M -16.92 dB, |wfp-[w_inf]_M|^2/|[w_inf]_M-wM|^2 -82.1 dB
+M=512 Me=512 N=8192: |A-I|_2=0.001 eig(A) re [0.999,1.000] | state i: h_eff E 1.000 Phi 1.000, nonscalar E 0.000 Phi 0.0000 | |Y V|^2/|V|^2_Phi 1.000 | excess fp -16.92 dB, [w_inf]_M -16.92 dB, |wfp-[w_inf]_M|^2/|[w_inf]_M-wM|^2 -82.1 dB
+M=512 Me=128 N=1024: |A-I|_2=0.038 eig(A) re [0.988,1.012] | state i: h_eff E 1.000 Phi 1.000, nonscalar E 0.000 Phi 0.0000 | |Y V|^2/|V|^2_Phi 1.000 | excess fp -16.28 dB, [w_inf]_M -16.92 dB, |wfp-[w_inf]_M|^2/|[w_inf]_M-wM|^2 -12.9 dB
+M=512 Me=256 N=1024: |A-I|_2=0.038 eig(A) re [0.991,1.008] | state i: h_eff E 1.000 Phi 1.000, nonscalar E 0.000 Phi 0.0000 | |Y V|^2/|V|^2_Phi 1.000 | excess fp -16.61 dB, [w_inf]_M -16.92 dB, |wfp-[w_inf]_M|^2/|[w_inf]_M-wM|^2 -20.9 dB
+M=512 Me=128 N=4096: |A-I|_2=0.001 eig(A) re [0.999,1.000] | state i: h_eff E 1.000 Phi 1.000, nonscalar E 0.000 Phi 0.0000 | |Y V|^2/|V|^2_Phi 1.000 | excess fp -16.92 dB, [w_inf]_M -16.92 dB, |wfp-[w_inf]_M|^2/|[w_inf]_M-wM|^2 -82.1 dB
+eps 1e-06 (M=Me=512, N=1024): h_eff E 1.000 Phi 1.000, nonscalar E 0.000 Phi 0.0000, eig(A) [0.998,1.038], fp excess -17.06 dB
+eps 0.0001 (M=Me=512, N=1024): h_eff E 0.998 Phi 1.000, nonscalar E 0.000 Phi 0.0000, eig(A) [0.938,1.013], fp excess -17.12 dB
+eps 0.001 (M=Me=512, N=1024): h_eff E 0.978 Phi 0.998, nonscalar E 0.002 Phi 0.0000, eig(A) [0.589,1.006], fp excess -17.36 dB
+eps 0.01 (M=Me=512, N=1024): h_eff E 0.872 Phi 0.987, nonscalar E 0.042 Phi 0.0011, eig(A) [0.130,0.997], fp excess -18.91 dB
