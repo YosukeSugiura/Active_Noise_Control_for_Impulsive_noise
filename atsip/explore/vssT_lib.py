@@ -490,14 +490,23 @@ def simulate(data, Rall, st, rule, nb=None, w0=None, hook=None, fps=None, error_
     swv = sliding_window_view(xq, M)
     w = np.zeros(M) if w0 is None else w0.copy()
     zi = np.zeros(len(hS) - 1); e_all = np.zeros(nb * B)
+    hSm = data.get("hS_model")          # optional secondary-path model (S-hat != S); only error_frame sees its output
+    zm = None if hSm is None else np.zeros(len(hSm) - 1)
     ex = np.full(nb, np.nan); exf = {k: np.full(nb, np.nan) for k in (fps or {})}
     div = False
     for i in range(nb):
         s0 = i * B
         Xb = swv[s0 + N - M + 1:s0 + N - M + 1 + B][:, ::-1]
-        ys, zi = signal.lfilter(hS, [1.0], Xb @ w, zi=zi)
+        yb = Xb @ w
+        ys, zi = signal.lfilter(hS, [1.0], yb, zi=zi)
         e_all[s0:s0 + B] = d[s0:s0 + B] + ys
-        E = ML.frame_E(e_all, s0, M) if error_frame is None else error_frame(i, w, e_all, ys)
+        if error_frame is None:
+            E = ML.frame_E(e_all, s0, M)
+        else:
+            ym = ys
+            if hSm is not None:
+                ym, zm = signal.lfilter(hSm, [1.0], yb, zi=zm)
+            E = error_frame(i, w, e_all, ym)
         c = Ctx(i, Rall[i], E, st, w)
         mf = rule.mu_formula(i)
         mu, dv = rule.block(i, c)
