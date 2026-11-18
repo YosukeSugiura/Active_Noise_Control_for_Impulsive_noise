@@ -1,10 +1,10 @@
 # STATUS
 
-- テーマ — ATSIP 版 ANC の可変ステップ則 protoC の仕様固定と修正
+- テーマ — ATSIP 最終則の前半ステップ、1/g、推定器、再始動の寄与の切り分け
 - 実行者 — ChatGPT（Codex）
-- 更新日時 — 2026-11-18 12:39:01 JST
-- 状態 — `atsip/fix0` のコード修正、回帰テスト、実験、比較を完了
-- 結果 — `check --preset final` が合格。8 入力 × 3 seed × 5 則の 120 ケースで数値発散 0 件、増幅 0 件。基準コミットの再実行と、比較対象の dB 指標が丸め前まで一致。提案則は経路変化 9 件すべてを検出し、誤作動・見逃し・打ち切りは各 0 件。
-- 未解決 — この修正範囲の未解決項目なし。別 seed での最終評価は未実施。
-- 次の一手 — 最終評価では `--preset final` と別 seed を使う。
-- 成果物の場所 — [RESULTS_fix0.md](RESULTS_fix0.md)、[RESULTS_fix0.csv](RESULTS_fix0.csv)、[実行手順](RUN_protoC.md)。各タグの JSON と NPZ は実行環境の `out/fix0/`。
+- 更新日時 — 2026-11-18 14:05:55 JST
+- 状態 — ローカルの `atsip/fix0`（基点 `b7fadef`）で短い試行240ケース、本試行1,200ケース、集計および回帰確認を完了。
+- 結果 — A3 の最良 μ は 0.02。A6 との L1 whole は8クラス中7クラスで差なし（0.1 dB未満）。pc は A6 が全体で0.121 dB、15–17秒で0.847 dB改善。A7 の数値発散4件は a145・a120・pc・pcb の seed 12。A6 の数値発散は0件、全1,200ケースの増幅も0件。A6 の再始動は3つの経路変化窓でそれぞれ5/5 seedを改善し、全15変化を検出した。
+- 未解決 — `RESULTS_nodelay.csv` はローカルに未配置。最終評価用 seed 100–119 は未使用。
+- 次の一手 — `RESULTS_nodelay.csv` を `atsip/explore/` に置き、このディレクトリで `python ablate.py report` を再実行する。別ブランチが後日リモートに用意された場合は、リポジトリの最上位で `git fetch origin atsip/nodelay`、続いて `git checkout origin/atsip/nodelay -- atsip/explore/RESULTS_nodelay.csv` でCSVだけを取得できる。
+- 成果物の場所 — [RESULTS_ablate.md](RESULTS_ablate.md)、[RESULTS_ablate.csv](RESULTS_ablate.csv)、[ablate.py](ablate.py)。試行別JSONは `out/ablate/`。Git bundle はリポジトリ最上位の `fix0.bundle`。

@@ -871,8 +871,8 @@ class SFY3(SFY):
              is on, else mu_state is kept; estX's kept (X, N) for the det test is cleared.
     The estimator (C, Q, X_hat, N_hat) runs during the early phase as well (traces), only the target is not used."""
 
-    def __init__(s, est, gamma, P, X2, X3, early, rs, mu_e):
-        super().__init__("Y", "delayopt", "g", gamma, P, mu_init=(mu_e if early else MU_INIT), est=est, X2=X2)
+    def __init__(s, est, gamma, P, X2, X3, early, rs, mu_e, corr="g"):
+        super().__init__("Y", "delayopt", corr, gamma, P, mu_init=(mu_e if early else MU_INIT), est=est, X2=X2)
         s.X3, s.early, s.rs, s.mu_e = X3, early, rs, mu_e
         if rs:
             s.e2.y = YEstRS(s.e2.y.L, s.e2.y.bd, s.e2.y.b, X3); s.est = s.e2.y
@@ -1163,6 +1163,34 @@ def ewin_energy(E):
     return float((p[0] + p[-1] + 2.0 * np.sum(p[1:-1])) / N)
 
 
+def rsn_stat(E, reference_energy):
+    return ewin_energy(E) / reference_energy if reference_energy > 0 else np.nan
+
+
+class RSNDetector:
+    """Error/reference ratio detector shared by rsN, rsN2 and the fixed-step ablation."""
+
+    def __init__(s, X4):
+        s.beta, s.threshold = X4["z_beta"], X4["z_thr"]
+        s.required, s.guard = int(X4["z_d"]), int(X4["guard"])
+        s.zbar = s.ref = s.last_restart = None
+        s.count = 0
+
+    def update(s, i, z):
+        s.ref = s.zbar
+        finite = np.isfinite(z)
+        if finite:
+            s.zbar = z if s.ref is None else (1 - s.beta) * s.ref + s.beta * z
+        armed = s.last_restart is None or i - s.last_restart >= s.guard
+        triggered = armed and s.ref is not None and finite and z > s.threshold * s.ref
+        s.count = s.count + 1 if triggered else 0
+        if s.count < s.required:
+            return False
+        s.count = 0
+        s.last_restart = i
+        return True
+
+
 class YEstRSX(YEstRS):
     """YEstRS (same adaptive beta, same restart actions) with another restart statistic, set by the rule before
     update() through s.zin:
@@ -1177,28 +1205,30 @@ class YEstRSX(YEstRS):
     def __init__(s, L, bd, b, X3, X4, mode, gmin):
         super().__init__(L, bd, b, X3)
         s.mode, s.gmin, s.guard = mode, gmin, int(X4["guard"])
+        s.rsn = RSNDetector(X4) if mode == "N" else None
         if mode == "N":
-            s.rthr, s.d, s.zb = X4["z_thr"], int(X4["z_d"]), X4["z_beta"]
+            s.d = s.rsn.required
         elif mode != "G":
             raise ValueError(mode)
-        s.zin = None; s.zbar = None; s.Zg = None; s.kZ = 0; s.last_rst = None; s.stat = np.nan; s.ref = np.nan
+        s.zin = None; s.Zg = None; s.kZ = 0; s.last_rst = None; s.stat = np.nan; s.ref = np.nan
 
     def update(s, i, u):
         q = float(u @ u); s.restarted = False
-        if s.mode == "N":
-            z = float(s.zin); ref = s.zbar
-            if np.isfinite(z):
-                s.zbar = z if s.zbar is None else (1 - s.zb) * s.zbar + s.zb * z
+        if s.rsn is not None:
+            z = float(s.zin)
+            restart = s.rsn.update(i, z)
+            ref = s.rsn.ref
         else:
             g = float(s.zin)
             z = q * max(g, s.gmin) ** 2 / g ** 2 if g > 0 else np.nan; ref = s.Zg
+            trig = ref is not None and np.isfinite(z) and z > s.rthr * ref
+            if s.last_rst is not None and i - s.last_rst < s.guard:
+                trig = False
+            s.cnt = s.cnt + 1 if trig else 0
+            restart = s.cnt >= s.d
         s.stat, s.ref = z, (np.nan if ref is None else ref)
-        trig = ref is not None and np.isfinite(z) and z > s.rthr * ref
-        if s.last_rst is not None and i - s.last_rst < s.guard:
-            trig = False
-        s.cnt = s.cnt + 1 if trig else 0
         s.raw = (s.raw + [u.copy()])[-s.d:]
-        if s.cnt >= s.d:
+        if restart:
             s.C = s.Q = None; s.kC = s.kQ = 0; s.cnt = 0; s.ubar = None; s.buf = [None] * s.L
             s.Zg = None; s.kZ = 0
             for uu in s.raw[:-1]:
@@ -1222,8 +1252,8 @@ class SFY4(SFY3):
     (rsN only).  Restart actions as rs: estimator reset, estX's kept (X, N) cleared, mu_state = mu_early and the early
     phase restarted with early.  Extra traces: 'rsstat' (z_n or |y|^2/g^2), 'rsref' (zbar_{n-1} or its EMA)."""
 
-    def __init__(s, est, gamma, P, X2, X3, X4, early, mode, mu_e, rw=None):
-        super().__init__(est, gamma, P, X2, X3, early, True, mu_e)
+    def __init__(s, est, gamma, P, X2, X3, X4, early, mode, mu_e, rw=None, corr="g"):
+        super().__init__(est, gamma, P, X2, X3, early, True, mu_e, corr=corr)
         if mode == "N" and rw is None:
             raise ValueError("rsN needs rw (rwin_energy of the input)")
         s.mode, s.rw, s.X4 = mode, rw, X4
@@ -1232,8 +1262,7 @@ class SFY4(SFY3):
 
     def block(s, i, c):
         if s.mode == "N":
-            ee, rr = ewin_energy(c.E), float(s.rw[i])
-            s.est.zin = ee / rr if rr > 0 else np.nan
+            s.est.zin = rsn_stat(c.E, float(s.rw[i]))
         else:
             s.est.zin = c.g
         out = SFY3.block(s, i, c)
@@ -1675,7 +1704,7 @@ def check4(o, dd, Rall, st):
         ys.zin = z[i]; ys.update(i, rng.standard_normal(16))
         zok &= bool(np.isnan(ys.ref)) if zb is None else (ys.ref == zb)
         zb = z[i] if zb is None else (1 - bz) * zb + bz * z[i]
-        zok &= ys.zbar == zb
+        zok &= ys.rsn.zbar == zb
         if ys.restarted:
             rst.append(i)
     exp_r = [80 + d_ - 1, 80 + gd + 20 + d_ - 1]
