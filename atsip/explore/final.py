@@ -24,6 +24,7 @@ Commands (resumable):
 import argparse
 import copy
 import json
+import math
 import os
 import sys
 import time
@@ -41,6 +42,7 @@ import protoC as p
 from numpy.lib.stride_tricks import sliding_window_view
 from scipy.io import wavfile
 from algorithms.algorithms import make_algo
+from data.diag_band import error_peak
 
 np, T = p.np, p.T
 B, M, N, FS, BPS = p.B, p.M, p.N, p.FS, p.BPS
@@ -50,7 +52,7 @@ REAL = ("machinegun", "factory1", "destroyerengine", "volvo", "valve", "jackhamm
 SYNTH = ("G", "PS", "BU", "II300", "a145", "a120")
 BURSTS = ((10.0, 10.5), (20.0, 20.5))
 DIV_GAIN = 1e4                                 # block error power above this x the full-run primary power = divergence
-VERSION = 3
+VERSION = 4
 HP_HZ = 100.0                                  # operating band: 4th-order Butterworth high-pass on every excitation
 RMODES = ("fd",)                               # S1: "td" gave no gain and broke the identity with no-restart; dropped
 
@@ -79,12 +81,13 @@ def guard_seed(seed, final=False):
 
 
 def excitation(cls, seed):
-    """Excitation limited to the operating band.  Below about 60 Hz the measured responses are at the noise floor
-    (the loudspeakers do not radiate there) and the truncated model has phase errors above 90 degrees, so any
-    filtered-x method diverges when the input has power there (S1 pilot).  Real recordings are scaled after the
-    high-pass."""
-    x = p.signal.sosfilt(p.signal.butter(4, HP_HZ, "highpass", fs=FS, output="sos"), _excitation(cls, seed))
+    """Filter each excitation before matching real-audio power to filtered G."""
+    x = highpass(_excitation(cls, seed))
     return x * np.sqrt(g_power() / np.mean(x ** 2)) if cls in REAL else x
+
+
+def highpass(x):
+    return p.signal.sosfilt(p.signal.butter(4, HP_HZ, "highpass", fs=FS, output="sos"), x)
 
 
 def _excitation(cls, seed):
@@ -94,7 +97,7 @@ def _excitation(cls, seed):
         off = (int(seed) % 5) * 2 * FS
         x = np.asarray(wav[off:off + L_SIG], float)
         assert len(x) == L_SIG, (cls, len(wav))
-        return x * np.sqrt(g_power() / np.mean(x ** 2))             # the power of the Gaussian class
+        return x
     if cls == "G":
         return p.IC.make_input("A", seed)
     if cls == "PS":
@@ -115,7 +118,7 @@ _GP = []
 
 def g_power():
     if not _GP:
-        _GP.append(float(np.mean(p.IC.make_input("A", 10) ** 2)))
+        _GP.append(float(np.mean(highpass(_excitation("G", 10)) ** 2)))
     return _GP[0]
 
 
@@ -227,7 +230,7 @@ def simulate(dd, Rall, st, rule, nb=None, error_frame=None):
     Lh = max(max(len(h) for _, h in dd["hS_seq"]), max(len(h) for _, h in dd["hSm_seq"]))
     hist = np.zeros(Lh - 1)
     pref = dd.get("primary_power", float(np.mean(d ** 2)))
-    div = False; n_done = nb
+    div = False; n_done = nb; failure = None
     plant_state = model_state = (None, None)
     same_model = (len(dd["hSm_seq"]) == len(dd["hS_seq"])
                   and all(b == c and np.array_equal(h, m)
@@ -256,9 +259,10 @@ def simulate(dd, Rall, st, rule, nb=None, error_frame=None):
         w = c.w_override if c.w_override is not None else w - 2 * mu * B / M * dv
         div = not np.isfinite(w).all() or diverged(eb, pref)
         if div:
+            failure = dict(error_peak(e_all, s0), sample=s0 + B - 1)
             e_all[s0:] = np.nan; n_done = i
             break
-    return dict(e=e_all, y=y_all, w=w, div=div, nb=nb, n_done=n_done, ex=np.full(nb, np.nan), tr=rule.traces())
+    return dict(e=e_all, y=y_all, w=w, div=div, nb=nb, n_done=n_done, failure=failure, ex=np.full(nb, np.nan), tr=rule.traces())
 
 
 class SFfix(p.Rule):
@@ -368,7 +372,7 @@ def run_baseline(name, mu, params, dd, n_tot=None):
     hrev = plant[0][1]; lh = len(hrev)
     switches = {n0: h for n0, h in plant[1:]}
     mswitch = {b0 * B: m for b0, m in model[1:]}
-    pref = dd.get("primary_power", float(np.mean(d ** 2))); div = False; n_done = T_
+    pref = dd.get("primary_power", float(np.mean(d ** 2))); div = False; n_done = T_; failure = None
     t0 = time.perf_counter()
     for n in range(T_):
         if n in switches:
@@ -382,13 +386,16 @@ def run_baseline(name, mu, params, dd, n_tot=None):
         head = head + 1 if head + 1 < L else 0
         en = d[n] + float(y2[head + L - lh:head + L] @ hrev)
         e[n] = en
-        if np.isfinite(en):
+        finite = math.isfinite(en)
+        if finite:
             w, _ = algo.update(w, en, rv, xv, mu)
-        if not np.isfinite(en) or ((n + 1) % B == 0
+        if not finite or ((n + 1) % B == 0
                                   and (diverged(e[n + 1 - B:n + 1], pref) or not np.isfinite(w).all())):
-            div = True; n_done = n // B * B; e[n_done:] = np.nan
+            div = True; n_done = n // B * B
+            failure = dict(error_peak(e, n_done), sample=n)
+            e[n_done:] = np.nan
             break
-    return dict(e=e, w=w, div=div, n_done=n_done, seconds=time.perf_counter() - t0)
+    return dict(e=e, w=w, div=div, n_done=n_done, failure=failure, seconds=time.perf_counter() - t0)
 
 
 # ----------------------------------------------------------------------------------------------
@@ -418,6 +425,7 @@ def measures(sim, dd, post=None):
     out = dict(div=int(bool(sim["div"])), seconds=round(float(sim["seconds"]), 2))
     if sim["div"]:
         out["div_block"] = int(sim["n_done"] if "nb" in sim else sim["n_done"] // B)
+        out["failure"] = sim["failure"]
         return out
     anr = p.O.anr_curve(e, d); ts = (63 + 64 * np.arange(len(anr))) / FS
     win = lambda a, b: float(anr[(ts >= a) & (ts < b)].mean())
@@ -444,7 +452,13 @@ def trial_stats(rule, dd):
     conf = [t for t in tr if t["status"] == "confirmed"]
     scored = getattr(rule, "det", None) is not None or isinstance(rule, AlwaysTrial)
     rs = p.restart_stats([t["block"] for t in conf], ch, dd.get("scored_blocks", len(dd["d"]) // B))
-    return dict(n_trial=len(tr), n_confirm=len(conf), false_confirm=rs["n_false"],
+    false_blocks = set(rs["false_blocks"])
+    def trial_row(t):
+        rho = t.get("rho")
+        return dict(block=t["block"], decide=t.get("decide"), status=t["status"],
+                    rho=rho if rho is None or math.isfinite(rho) else str(rho),
+                    false=t["block"] in false_blocks)
+    return dict(trials=[trial_row(t) for t in tr], n_trial=len(tr), n_confirm=len(conf), false_confirm=rs["n_false"],
                 missed=rs["n_missed"] if scored else None,
                 detection_blocks=[t["block"] for t in tr if true(t)],
                 decide_blocks=[t["decide"] - t["block"] for t in conf if true(t) and t.get("decide") is not None])
@@ -458,7 +472,6 @@ PILOT_SCEN = ("stat", "RS-near", "RS-far", "RM-10", "RM-10s", "EN0")
 PILOT_SEEDS = (10, 11)
 PILOT_LS = (256, 512)
 POST_FOR = ("RS-near", "RS-far", "RM-10", "RM-10s")
-TD_RULES = ("nors", "P5-early")
 
 
 def out_dir(smoke):
@@ -481,7 +494,7 @@ def run_job(job):
     ref = {}
     for rmode in RMODES:
         dd, Rall, st = data[rmode]
-        for label in (RULES if rmode == "fd" else TD_RULES):
+        for label in RULES:
             rule, sim = run_rule(label, dd, Rall, st, X4, nb)
             post = None
             if with_post:
@@ -493,14 +506,17 @@ def run_job(job):
             if post is not None:
                 row["post_div"] = int(post["div"])
                 row["post_seconds"] = ps["seconds"]
+                row["post_failure"] = ps["failure"]
             if label == "nors":
                 ref[rmode] = (sim["e"], sim["y"])
             elif rmode in ref and not sim["div"]:
                 if np.isfinite(ref[rmode][0]).all():
                     diff = float(np.max(np.abs(sim["e"] - ref[rmode][0])))
                     speaker = float(np.max(np.abs(sim["y"] - ref[rmode][1])))
+                    different = (sim["e"] != ref[rmode][0]) | (sim["y"] != ref[rmode][1])
                     row.update(same_as_nors=int(diff == 0 and speaker == 0),
-                               max_diff_nors=diff, max_diff_y_nors=speaker)
+                               max_diff_nors=diff, max_diff_y_nors=speaker,
+                               first_diff_sample=int(np.argmax(different)) if different.any() else None)
             rows.append(row)
     dd = data["fd"][0]
     for name, (mu, par) in BASE.items():
@@ -512,7 +528,7 @@ def run_job(job):
             post = dict(e=ps["e"], d=pd_["d"][:len(ps["e"])], div=ps["div"])
         row = dict(method=name, kind="base", rmode="-", mu=mu, **measures(sim, dd, post))
         if post is not None:
-            row.update(post_div=int(post["div"]), post_seconds=ps["seconds"])
+            row.update(post_div=int(post["div"]), post_seconds=ps["seconds"], post_failure=ps["failure"])
         rows.append(row)
     for r in rows:
         r.update(cls=cls, scen=scen, seed=int(seed), Ls=int(Ls))
@@ -523,7 +539,7 @@ def run_job(job):
 
 def pilot(procs, smoke):
     seeds = PILOT_SEEDS[:1] if smoke else PILOT_SEEDS
-    classes = PILOT_CLASSES[:2] + PILOT_CLASSES[3:4] if smoke else PILOT_CLASSES
+    classes = ("G", "a145", "machinegun") if smoke else PILOT_CLASSES
     scen = ("stat", "RS-far", "RM-10s") if smoke else PILOT_SCEN
     jobs = [(c, s, sd, L, smoke) for L in (PILOT_LS[:1] if smoke else PILOT_LS) for c in classes for s in scen for sd in seeds]
     if procs == 1:
@@ -548,16 +564,17 @@ def agg(rows, key):
 
 def report(smoke):
     d = out_dir(smoke)
-    rows = [r for f in sorted(d.glob("*.json")) for r in json.loads(f.read_text())["rows"]]
+    jobs = [json.loads(f.read_text()) for f in sorted(d.glob("*.json"))]
+    rows = [r for job in jobs if job["version"] == VERSION for r in job["rows"]]
     if not rows:
         raise ValueError(f"No pilot rows in {d}")
-    L = ["# 最終評価 S1：実測経路での試行（設計用 seed）", "",
+    L = ["# 最終評価 S1b：100 Hz 高域通過を入れた試行（設計用 seed）", "",
          "表は自動生成。値は dB（小さいほど良い）、発散した試行は平均から除き件数を示す。rec は回復までのブロック数の中央値"
          "（打ち切りは件数で表示。打ち切りは観測上限より後として順位に含め、中央値が確定しない場合は「打切」）。", ""]
     methods = list(RULES) + list(BASE)
     for Ls in sorted({r["Ls"] for r in rows}):
         for scen in PILOT_SCEN:
-            for rmode in ("fd", "td"):
+            for rmode in RMODES:
                 rs = [r for r in rows if r["Ls"] == Ls and r["scen"] == scen and r["rmode"] in (rmode, "-" if rmode == "fd" else "")]
                 if not rs:
                     continue
@@ -701,6 +718,22 @@ def check():
         np.testing.assert_allclose(frame.trial_frame(w), expected_e[max(0, (i+1)*B-M):(i+1)*B], atol=1e-9)
         history = np.concatenate([history, y[block]])[-len(history):]
     print("check 10 ok: model switch preserves frozen-error reconstruction")
+
+
+    # 11. Match every real input to filtered G and verify the high-pass response.
+    np.testing.assert_equal(g_power(), np.mean(excitation("G", 10) ** 2))
+    for cls in (*REAL, "G", "a145", "II300"):
+        raw = _excitation(cls, 10)
+        filtered = highpass(raw)
+        if cls in REAL:
+            filtered *= np.sqrt(g_power() / np.mean(filtered ** 2))
+        np.testing.assert_array_equal(excitation(cls, 10), filtered)
+    ts = np.arange(FS) / FS
+    tones = [np.sin(2 * np.pi * hz * ts) for hz in (40, 250)]
+    assert np.std(highpass(tones[0])[FS//2:]) < 0.02
+    assert np.std(highpass(tones[1])[FS//2:]) > 0.70
+    assert error_peak(tones[1], FS)["band"] == "250–500"
+    print("check 11 ok: filtered-G power, high-pass response and band diagnostic")
 
 
 def main():
