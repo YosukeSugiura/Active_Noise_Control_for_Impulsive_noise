@@ -680,12 +680,14 @@ def check():
     state = (None, None)
     d_only = rng.standard_normal(len(x))
     actual_e = d_only.copy()
+    expected_e = d_only + np.concatenate([p.signal.lfilter(h1, [1.0], y)[:3*B],
+                                           p.signal.lfilter(h2, [1.0], y)[3*B:]])
     for i in range(8):
         block = slice(i * B, (i + 1) * B)
         secondary, state = filtered_block(state, i, history, y[block], models)
         actual_e[block] += secondary
         frame(i, w, actual_e, secondary)
-        np.testing.assert_allclose(frame.trial_frame(w), d_only[max(0, (i+1)*B-M):(i+1)*B], atol=1e-9)
+        np.testing.assert_allclose(frame.trial_frame(w), expected_e[max(0, (i+1)*B-M):(i+1)*B], atol=1e-9)
         history = np.concatenate([history, y[block]])[-len(history):]
     print("check 10 ok: model switch preserves frozen-error reconstruction")
 
