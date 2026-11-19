@@ -1,0 +1,97 @@
+"""Prepare continuous 40 s mono excerpts and record provenance and statistics."""
+import argparse
+import csv
+import io
+from math import gcd
+from pathlib import Path
+import zipfile
+
+import numpy as np
+from scipy.io import wavfile
+from scipy.signal import resample_poly
+
+from fetch import NOISEX, RAW, digest
+
+FS = 16000
+SECONDS = 40
+DATA = Path(__file__).resolve().parent
+NOISEX_CLASSES = ("machinegun", "factory1", "destroyerengine", "volvo")
+SHORT_CLIPS = {
+    "valve": ("mimii/00000000.wav", "6_dB_valve.zip:valve/id_00/normal/00000000.wav"),
+    "engine_idling": ("urbansound8k/101415-3-0-2.wav", "UrbanSound8K/audio/fold1/101415-3-0-2.wav"),
+    "jackhammer": ("urbansound8k/103074-7-0-0.wav", "UrbanSound8K/audio/fold1/103074-7-0-0.wav"),
+}
+
+
+def mono(wav):
+    if wav.dtype.kind in "iu":
+        bits = wav.dtype.itemsize * 8
+        wav = wav.astype(np.float64) / (2 ** (bits - 1)) - (1 if wav.dtype.kind == "u" else 0)
+    else:
+        wav = wav.astype(np.float64)
+    return wav if wav.ndim == 1 else wav.mean(axis=1)
+
+
+def metrics(x):
+    centered = x - np.mean(x)
+    variance = np.mean(centered ** 2)
+    rms = np.sqrt(np.mean(x ** 2))
+    power = np.mean(x[:len(x) // 128 * 128].reshape(-1, 128) ** 2, axis=1)
+    return dict(kurtosis=float(np.mean(centered ** 4) / variance ** 2) if variance > 0 else None,
+                crest_factor=float(np.max(np.abs(x)) / rms) if rms > 0 else None,
+                power_cv=float(np.std(power) / np.mean(power)) if np.any(power) else None,
+                zero_power_blocks=int(np.count_nonzero(power == 0)),
+                blocks=len(power))
+
+
+def process(name, provenance, source, dest):
+    row = dict(name=name, source=provenance)
+    target = dest / f"{name}.wav"
+    if source is None:
+        return dict(row, status="missing")
+    fs, samples = wavfile.read(source)
+    end = min(len(samples), SECONDS * fs)
+    x = mono(samples[:end])
+    divisor = gcd(fs, FS)
+    if fs != FS:
+        x = resample_poly(x, FS // divisor, fs // divisor)
+    x = x.astype("<f4")
+    eligible = len(x) >= SECONDS * FS and np.any(x)
+    if eligible:
+        wavfile.write(target, FS, x)
+    else:
+        target.unlink(missing_ok=True)
+    return dict(row, status="prepared" if eligible else ("short" if len(x) < SECONDS * FS else "silent"),
+                source_fs=fs, source_channels=1 if samples.ndim == 1 else samples.shape[1],
+                recording_s=len(samples) / fs, start_sample=0, end_sample_exclusive=end,
+                seconds=len(x) / FS, output=target.name if eligible else "", **metrics(x))
+
+
+def generate(dest):
+    dest.mkdir(parents=True, exist_ok=True)
+    rows = []
+    archive = RAW / NOISEX[0]
+    names = {name: f"NOISEX92/{name}/signal.wav" for name in NOISEX_CLASSES}
+    if archive.exists():
+        if digest(archive, "md5") != NOISEX[2]:
+            raise ValueError("NOISEX-92 archive MD5 mismatch")
+        with zipfile.ZipFile(archive) as z:
+            for name, member in names.items():
+                rows.append(process(name, member, io.BytesIO(z.read(member)), dest))
+    else:
+        rows.extend(process(name, member, None, dest) for name, member in names.items())
+    for name, (relative, provenance) in SHORT_CLIPS.items():
+        source = RAW / relative
+        rows.append(process(name, provenance, source if source.exists() else None, dest))
+    fields = list(dict.fromkeys(field for row in rows for field in row))
+    with (dest / "noise.csv").open("w", newline="") as file:
+        writer = csv.DictWriter(file, fields, lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(rows)
+    print(f"{sum(r['status'] == 'prepared' for r in rows)} continuous excerpts; {dest / 'noise.csv'}")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, default=DATA / "prepared")
+    generate(parser.parse_args().output)
