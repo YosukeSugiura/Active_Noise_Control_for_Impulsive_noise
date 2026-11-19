@@ -1,10 +1,10 @@
 # STATUS
 
-- テーマ — ATSIP の P4 再始動試行とロールバック（E10）
-- 実行者 — ChatGPT（Codex）
-- 更新日時 — 2026-11-18 22:14:23 UTC
-- 状態 — `atsip/dev` でレビュー、P4・P2・P3 のチェック、スモーク 117 試行、本実験 585 試行と集計を完了。実行コードは `f74bb94`。seed 10–14、各入力 30 秒、2 並列、BLAS 等は各 1 スレッド。
-- 結果 — 誤作動・見逃し・発散を全て 0 にした規則はなかった。K = 16・M は判定済みの試行で分離幅 11.30 dB、経路変化 20/20 件を確定し、SC は 5/5 件で判定前に発散。K = 4・M は SC の発散を 0/5 件にしたが経路変化を 4 件見逃した。
-- 未解決 — SC が発散する前の取り消しと、pcb の確定に必要な試行時間の両立。最終評価用 seed 100–119 は未使用。
-- 次の一手 — SC を早期に取り消す条件を検討し、同じ条件で pcb の見逃しが増えないかを確かめる。
-- 成果物の場所 — [RESULTS_dev3.md](RESULTS_dev3.md)、[RESULTS_dev3.csv](RESULTS_dev3.csv)、[RESULTS_dev3_trials.csv](RESULTS_dev3_trials.csv)、[REVIEW_prop4.md](REVIEW_prop4.md)、[prop4.py](prop4.py)。試行別 JSON は `out/dev3/E10/`。
+- テーマ — ATSIP の P4 再始動試行と早期取り消し（E11）
+- 実行者 — Codex
+- 更新日時 — 2026-11-19 07:49:51 UTC
+- 状態 — `atsip/dev` でコードレビュー、8チェック、smoke 91試行、本実験455試行と集計を完了。実行コードは `75e6a68`。13クラス、seed 10–14、各30秒、2並列、BLAS・OMP・MKL は各1スレッド。
+- 結果 — K=16・窓B・abort 4、K=16・窓B・abort 2、K=16・窓M・abort 4 は全65入力で誤作動・見逃し・発散がすべて0。窓Bの早期取り消しは SC 全5件で検出の2–3ブロック後に働いた。K=12・窓B・abort 4 は pcb で1件見逃した。
+- 未解決 — EN では abort 2・4 とも早期取り消しがなく、K=16 のイベント直後2秒の Φ 超過は再始動なしに対し4.47–5.29 dB悪化した。最終評価用 seed 100–119 は未使用。
+- 次の一手 — 今回の3条件を満たした規則を比較し、最終評価に使う設定を決める。
+- 成果物の場所 — [RESULTS_dev4.md](RESULTS_dev4.md)、[RESULTS_dev4.csv](RESULTS_dev4.csv)、[RESULTS_dev4_trials.csv](RESULTS_dev4_trials.csv)、[REVIEW_prop4.md](REVIEW_prop4.md)、[prop4.py](prop4.py)、[vssT_lib.py](vssT_lib.py)。実行ログは `out/dev4/E11/`。
