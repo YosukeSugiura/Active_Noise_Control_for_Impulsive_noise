@@ -1,0 +1,569 @@
+"""Final evaluation on measured paths (EVAL_PLAN.md).  Stage S1: scenario builder, simulators, measures, pilot.
+
+Paths: MeshRIR pairs in data/paths16 (P, S, P_near, P_far, P_<d>cm, S_<d>cm; 16 kHz, common delay removed).
+The plant uses the full responses; the controller uses the model S-hat = first Ls taps of S.  P and S of each pair
+are scaled so that ||P|| and ||S|| equal those of the default paths (keeps unnormalised baselines in their range).
+
+Scenarios (change at 15 s = block 1875):
+  stat                 no change
+  RS-near, RS-far      the noise source switches: P changes, S and S-hat stay
+  RM-<d>               the error microphone moves d cm: P and S change, S-hat is replaced by the new one
+  RM-<d>s              the same with the old S-hat kept (stale)
+  EN0, ENm10           bursts at the error microphone at 10 s and 20 s (0 / -10 dB re d), no path change
+  post:<scenario>      the paths (and model) after the change, used from the start (level reference for recovery)
+
+Methods: the frozen rule and its variants run in a block simulator with the same arithmetic as vssT_lib.simulate
+(without the Phi-excess, which needs the default paths); the external methods of algorithms/algorithms.py run in a
+per-sample loop.  Seeds 100-119 are refused until EVAL_FROZEN.json exists and --final is given.
+
+Commands (resumable):
+  python final.py check
+  python final.py pilot [--procs K] [--smoke]
+  python final.py report
+"""
+import argparse
+import copy
+import json
+import os
+import sys
+import time
+from multiprocessing import Pool
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parents[1]))
+
+import ablate as ab
+import prop2 as q
+import prop4 as q4
+import prop5 as q5
+import protoC as p
+from numpy.lib.stride_tricks import sliding_window_view
+from scipy.io import wavfile
+from algorithms.algorithms import make_algo
+
+np, T = p.np, p.T
+B, M, N, FS, BPS = p.B, p.M, p.N, p.FS, p.BPS
+L_SIG = p.O.N_NOISE
+CB = 15 * BPS                                  # block of the change
+REAL = ("machinegun", "factory1", "destroyerengine", "volvo", "valve", "jackhammer")
+SYNTH = ("G", "PS", "BU", "II300", "a145", "a120")
+BURSTS = ((10.0, 10.5), (20.0, 20.5))
+DIV_GAIN = 1e4                                 # block error power above this x the reference power = divergence
+VERSION = 1
+
+BASE = {  # name: (default step, parameters) from config.json / repro/config_a145.json
+    "FxNLMS": (0.3, {}),
+    "Th_FxNLMS": (0.3, {"c1": -200.0, "c2": 200.0}),
+    "FxlogNLMS": (0.5, {"G_l": 10000.0}),
+    "MFxLMM": (0.001, {"eps_l": 0.001, "gzai_l": 0.05, "lmd_l": 0.99}),
+    "FxNFLOC": (0.1, {"Ne": 512, "Nx": 512, "eps": 1e-12, "omega": 0.01}),
+    "EVSS_FxeLMS": (0.05, {"alpha": 1.0, "gamma": 0.0001, "k": 0.2, "lmd_e": 0.99}),
+    "FreqFxLMS": (0.36, {"M": 512, "BlockSize": 128, "eps": 1e-06}),
+    "Freq_FxNLMS_CohVSS": (0.36, {"M": 512, "BlockSize": 128, "eps": 1e-06, "rg_alpha": 0.05, "coh_pivot": 0.35,
+                                  "mu_scale_min": 0.6, "mu_scale_max": 1.3, "boost_power": 0.6, "suppress_power": 1.6,
+                                  "coh_gain": 1.5, "coh_weight_mix": 0.6, "coh_weight_power": 1.6,
+                                  "coh_weight_min": 0.55, "grad_norm_mix": 0.45}),
+}
+RULES = ("nors", "P5-early", "P5-early-noG", "P4", "TP-always", "ND-always", "SF-fix")
+
+
+# ----------------------------------------------------------------------------------------------
+# Inputs and scenarios
+# ----------------------------------------------------------------------------------------------
+def guard_seed(seed, final=False):
+    if 100 <= int(seed) <= 119 and not (final and (HERE / "EVAL_FROZEN.json").exists()):
+        raise SystemExit("seeds 100-119 are reserved for the final run (EVAL_FROZEN.json and --final are required)")
+
+
+def excitation(cls, seed):
+    if cls in REAL:
+        fs, wav = wavfile.read(HERE / "data" / "prepared" / f"{cls}.wav")
+        assert fs == FS and wav.ndim == 1, (cls, fs, wav.shape)
+        off = (int(seed) % 5) * 2 * FS
+        x = np.asarray(wav[off:off + L_SIG], float)
+        assert len(x) == L_SIG, (cls, len(wav))
+        return x * np.sqrt(g_power() / np.mean(x ** 2))             # the power of the Gaussian class
+    if cls == "G":
+        return p.IC.make_input("A", seed)
+    if cls == "PS":
+        return p.IC.make_input("B", seed)
+    if cls == "BU":
+        return p.IC.make_input("C", seed)
+    if cls == "II300":
+        return T.impulses(seed, 300.0)
+    if cls == "a145":
+        return p.O.cms_symmetric_stable(1.45, L_SIG, seed)
+    if cls == "a120":
+        return p.O.cms_symmetric_stable(1.2, L_SIG, seed)
+    raise ValueError(cls)
+
+
+_GP = []
+
+
+def g_power():
+    if not _GP:
+        _GP.append(float(np.mean(p.IC.make_input("A", 10) ** 2)))
+    return _GP[0]
+
+
+def load_pair(k):
+    z = np.load(HERE / "data" / "paths16" / f"pair_{k:02d}.npz")
+    gp = float(np.linalg.norm(T.BS.hP) / np.linalg.norm(z["P"]))
+    gs = float(np.linalg.norm(T.BS.hS) / np.linalg.norm(z["S"]))
+    return {key: np.asarray(z[key], float) * (gp if key.startswith("P") else gs) for key in z.files if key != "fs"}
+
+
+def paths_of(scen, pair):
+    """(P0, S0, model source 0), (P1, S1, model source 1) or None."""
+    P, S = pair["P"], pair["S"]
+    post = scen.startswith("post:")
+    s = scen[5:] if post else scen
+    if s in ("stat", "EN0", "ENm10"):
+        assert not post
+        return (P, S, S), None
+    if s in ("RS-near", "RS-far"):
+        new = (pair["P_" + s[3:]], S, S)
+    elif s.startswith("RM-"):
+        stale = s.endswith("s"); d = s[3:-1] if stale else s[3:]
+        new = (pair[f"P_{d}cm"], pair[f"S_{d}cm"], S if stale else pair[f"S_{d}cm"])
+    else:
+        raise ValueError(scen)
+    return (new, None) if post else ((P, S, S), new)
+
+
+def build(cls, scen, seed, Ls, rmode="fd", final=False):
+    """Data dictionary for the simulators.  rmode: 'fd' = filtered reference by the N-point product (as before);
+    'td' = spectrum of the time-domain filtered reference."""
+    guard_seed(seed, final)
+    x = excitation(cls, seed)
+    pair = load_pair(int(seed) % 8 + 1)
+    a, b = paths_of(scen, pair)
+    lf = p.signal.lfilter
+    n0 = CB * B
+    d = lf(a[0], [1.0], x); m0 = a[2][:Ls].copy(); r = lf(m0, [1.0], x)
+    plant, model, changes = [(0, a[1])], [(0, m0)], []
+    if b is not None:
+        d = np.concatenate([d[:n0], lf(b[0], [1.0], x)[n0:]])
+        m1 = b[2][:Ls].copy()
+        if b[1] is not a[1]:
+            plant.append((CB, b[1]))
+        if not np.array_equal(m1, m0):
+            model.append((CB, m1)); r = np.concatenate([r[:n0], lf(m1, [1.0], x)[n0:]])
+        changes = [CB]
+    Sf = np.fft.rfft(m0, N); S2 = np.abs(Sf) ** 2
+    dd = dict(x=x, d=d, r=r, xq=np.concatenate([np.zeros(N), x]), hS=a[1], hS_seq=plant, hSm_seq=model, Sf=Sf,
+              S2=S2 / S2.mean(), pc=False, changes=changes, tag=f"{cls}|{scen}|s{seed}|L{Ls}|{rmode}", events=[])
+    if scen in ("EN0", "ENm10"):
+        q.error_noise(dd, int(seed), 0.0 if scen == "EN0" else -10.0, spans=BURSTS)
+        dd["events"] = [int(t * BPS) for t, _ in BURSTS]
+    nb = len(d) // B
+    if rmode == "fd":
+        sf = [(b0, np.fft.rfft(m, N)) for b0, m in model]
+        Rall = np.array([seq_at(sf, i) * np.fft.rfft(dd["xq"][i * B + B:i * B + B + N]) for i in range(nb)])
+    else:
+        rq = np.concatenate([np.zeros(N), r])
+        Rall = np.array([np.fft.rfft(rq[i * B + B:i * B + B + N]) for i in range(nb)])
+    return dd, Rall, T.Stats(dd, Rall)
+
+
+def seq_at(seq, i):
+    out = seq[0][1]
+    for b0, v in seq:
+        if i >= b0:
+            out = v
+    return out
+
+
+# ----------------------------------------------------------------------------------------------
+# Block simulator for the rules (arithmetic of vssT_lib.simulate; time-varying plant and model)
+# ----------------------------------------------------------------------------------------------
+def fir_block(hist, yb, h):
+    """Output of the FIR h for the block yb, given hist = the len(hist) samples before it (len(hist) >= len(h) - 1)."""
+    seg = np.concatenate([hist[len(hist) - (len(h) - 1):], yb])
+    return sliding_window_view(seg, len(h)) @ h[::-1]
+
+
+def simulate(dd, Rall, st, rule, nb=None, error_frame=None):
+    d, xq = dd["d"], dd["xq"]
+    nbmax = min(len(d) // B, len(Rall)); nb = nbmax if nb is None else min(nb, nbmax)
+    swv = sliding_window_view(xq, M)
+    w = np.zeros(M); e_all = np.zeros(nb * B)
+    Lh = max(max(len(h) for _, h in dd["hS_seq"]), max(len(h) for _, h in dd["hSm_seq"]))
+    hist = np.zeros(Lh - 1)
+    pref = float(np.mean(d ** 2)); div = False; n_done = nb
+    same_model = len(dd["hSm_seq"]) == 1 and len(dd["hS_seq"]) == 1 and np.array_equal(dd["hSm_seq"][0][1], dd["hS_seq"][0][1])
+    for i in range(nb):
+        s0 = i * B
+        Xb = swv[s0 + N - M + 1:s0 + N - M + 1 + B][:, ::-1]
+        yb = Xb @ w
+        ys = fir_block(hist, yb, seq_at(dd["hS_seq"], i))
+        ym = ys if same_model else fir_block(hist, yb, seq_at(dd["hSm_seq"], i))
+        hist = np.concatenate([hist, yb])[-(Lh - 1):]
+        eb = d[s0:s0 + B] + ys
+        e_all[s0:s0 + B] = eb
+        pe = float(np.mean(eb ** 2))
+        if not np.isfinite(pe) or pe > DIV_GAIN * max(pref, float(np.mean(d[s0:s0 + B] ** 2))):
+            div = True
+        else:
+            E = p.ML.frame_E(e_all, s0, M) if error_frame is None else error_frame(i, w, e_all, ym)
+            c = T.Ctx(i, Rall[i], E, st, w)
+            mu, dv = rule.block(i, c)
+            w = c.w_override if c.w_override is not None else w - 2 * mu * B / M * dv
+            div = not np.isfinite(w).all()
+        if div:
+            e_all[s0:] = np.nan; n_done = i
+            break
+    return dict(e=e_all, w=w, div=div, nb=nb, n_done=n_done, ex=np.full(nb, np.nan), tr=rule.traces())
+
+
+class SFfix(p.Rule):
+    """SF direction with a fixed step (no 1/g, no early phase, no restart), ordinary error frame."""
+
+    def __init__(s, mu):
+        super().__init__(); s.mu = float(mu); s.trials = []; s.restarts = []
+
+    def block(s, i, c):
+        s.tr["mu_app"].append(s.mu)
+        return s.mu, p.SFm.sf_dir(c.R, c.E, c.Srr, c.Pbar, c.eps, 1e-2)
+
+
+class _Always:
+    def update(s, i, z):
+        return True
+
+    def in_early(s, i):
+        return True
+
+
+class AlwaysFrame(q4.Frame4):
+    """Error frame rebuilt with the current coefficients in every block."""
+
+    def __init__(s, data, rule):
+        super().__init__(data, _Always())
+
+
+def run_rule(label, dd, Rall, st, X4, nb=None):
+    nbr = min(len(dd["d"]) // B, len(Rall)) if nb is None else nb
+    frame = True
+    if label in ("P5-early", "P5-early-noG", "TP-always"):
+        rule = q5.P5(q5.config(early_ok=(4, 0.25)), dd, nbr, X4)
+        if label == "TP-always":                 # a background trial is always running (no detector)
+            rule.det = _Always()
+        if label == "P5-early-noG":
+            st = copy.copy(st); st.g = np.ones_like(st.g)
+    elif label == "P4":
+        rule = q4.P4(q4.config(K=16, win="B", abort=4.0), dd, nbr, X4)
+    elif label in ("nors", "ND-always"):
+        rule = q4.P4(q4.config(restart=False), dd, nbr, X4)
+    elif label == "SF-fix":
+        rule = SFfix(q.mu_late(0.03)); frame = False
+    else:
+        raise ValueError(label)
+    if frame:
+        rule.frame = AlwaysFrame(dd, rule) if label == "ND-always" else q4.Frame4(dd, rule)
+    t0 = time.perf_counter()
+    sim = simulate(dd, Rall, st, rule, nb=nb, error_frame=rule.frame if frame else None)
+    sim["seconds"] = time.perf_counter() - t0
+    return rule, sim
+
+
+# ----------------------------------------------------------------------------------------------
+# Per-sample simulator for the external methods
+# ----------------------------------------------------------------------------------------------
+def run_baseline(name, mu, params, dd, n_tot=None):
+    x, d, r = dd["x"], dd["d"], dd["r"]
+    T_ = len(d) if n_tot is None else min(n_tot, len(d))
+    model = dd["hSm_seq"]; plant = [(b0 * B, h[::-1].copy()) for b0, h in dd["hS_seq"]]
+    par = dict(params); par.setdefault("c_impulse", model[0][1]); par.setdefault("order_control", M)
+    algo = make_algo(name, par)
+    xr = np.concatenate([x[:T_][::-1], np.zeros(M - 1)])        # xr[T_-1-n : T_-1-n+M] = x[n], x[n-1], ...
+    rr = np.concatenate([r[:T_][::-1], np.zeros(M - 1)])
+    L = max(len(h) for _, h in plant)
+    y2 = np.zeros(2 * L); head = 0
+    w = np.zeros(M); e = np.zeros(T_)
+    hrev = plant[0][1]; lh = len(hrev)
+    switches = {n0: h for n0, h in plant[1:]}
+    mswitch = {b0 * B: m for b0, m in model[1:]}
+    pref = float(np.mean(d[:T_] ** 2)); div = False; n_done = T_
+    t0 = time.perf_counter()
+    for n in range(T_):
+        if n in switches:
+            hrev = switches[n]; lh = len(hrev)
+        if n in mswitch and hasattr(algo, "Hc"):
+            algo.Hc = np.fft.rfft(mswitch[n], n=algo.N)
+        a = T_ - 1 - n
+        xv = xr[a:a + M]; rv = rr[a:a + M]
+        y = float(w @ xv)
+        y2[head] = y; y2[head + L] = y
+        head = head + 1 if head + 1 < L else 0
+        en = d[n] + float(y2[head + L - lh:head + L] @ hrev)
+        e[n] = en
+        w, _ = algo.update(w, en, rv, xv, mu)
+        if (n & 127) == 127:
+            pe = float(np.mean(e[n - 127:n + 1] ** 2))
+            if not np.isfinite(pe) or not np.isfinite(w).all() or pe > DIV_GAIN * max(pref, float(np.mean(d[n - 127:n + 1] ** 2))):
+                div = True; n_done = n - 127; e[n - 127:] = np.nan
+                break
+    return dict(e=e, w=w, div=div, n_done=n_done, seconds=time.perf_counter() - t0)
+
+
+# ----------------------------------------------------------------------------------------------
+# Measures
+# ----------------------------------------------------------------------------------------------
+def ratio_db(e, d, lo, hi):
+    return float(10 * np.log10(np.sum(e[lo:hi] ** 2) / np.sum(d[lo:hi] ** 2)))
+
+
+def recovery(e, d, cb, target_db, win=16, hold=BPS):
+    """Blocks after cb until the error/primary power ratio over the last `win` blocks stays within target + 3 dB for
+    `hold` blocks.  None = not reached before the end (censored)."""
+    nb = len(e) // B
+    pe = np.sum(e[:nb * B].reshape(nb, B) ** 2, axis=1); pd = np.sum(d[:nb * B].reshape(nb, B) ** 2, axis=1)
+    ce = np.concatenate([[0.0], np.cumsum(pe)]); cd = np.concatenate([[0.0], np.cumsum(pd)])
+    idx = np.arange(cb + win - 1, nb)                                  # windows that lie entirely after the change
+    ok = 10 * np.log10((ce[idx + 1] - ce[idx + 1 - win]) / (cd[idx + 1] - cd[idx + 1 - win])) <= target_db + 3.0
+    # earliest start of a run of at least `hold` consecutive True values
+    cnt = 0
+    for j, v in enumerate(ok):
+        cnt = cnt + 1 if v else 0
+        if cnt >= hold:
+            return int(idx[j - hold + 1] - cb)
+    return None
+
+
+def measures(sim, dd, post=None):
+    e, d = sim["e"], dd["d"][:len(sim["e"])]
+    out = dict(div=int(bool(sim["div"])), seconds=round(float(sim["seconds"]), 2))
+    if sim["div"]:
+        out["div_block"] = int(sim["n_done"] if "nb" in sim else sim["n_done"] // B)
+        return out
+    anr = p.O.anr_curve(e, d); ts = (63 + 64 * np.arange(len(anr))) / FS
+    win = lambda a, b: float(anr[(ts >= a) & (ts < b)].mean())
+    tend = len(e) / FS
+    out.update(L1_whole=float(anr.mean()), L1_last10=win(0.9 * tend, tend), L2_last5=ratio_db(e, d, len(e) - 5 * FS, len(e)))
+    ev = [b / BPS for b in (dd["changes"] or dd["events"]) if b / BPS + 2 <= tend]
+    if ev:
+        out["L1_ev"] = float(np.mean([win(t, t + 2) for t in ev]))
+        out["L1_pre"] = float(np.mean([win(t - 2, t) for t in ev]))
+    if dd["changes"] and post is not None and not post["div"]:
+        ep = post["e"]; dp = post["d"]
+        target = ratio_db(ep, dp, len(ep) - 5 * FS, len(ep))
+        rec = recovery(e, d, dd["changes"][0], target)
+        out.update(rec_target=target, rec_blocks=rec, rec_cens=int(rec is None))
+    return out
+
+
+def trial_stats(rule, dd):
+    tr = getattr(rule, "trials", None) or []
+    ch = dd["changes"]
+    true = lambda t: any(cb <= t["block"] < cb + p.RS_TRUE_WIN for cb in ch)
+    conf = [t for t in tr if t["status"] == "confirmed"]
+    return dict(n_trial=len(tr), n_confirm=len(conf), false_confirm=sum(not true(t) for t in conf),
+                missed=None if getattr(rule, "det", None) is None else int(bool(ch) and not any(true(t) for t in conf)),
+                decide_blocks=[t["decide"] - t["block"] for t in conf if true(t) and t.get("decide") is not None])
+
+
+# ----------------------------------------------------------------------------------------------
+# Jobs
+# ----------------------------------------------------------------------------------------------
+PILOT_CLASSES = ("G", "a145", "II300", "machinegun", "jackhammer")
+PILOT_SCEN = ("stat", "RS-near", "RS-far", "RM-10", "RM-10s", "EN0")
+PILOT_SEEDS = (10, 11)
+PILOT_LS = (256, 512)
+POST_FOR = ("RS-far", "RM-10")
+TD_RULES = ("nors", "P5-early")
+
+
+def out_dir(smoke):
+    return HERE / "out" / ("final_pilot_smoke" if smoke else "final_pilot")
+
+
+def run_job(job):
+    cls, scen, seed, Ls, smoke = job
+    f = out_dir(smoke) / f"{cls}_{scen}_s{seed}_L{Ls}.json"
+    if f.exists() and json.loads(f.read_text()).get("version") == VERSION:
+        return
+    t0 = time.monotonic()
+    X4 = p.parse(["c5", "--preset", "final"]).X4
+    nb = 20 * BPS if smoke else None
+    n_tot = None if nb is None else nb * B
+    with_post = scen in POST_FOR and not smoke
+    rows = []
+    data = {m: build(cls, scen, seed, Ls, m) for m in ("fd", "td")}
+    posts = {m: build(cls, "post:" + scen, seed, Ls, m) for m in ("fd", "td")} if with_post else {}
+    ref = {}
+    for rmode in ("fd", "td"):
+        dd, Rall, st = data[rmode]
+        for label in (RULES if rmode == "fd" else TD_RULES):
+            rule, sim = run_rule(label, dd, Rall, st, X4, nb)
+            post = None
+            if with_post:
+                pd_, pR, pst = posts[rmode]
+                _, ps = run_rule(label, pd_, pR, pst, X4, nb)
+                post = dict(e=ps["e"], d=pd_["d"][:len(ps["e"])], div=ps["div"])
+            row = dict(method=label, kind="rule", rmode=rmode, **measures(sim, dd, post), **trial_stats(rule, dd))
+            if label == "nors":
+                ref[rmode] = sim["e"]
+            elif rmode in ref and not sim["div"]:
+                row["same_as_nors"] = int(np.array_equal(sim["e"], ref[rmode], equal_nan=True))
+            rows.append(row)
+    dd = data["fd"][0]
+    for name, (mu, par) in BASE.items():
+        sim = run_baseline(name, mu, par, dd, n_tot)
+        post = None
+        if with_post:
+            pd_ = posts["fd"][0]
+            ps = run_baseline(name, mu, par, pd_, n_tot)
+            post = dict(e=ps["e"], d=pd_["d"][:len(ps["e"])], div=ps["div"])
+        rows.append(dict(method=name, kind="base", rmode="-", mu=mu, **measures(sim, dd, post)))
+    for r in rows:
+        r.update(cls=cls, scen=scen, seed=int(seed), Ls=int(Ls))
+    f.parent.mkdir(parents=True, exist_ok=True)
+    ab.atomic_write(f, lambda h: json.dump(dict(version=VERSION, rows=rows), h))
+    print(f"{f.stem}: {len(rows)} rows, div={sum(r['div'] for r in rows)}, {time.monotonic() - t0:.0f} s", flush=True)
+
+
+def pilot(procs, smoke):
+    seeds = PILOT_SEEDS[:1] if smoke else PILOT_SEEDS
+    classes = PILOT_CLASSES[:2] + PILOT_CLASSES[3:4] if smoke else PILOT_CLASSES
+    scen = ("stat", "RS-far", "RM-10s") if smoke else PILOT_SCEN
+    jobs = [(c, s, sd, L, smoke) for L in (PILOT_LS[:1] if smoke else PILOT_LS) for c in classes for s in scen for sd in seeds]
+    if procs == 1:
+        for j in jobs:
+            run_job(j)
+    else:
+        with Pool(procs) as pool:
+            list(pool.imap_unordered(run_job, jobs))
+
+
+# ----------------------------------------------------------------------------------------------
+# Report
+# ----------------------------------------------------------------------------------------------
+def fmt(v, nd=2):
+    return "—" if v is None or (isinstance(v, float) and not np.isfinite(v)) else (f"{v:.{nd}f}" if isinstance(v, float) else str(v))
+
+
+def agg(rows, key):
+    v = [r[key] for r in rows if r.get(key) is not None]
+    return float(np.mean(v)) if v else None
+
+
+def report(smoke):
+    d = out_dir(smoke)
+    rows = [r for f in sorted(d.glob("*.json")) for r in json.loads(f.read_text())["rows"]]
+    L = ["# 最終評価 S1：実測経路での試行（設計用 seed）", "",
+         "表は自動生成。値は dB（小さいほど良い）、発散した試行は平均から除き件数を示す。rec は回復までのブロック数の中央値"
+         "（打ち切りは件数で表示。中央値は打ち切りを最大値より大きい値として計算し、中央値が打ち切りなら「打切」）。", ""]
+    methods = list(RULES) + list(BASE)
+    for Ls in sorted({r["Ls"] for r in rows}):
+        for scen in PILOT_SCEN:
+            for rmode in ("fd", "td"):
+                rs = [r for r in rows if r["Ls"] == Ls and r["scen"] == scen and r["rmode"] in (rmode, "-" if rmode == "fd" else "")]
+                if not rs:
+                    continue
+                L += [f"## Ŝ {Ls} タップ、{scen}、参照 {rmode}", "",
+                      "| 手法 | 試行 | 発散 | L1 whole | L1 last10 | L1 直後2秒 | rec 中央値 | 打切 | 試行回数 | 誤確定 | 見逃し | nors と一致 | 秒 |",
+                      "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
+                for m in methods:
+                    rm = [r for r in rs if r["method"] == m]
+                    if not rm:
+                        continue
+                    okr = [r for r in rm if not r["div"]]
+                    recs = [r for r in okr if "rec_cens" in r]
+                    if recs:
+                        vals = sorted(float("inf") if r["rec_blocks"] is None else r["rec_blocks"] for r in recs)
+                        med = vals[(len(vals) - 1) // 2]
+                        med = "打切" if med == float("inf") else str(int(med))
+                    else:
+                        med = "—"
+                    cnt = lambda k: "—" if all(r.get(k) is None for r in okr) else str(sum(r.get(k) or 0 for r in okr))
+                    L.append(f"| {m} | {len(rm)} | {sum(r['div'] for r in rm)} | {fmt(agg(okr, 'L1_whole'))} | {fmt(agg(okr, 'L1_last10'))} | "
+                             f"{fmt(agg(okr, 'L1_ev'))} | {med} | {sum(r['rec_cens'] for r in recs) if recs else '—'} | {cnt('n_trial')} | "
+                             f"{cnt('false_confirm')} | {cnt('missed')} | {cnt('same_as_nors')} | {fmt(agg(rm, 'seconds'), 1)} |")
+                L.append("")
+    L += ["## クラスごとの L1 last10（Ŝ ごと、stat、参照 fd）", ""]
+    for Ls in sorted({r["Ls"] for r in rows}):
+        classes = sorted({r["cls"] for r in rows})
+        L += [f"### Ŝ {Ls} タップ", "", "| 手法 | " + " | ".join(classes) + " |", "|---|" + "---:|" * len(classes)]
+        for m in methods:
+            cells = [fmt(agg([r for r in rows if r["Ls"] == Ls and r["scen"] == "stat" and r["method"] == m and r["cls"] == c
+                              and r["rmode"] in ("fd", "-") and not r["div"]], "L1_last10")) for c in classes]
+            L.append(f"| {m} | " + " | ".join(cells) + " |")
+        L.append("")
+    dest = (d if smoke else HERE) / "RESULTS_final_pilot.md"
+    dest.write_text("\n".join(L), encoding="utf-8")
+    print("wrote", dest, len(rows), "rows")
+
+
+# ----------------------------------------------------------------------------------------------
+# Checks
+# ----------------------------------------------------------------------------------------------
+def check():
+    X4 = p.parse(["c5", "--preset", "final"]).X4
+    rng = np.random.default_rng(0)
+    # 1. Block FIR = lfilter, across a switch of the response.
+    h1, h2 = rng.standard_normal(300), rng.standard_normal(200); y = rng.standard_normal(6 * B)
+    hist = np.zeros(299); out = []
+    for i in range(6):
+        yb = y[i * B:(i + 1) * B]; out.append(fir_block(hist, yb, h1 if i < 3 else h2)); hist = np.concatenate([hist, yb])[-299:]
+    ref = np.concatenate([p.signal.lfilter(h1, [1.0], y)[:3 * B], p.signal.lfilter(h2, [1.0], y)[3 * B:]])
+    np.testing.assert_allclose(np.concatenate(out), ref, atol=1e-9)
+    print("check 1 ok: block FIR with a switch")
+    # 2. Reserved seeds are refused.
+    try:
+        guard_seed(100)
+    except SystemExit:
+        print("check 2 ok: seeds 100-119 refused")
+    else:
+        raise AssertionError("seed guard")
+    # 3. Input power of the real recordings equals that of the Gaussian class.
+    pg = g_power(); pm = float(np.mean(excitation("machinegun", 10) ** 2))
+    assert abs(pm / pg - 1) < 1e-9, (pg, pm)
+    print(f"check 3 ok: input power {pg:.3f}")
+    # 4. Scenario bookkeeping.
+    dd, Rall, st = build("G", "RS-far", 10, 256)
+    assert dd["changes"] == [CB] and len(dd["hS_seq"]) == 1 and len(dd["hSm_seq"]) == 1
+    d2, _, _ = build("G", "RM-10", 10, 256); d3, _, _ = build("G", "RM-10s", 10, 256)
+    assert len(d2["hS_seq"]) == 2 and len(d2["hSm_seq"]) == 2 and len(d3["hSm_seq"]) == 1
+    dp, _, _ = build("G", "post:RS-far", 10, 256)
+    np.testing.assert_allclose(dp["d"][CB * B + 5000:CB * B + 6000], dd["d"][CB * B + 5000:CB * B + 6000], atol=1e-9)
+    print("check 4 ok: scenarios")
+    # 5. The block simulator and the per-sample simulator give the same error for frozen (zero) coefficients,
+    #    and both reduce the error on a short stationary run.
+    dd, Rall, st = build("G", "stat", 10, 256)
+    rule, sim = run_rule("P5-early", dd, Rall, st, X4, nb=600)
+    bs = run_baseline("FxNLMS", 0.3, {}, dd, 600 * B)
+    assert not sim["div"] and not bs["div"]
+    a = ratio_db(sim["e"], dd["d"], 500 * B, 600 * B); b = ratio_db(bs["e"], dd["d"], 500 * B, 600 * B)
+    assert a < -3 and b < -1, (a, b)
+    print(f"check 5 ok: after 4.8 s, P5-early {a:.2f} dB, FxNLMS {b:.2f} dB ({sim['seconds']:.1f} s, {bs['seconds']:.1f} s)")
+    # 6. Recovery measure on a hand-made curve.
+    d = np.ones(400 * B); e = np.full(400 * B, 0.1); e[100 * B:140 * B] = 1.0
+    assert recovery(e, d, 100, -20.0) == 55, recovery(e, d, 100, -20.0)      # first 16-block window after block 139
+    assert recovery(np.ones(400 * B), d, 100, -20.0) is None
+    print("check 6 ok: recovery", recovery(e, d, 100, -20.0))
+    # 7. Without a change and without bursts, P5-early equals the rule without restart unless a trial was confirmed.
+    rn, sn = run_rule("nors", dd, Rall, st, X4, nb=600)
+    if not rule.restarts:
+        np.testing.assert_allclose(sim["e"], sn["e"], rtol=1e-9, atol=1e-12)
+    print("check 7 ok: no confirmed trial -> same output as no restart; trials", [t["status"] for t in rule.trials])
+
+
+def main():
+    a = argparse.ArgumentParser()
+    a.add_argument("cmd", choices=("check", "pilot", "report"))
+    a.add_argument("--procs", type=int, default=os.cpu_count() or 1)
+    a.add_argument("--smoke", action="store_true")
+    o = a.parse_args()
+    if o.cmd == "check":
+        check()
+    elif o.cmd == "pilot":
+        pilot(o.procs, o.smoke)
+    else:
+        report(o.smoke)
+
+
+if __name__ == "__main__":
+    main()
