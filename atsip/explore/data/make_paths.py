@@ -115,9 +115,80 @@ def generate(source, dest):
     print(f"{len(pairs)}/8 pairs, {candidates} candidates; {dest}")
 
 
+OFF16 = 1880
+P_LENGTH = 4096
+S_LENGTH = 2048
+
+
+def generate16(source, dest):
+    if digest(source, "md5") != MESH[2]:
+        raise ValueError("MeshRIR archive MD5 mismatch")
+    s0 = json.loads((DATA / "paths/paths.json").read_text())
+    offset = s0["direct_offset"]
+    dest.mkdir(parents=True, exist_ok=True)
+    pairs, missing = [], []
+    with zipfile.ZipFile(source) as archive:
+        mics, sources = (load(archive, key) for key in ("pos_mic", "pos_src"))
+        for pair in s0["pairs"]:
+            a, b = pair["a"], pair["b"]
+            original = pair["measurements"]
+            arrays, measurements = {}, {}
+            for cm, point in original.items():
+                e = point["grid"]
+                irs = resample_poly(load(archive, f"ir_{e}"), 1, 3, axis=-1)
+                predicted = propagation(mics[e], sources)
+                measured = peaks(irs, predicted + offset)
+                if measured[[a, b]].tolist() != point["direct"]:
+                    raise ValueError(f"S0 direct arrivals differ for grid {e}")
+
+                def save_path(key, src, length):
+                    arr = irs[src, OFF16:OFF16 + length].astype("<f4")
+                    if len(arr) != length:
+                        raise ValueError(f"Insufficient samples for {key} at grid {e}")
+                    arrays[key] = arr
+                    return dict(source=src, xyz=sources[src].tolist(),
+                                direct=int(measured[src]) - OFF16,
+                                geometry=float(predicted[src]),
+                                predicted=float(predicted[src] + offset - OFF16))
+
+                suffix = "" if cm == "0" else f"_{cm}cm"
+                measurements[cm] = dict(grid=e, xyz=point["xyz"], distance_cm=point["distance_cm"],
+                                        P=save_path("P" + suffix, a, P_LENGTH),
+                                        S=save_path("S" + suffix, b, S_LENGTH))
+                if cm != "0":
+                    continue
+                distances = np.linalg.norm(sources - sources[a], axis=1)
+                # Rounded metric distances break numerical ties from symmetric coordinates.
+                candidates = [i for i in range(len(sources)) if i not in (a, b)
+                              and measured[i] >= measured[b] + 16]
+                if not candidates:
+                    break
+                for name, sign in (("P_near", 1), ("P_far", -1)):
+                    src = min(candidates, key=lambda i: (sign * round(float(distances[i]), 12), i))
+                    item = save_path(name, src, P_LENGTH)
+                    item.update(distance_from_a=float(distances[src]), gap=int(measured[src]-measured[b]),
+                                relative_change=float(np.linalg.norm(arrays[name]-arrays["P"])
+                                                      / np.linalg.norm(arrays["P"])))
+                    measurements[cm][name] = item
+            if "P_near" not in arrays:
+                missing.append(pair["file"])
+                (dest / pair["file"]).unlink(missing_ok=True)
+                continue
+            np.savez_compressed(dest / pair["file"], fs=FS, **arrays)
+            pairs.append(dict(file=pair["file"], a=a, b=b, measurements=measurements))
+    ledger = dict(fs=FS, source_md5=MESH[2], removed=OFF16, direct_offset=offset,
+                  p_length=P_LENGTH, s_length=S_LENGTH, pairs=pairs, missing=missing)
+    (dest / "paths16.json").write_text(json.dumps(ledger, indent=2) + "\n")
+    print(f"{len(pairs)} paths16 pairs; missing: {missing}")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--archive", type=Path, default=RAW / MESH[0])
-    parser.add_argument("--output", type=Path, default=DATA / "paths")
+    parser.add_argument("--paths16", action="store_true")
+    parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    generate(args.archive, args.output)
+    if args.paths16:
+        generate16(args.archive, args.output or DATA / "paths16")
+    else:
+        generate(args.archive, args.output or DATA / "paths")

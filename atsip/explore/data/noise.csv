@@ -1,8 +1,7 @@
-name,source,status,source_fs,source_channels,recording_s,start_sample,end_sample_exclusive,seconds,output,kurtosis,crest_factor,power_cv,zero_power_blocks,blocks
-machinegun,NOISEX92/machinegun/signal.wav,prepared,19980,1,235.23043043043043,0,799200,40.0,machinegun.wav,23.245079040527344,8.352890968322754,2.895892381668091,0,5000
-factory1,NOISEX92/factory1/signal.wav,prepared,19980,1,235.23043043043043,0,799200,40.0,factory1.wav,3.428253412246704,6.543562889099121,0.5393306612968445,0,5000
-destroyerengine,NOISEX92/destroyerengine/signal.wav,prepared,19980,1,235.23043043043043,0,799200,40.0,destroyerengine.wav,2.8835573196411133,4.506425380706787,0.31230247020721436,0,5000
-volvo,NOISEX92/volvo/signal.wav,prepared,19980,1,235.23043043043043,0,799200,40.0,volvo.wav,3.368204116821289,4.915741920471191,1.3118293285369873,0,5000
-valve,6_dB_valve.zip:valve/id_00/normal/00000000.wav,short,16000,8,10.0,0,160000,10.0,,57.227779388427734,22.38079071044922,3.417980909347534,0,1250
-engine_idling,UrbanSound8K/audio/fold1/101415-3-0-2.wav,short,48000,1,4.0,0,192000,4.0,,14.289873123168945,7.543291091918945,2.677816390991211,0,500
-jackhammer,UrbanSound8K/audio/fold1/103074-7-0-0.wav,short,48000,2,4.0,0,192000,4.0,,3.2910642623901367,4.834123134613037,0.4166649281978607,0,500
+name,source,status,source_fs,source_channels,recording_s,start_sample,end_sample_exclusive,seconds,output,kurtosis,crest_factor,power_cv,zero_power_blocks,blocks,source_intervals_s,crossfade_samples,seams_16k,output_seams_16k
+machinegun,NOISEX92/machinegun/signal.wav,prepared,19980,1,235.23043043043043,0,799200,40.0,machinegun.wav,23.245079040527344,8.352890968322754,2.895892381668091,0,5000,,,,
+factory1,NOISEX92/factory1/signal.wav,prepared,19980,1,235.23043043043043,0,799200,40.0,factory1.wav,3.428253412246704,6.543562889099121,0.5393306612968445,0,5000,,,,
+destroyerengine,NOISEX92/destroyerengine/signal.wav,prepared,19980,1,235.23043043043043,0,799200,40.0,destroyerengine.wav,2.8835573196411133,4.506425380706787,0.31230247020721436,0,5000,,,,
+volvo,NOISEX92/volvo/signal.wav,prepared,19980,1,235.23043043043043,0,799200,40.0,volvo.wav,3.368204116821289,4.915741920471191,1.3118293285369873,0,5000,,,,
+valve,6_dB_valve.zip:valve/id_00/normal/00000000.wav | 6_dB_valve.zip:valve/id_00/normal/00000001.wav | 6_dB_valve.zip:valve/id_00/normal/00000002.wav | 6_dB_valve.zip:valve/id_00/normal/00000003.wav,prepared_joined,,,40,,,40.0,valve.wav,59.48189163208008,24.71776008605957,3.506967782974243,0,5000,"[0,10) each",160,159840:160000 | 319680:319840 | 479520:479680,159960:160120 | 319920:320080 | 479880:480040
+jackhammer,audio-0.tar.gz:audio-0/00_010346.wav | audio-0.tar.gz:audio-0/04_002110.wav | audio-0.tar.gz:audio-0/16_027820.wav | audio-0.tar.gz:audio-0/37_016642.wav,prepared_joined,,,40,,,40.0,jackhammer.wav,14.296377182006836,14.914092063903809,1.8304537534713745,0,5000,"[0,10) each",160,159840:160000 | 319680:319840 | 479520:479680,159960:160120 | 319920:320080 | 479880:480040

@@ -17,11 +17,21 @@ MESH = ("S32-M441_npy.zip", f"{ZENODO}/10852693/files/S32-M441_npy.zip?download=
 NOISEX = ("NOISEX92.zip", f"{ZENODO}/3921794/files/NOISEX92.zip?download=1",
           "b5b707b8ac7217713e3123360c21043c")
 VALVE = f"{ZENODO}/3384388/files/6_dB_valve.zip?download=1"
-VALVE_SHA256 = "16ba2d22017d3ef66ec453300d0ee1698cd2081962bd49a274f2493d7e6f3420"
+VALVE_SHA256 = (
+    "16ba2d22017d3ef66ec453300d0ee1698cd2081962bd49a274f2493d7e6f3420",
+    "39bd5fcaeaabb02765307c8835518c4c22945acdef7dae33aea18e5d7a534b09",
+    "71e12c854af0bdc83492e14f7b33519187f494969eeae1e37fb9311150680625",
+    "42d0b6a704d77819655cf220189aae77cb0afecb604ef33a103e3b4757e51732",
+)
 URBAN = f"{ZENODO}/1203745/files/UrbanSound8K.tar.gz?download=1"
 URBAN_INDEX = ("urbansound8k_index_1.0.json",
                f"{ZENODO}/11176928/files/urbansound8k_index_1.0.json?download=1",
                "1c4940e08c1305c49b592f3d9c103e6f")
+
+
+SONYC = ("audio-0.tar.gz", f"{ZENODO}/3966543/files/audio-0.tar.gz?download=1",
+         "bbb4dbae7d2e58e18d24878b9ee1eb51")
+SONYC_NAMES = ("00_010346.wav", "04_002110.wav", "16_027820.wav", "37_016642.wav")
 
 
 def digest(path, method):
@@ -98,17 +108,24 @@ def valve():
                        if re.search(r"(?:^|/)id_00/normal/[^/]+\.wav$", n))
         if not names:
             raise ValueError("No valve id_00/normal WAV found")
-        name = names[0]
-        data = archive.read(name)  # ZipFile verifies the CRC-32 of the extracted member.
-        path = RAW / "mimii" / Path(name).name
-        path.parent.mkdir(exist_ok=True)
-        sha256 = hashlib.sha256(data).hexdigest()
-        if sha256 != VALVE_SHA256:
-            raise ValueError(f"Valve WAV SHA-256 mismatch: {name}")
-        path.write_bytes(data)
-        print(f"{name}: CRC-32 {archive.getinfo(name).CRC:08x}, SHA-256 {sha256}")
-        return path
+        if len(names) < 4:
+            raise ValueError("Fewer than four valve recordings")
+        paths = []
+        for name in names[:4]:
+            paths.append(extract_valve(archive, name))
+        return paths
 
+
+def extract_valve(archive, name):
+    data = archive.read(name)  # ZipFile verifies the CRC-32 of the extracted member.
+    path = RAW / "mimii" / Path(name).name
+    path.parent.mkdir(exist_ok=True)
+    sha256 = hashlib.sha256(data).hexdigest()
+    if sha256 != VALVE_SHA256[int(path.stem)]:
+        raise ValueError(f"Valve WAV SHA-256 mismatch: {name}")
+    path.write_bytes(data)
+    print(f"{name}: CRC-32 {archive.getinfo(name).CRC:08x}, SHA-256 {sha256}")
+    return path
 
 def urban():
     index = json.loads(fetch(URBAN_INDEX).read_text())["clips"]
@@ -139,15 +156,34 @@ def urban():
     raise ValueError(f"UrbanSound8K class IDs missing: {pending}")
 
 
+def sonyc():
+    archive = fetch(SONYC)
+    dest = RAW / "sonyc"
+    dest.mkdir(exist_ok=True)
+    pending = {f"audio-0/{name}": name for name in SONYC_NAMES}
+    with tarfile.open(archive, "r|gz") as source:
+        for member in source:
+            if not member.isfile() or member.name not in pending:
+                continue
+            name = pending.pop(member.name)
+            with source.extractfile(member) as audio:
+                (dest / name).write_bytes(audio.read())
+            if not pending:
+                return dest
+    raise ValueError(f"Missing SONYC-UST members: {sorted(pending)}")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("datasets", nargs="+", choices=("mesh", "mimii", "noisex", "urban"))
+    parser.add_argument("datasets", nargs="*", metavar="DATASET")
     args = parser.parse_args()
     RAW.mkdir(exist_ok=True)
     actions = {"mesh": lambda: fetch(MESH), "noisex": lambda: fetch(NOISEX),
-               "mimii": valve, "urban": urban}
+               "mimii": valve, "urban": urban, "sonyc": sonyc}
     failed = []
-    for name in args.datasets:
+    if unknown := set(args.datasets) - actions.keys():
+        parser.error(f"Unknown datasets: {sorted(unknown)}")
+    for name in args.datasets or ("mesh", "mimii", "noisex", "sonyc"):
         try:
             print(actions[name](), flush=True)
         except (OSError, ValueError, KeyError, zipfile.BadZipFile, tarfile.TarError) as error:

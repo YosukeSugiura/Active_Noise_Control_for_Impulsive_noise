@@ -10,17 +10,12 @@ import numpy as np
 from scipy.io import wavfile
 from scipy.signal import resample_poly
 
-from fetch import NOISEX, RAW, digest
+from fetch import NOISEX, RAW, SONYC, SONYC_NAMES, digest
 
 FS = 16000
 SECONDS = 40
 DATA = Path(__file__).resolve().parent
 NOISEX_CLASSES = ("machinegun", "factory1", "destroyerengine", "volvo")
-SHORT_CLIPS = {
-    "valve": ("mimii/00000000.wav", "6_dB_valve.zip:valve/id_00/normal/00000000.wav"),
-    "engine_idling": ("urbansound8k/101415-3-0-2.wav", "UrbanSound8K/audio/fold1/101415-3-0-2.wav"),
-    "jackhammer": ("urbansound8k/103074-7-0-0.wav", "UrbanSound8K/audio/fold1/103074-7-0-0.wav"),
-}
 
 
 def mono(wav):
@@ -67,6 +62,48 @@ def process(name, provenance, source, dest):
                 seconds=len(x) / FS, output=target.name if eligible else "", **metrics(x))
 
 
+VALVE_NAMES = tuple(f"{i:08d}.wav" for i in range(4))
+
+
+def join_clips(name, clips, dest):
+    """Crossfade four ten-second clips and restore the 30 ms overlap loss."""
+    if len(clips) != 4:
+        raise ValueError("Expected four ten-second clips")
+    fade = FS // 100
+    weight = np.linspace(0, 1, fade)
+    sources = " | ".join(label for _, label in clips)
+    if not all(path.exists() for path, _ in clips):
+        return dict(name=name, source=sources, status="missing")
+    parts, seams = [], []
+    for path, _ in clips:
+        rate, wav = wavfile.read(path)
+        if len(wav) < 10 * rate:
+            raise ValueError(f"Clip shorter than 10 s: {path}")
+        x = mono(wav[:10 * rate])
+        divisor = gcd(rate, FS)
+        x = resample_poly(x, FS // divisor, rate // divisor) if rate != FS else x
+        parts.append(x)
+    joined = parts[0]
+    for x in parts[1:]:
+        start = len(joined) - fade
+        seams.append((start, start + fade))
+        blend = joined[-fade:] * (1 - weight) + x[:fade] * weight
+        joined = np.concatenate((joined[:-fade], blend, x[fade:]))
+    target_length = 40 * FS
+    divisor = gcd(len(joined), target_length)
+    output = resample_poly(joined, target_length // divisor, len(joined) // divisor).astype("<f4")
+    if len(output) != target_length:
+        raise ValueError("Unexpected joined length")
+    target = dest / f"{name}.wav"
+    wavfile.write(target, FS, output)
+    final_seams = " | ".join(f"{round(lo * target_length / len(joined))}:{round(hi * target_length / len(joined))}"
+                             for lo, hi in seams)
+    return dict(name=name, source=sources, status="prepared_joined", recording_s=40,
+                seconds=len(output) / FS, output=target.name, source_intervals_s="[0,10) each",
+                crossfade_samples=fade, seams_16k=" | ".join(f"{lo}:{hi}" for lo, hi in seams),
+                output_seams_16k=final_seams, **metrics(output))
+
+
 def generate(dest):
     dest.mkdir(parents=True, exist_ok=True)
     rows = []
@@ -80,15 +117,16 @@ def generate(dest):
                 rows.append(process(name, member, io.BytesIO(z.read(member)), dest))
     else:
         rows.extend(process(name, member, None, dest) for name, member in names.items())
-    for name, (relative, provenance) in SHORT_CLIPS.items():
-        source = RAW / relative
-        rows.append(process(name, provenance, source if source.exists() else None, dest))
+    valve = [(RAW / "mimii" / name, f"6_dB_valve.zip:valve/id_00/normal/{name}") for name in VALVE_NAMES]
+    rows.append(join_clips("valve", valve, dest))
+    hammer = [(RAW / "sonyc" / name, f"{SONYC[0]}:audio-0/{name}") for name in SONYC_NAMES]
+    rows.append(join_clips("jackhammer", hammer, dest))
     fields = list(dict.fromkeys(field for row in rows for field in row))
     with (dest / "noise.csv").open("w", newline="") as file:
         writer = csv.DictWriter(file, fields, lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
-    print(f"{sum(r['status'] == 'prepared' for r in rows)} continuous excerpts; {dest / 'noise.csv'}")
+    print(f"{sum(r['status'].startswith('prepared') for r in rows)} prepared excerpts; {dest / 'noise.csv'}")
 
 
 if __name__ == "__main__":
