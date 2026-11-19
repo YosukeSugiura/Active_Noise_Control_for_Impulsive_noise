@@ -11,7 +11,7 @@ P5.  When the detector fires at block n0:
   1. background copy w_b = w (foreground) at n0; the foreground goes on with the late step and the ordinary frame;
   2. blocks n0+1 .. : w_b is adapted with the early step on error frames rebuilt with w_b;
   3. from n0+2: rho = E(w_b) / E(w_f) on the newest B samples, both rebuilt (w_f = current foreground);
-       rho > abort            -> drop w_b;
+       rho > abort or non-finite -> drop w_b;
        at n0+K: rho <= theta  -> transfer w_f <- w_b, the foreground continues the early phase (rebuilt frames)
                                  for the remaining (32 - K) blocks; otherwise drop w_b;
        option early_ok = (k_min, theta_e): transfer as soon as k >= k_min and rho <= theta_e.
@@ -47,7 +47,7 @@ CLASSES = q3.E8_CLASSES
 SHAT_CLASSES = ("pc", "EVpc", "EN0", "SC", "a145")
 SHATS = ("g0.7", "g1.4", "n30")
 ND0 = q3.ND0
-COLUMNS = q.COLUMNS + ("n_trial", "n_rollback", "shat", "ex_peak_ev", "rec_blocks", "ex_pre_ev")
+COLUMNS = q.COLUMNS + ("n_trial", "n_rollback", "shat", "ex_peak_ev", "rec_blocks", "ex_pre_ev", "same_as_nors")
 
 
 def config(K=16, theta=0.5, abort=4.0, early_ok=None):
@@ -69,10 +69,10 @@ class P5(q.P2):
         s.bg = None; s.trials = []
         s.tr["transfer"] = []
 
-    def _rho(s, c, wb):
-        tb, tf = s.frame.trial_frame(wb), s.frame.trial_frame(c.w)
+    def _rho(s, tb, wf):
+        tf = s.frame.trial_frame(wf)
         a, b = float(tb[-B:] @ tb[-B:]), float(tf[-B:] @ tf[-B:])
-        return (a / b if b > 0 else float("inf")), tb
+        return a / b if b > 0 else float("inf")
 
     def block(s, i, c):
         early = s.in_early(i)
@@ -83,11 +83,13 @@ class P5(q.P2):
         mu = internal / gain
         dv = None
         transfer = False
-        if s.bg is not None:
+        busy = s.bg is not None
+        if busy:
             k = i - s.bg["block"]; wb = s.bg["w"]; trial = s.trials[-1]
-            rho, tb = s._rho(c, wb)
+            tb = s.frame.trial_frame(wb)
             decided = None
             if k >= 2:
+                rho = s._rho(tb, c.w)
                 eo = s.c["early_ok"]
                 if not np.isfinite(rho) or rho > s.c["abort"]:
                     decided = "abort"
@@ -98,23 +100,25 @@ class P5(q.P2):
             if decided is None:                        # adapt the background filter on its own rebuilt frame
                 frame = np.zeros(N); frame[-len(tb):] = tb
                 db_ = p.SFm.sf_dir(c.R, np.fft.rfft(frame), c.Srr, c.Pbar, c.eps, s.c["eps"])
-                s.bg["w"] = wb - T.KD * (s.c["mu_e"] / gain) * db_
+                mu_bg = s.c["mu_e"] / gain
+                s.bg["w"] = wb - 2 * mu_bg * B / M * db_
             else:
                 trial.update(decide=int(i), rho=float(rho), ok=decided == "confirmed", status=decided)
-                if decided == "confirmed":             # w_f <- w_b: the simulator applies w - KD * mu * dv
+                if decided == "confirmed":
                     transfer = True
-                    mu, dv = 1.0, (c.w - wb) / T.KD
+                    c.w_override = wb
+                    mu = 0.0
                     s.restarts.append(trial["block"])
                     left = max(0, s.length - k)
                     s._close(i + 1, "restart")
                     s.until = i + 1 + left; s.phases.append([i + 1, None, None])
                 s.bg = None
-        if dv is None:
+        if not transfer:
             dv = p.SFm.sf_dir(c.R, c.E, c.Srr, c.Pbar, c.eps, s.c["eps"])
         if s.det is not None:
             rw = float(s.rw[i])
             z = s.frame.energy / rw if rw > 0 else np.nan
-            if s.det.update(i, z) and s.bg is None and not transfer:
+            if s.det.update(i, z) and not busy:
                 s.bg = dict(block=i, w=c.w.copy())
                 s.trials.append(dict(block=int(i), decide=None, rho=None, ok=None, status="pending"))
         s.tr["mu_app"].append(mu); s.tr["mu_state"].append(internal)
@@ -148,7 +152,7 @@ def specs():
 
 def event_measures(ex, cls, nb):
     """Peak Phi-excess (dB) in the 2 s after each event, the level before it (mean of the 0.5 s before, dB), and the
-    number of blocks until the excess returns to within 3 dB of that level (capped at 2 s = 250 blocks)."""
+    number of blocks until the excess stays within 3 dB above that level for the rest of the 2 s window."""
     ev = [t for t in q.EVENTS.get(cls, ()) if nb >= (t + 2) * BPS]
     if not ev:
         return {}
@@ -168,19 +172,26 @@ def run_job(job):
     sp = specs(); names = [lab if shat is None else f"{lab} | Shat {shat}" for lab, _, _ in sp]
     if f.exists():
         old = json.loads(f.read_text())
-        if [r["rule"] for r in old["rows"]] == names:
+        if old.get("version") == 1 and [r["rule"] for r in old["rows"]] == names:
             return old["rows"]
     t0 = time.monotonic()
-    short = 1250 if smoke else None
+    short = 18 * BPS if smoke else None
     data, Rall, st = q.prep(tag, short, shat)
     nb = short or len(data["d"]) // B
     o = p.parse(["c5", "--preset", "final"])
     changes = p.change_blocks(data)
     cls = tag.rsplit("_s", 1)[0]
     rows = []
+    baseline = None
     for (lab, kind, c), nm in zip(sp, names):
         rule, sim = (q4.run_p4 if kind == "P4" else run_p5)(data, Rall, st, c, nb, o.X4)
         row = q.score(tag, nm, rule, sim, data, False); row["exp"] = "E12"; row["shat"] = shat or "S"
+        if lab == "nors":
+            baseline = sim["e"], sim["ex"]
+            rs = p.restart_stats([], changes, len(sim["tr"]["mu_app"]))
+            row.update(false_rs=0, missed_rs=rs["n_missed"], n_restart=0)
+        row["same_as_nors"] = int(all(np.array_equal(sim[key], ref, equal_nan=True)
+                                      for key, ref in zip(("e", "ex"), baseline)))
         row.update(n_trial=len(rule.trials), n_rollback=sum(t["status"] in ("rollback", "abort") for t in rule.trials))
         if not row["div_num"]:
             row.update(event_measures(sim["ex"], cls, nb))
@@ -188,7 +199,7 @@ def run_job(job):
                               true=any(cb <= t["block"] < cb + p.RS_TRUE_WIN for cb in changes)) for t in rule.trials]
         rows.append(row)
     f.parent.mkdir(parents=True, exist_ok=True)
-    ab.atomic_write(f, lambda h: json.dump(dict(nb=nb, rows=rows), h))
+    ab.atomic_write(f, lambda h: json.dump(dict(version=1, nb=nb, rows=rows), h))
     print(f"E12 {f.stem}: {len(rows)} rules, div={sum(r['div_num'] for r in rows)}, {time.monotonic() - t0:.0f} s", flush=True)
     return rows
 
@@ -207,7 +218,7 @@ def run(procs, smoke):
 
 def report(smoke):
     d = out_dir(smoke) / "E12"
-    rows = [r for f in (sorted(d.glob("*.json")) if d.exists() else []) for r in json.loads(f.read_text())["rows"]]
+    rows = [r for f in sorted(d.glob("*.json")) for r in json.loads(f.read_text())["rows"]]
     dest = out_dir(smoke) if smoke else HERE
     dest.mkdir(parents=True, exist_ok=True)
 
@@ -236,7 +247,7 @@ def report(smoke):
          "nors：再始動なし。ver-：検出したら必ず再始動。P4：凍結した手法（試行をすぐ鳴らし、だめなら戻す）。"
          "P5：同じ試行を裏で行い、確定してから係数を移す。P5-early：検出の 4 ブロック後以降、ρ ≤ 0.25 になった時点で移す。",
          "ex_peak_ev：イベント直後 2 秒の Φ 超過の最大値。rec_blocks：Φ 超過がイベント前の水準 +3 dB 以内に戻るまでのブロック数"
-         "（2 秒 = 250 で打ち切り）。SC の Φ 超過は白色入力の Wiener 解が基準の参考値。", ""]
+         "（以降も窓内で水準を超えない最初のブロック。2 秒 = 250 で打ち切り）。SC の Φ 超過は白色入力の Wiener 解が基準の参考値。", ""]
     groups = (("経路変化あり（pc、pcb、EVpc）", ("pc", "pcb", "EVpc")), ("誤差側の外乱（ENm20、ENm10、EN0）", ("ENm20", "ENm10", "EN0")),
               ("入力の色の変化（SC）", ("SC",)), ("変化なし（G、BU、PS、II300、a145、a120）", q.BASE6))
     base = [r for r in rows if r["shat"] == "S"]
