@@ -49,18 +49,23 @@ COLUMNS = q.COLUMNS + ("n_trial", "n_rollback")
 WINDOWS = {"M": M, "2B": 2 * B, "B": B}       # samples used for rho; "B" = only the samples no update has used yet
 
 
-def config(K=None, theta=0.5, restart=True, win="M"):
+EXP = "E11"                                   # experiment run by `run` / `report` (set from --exp)
+DEV = {"E10": "dev3", "E11": "dev4"}
+
+
+def config(K=None, theta=0.5, restart=True, win="M", abort=None):
+    """abort: while a trial is pending (2 .. K-1 blocks after the detection) roll back at once if rho > abort."""
     assert K is None or (isinstance(K, int) and 0 < K < 64), K      # shorter than the detector's guard interval
     assert win in WINDOWS, win
     c = q.config(ND0["early"], ND0["mu_e"], ND0["end"], restart=restart)
-    c.update(K=K, theta=float(theta), win=win)
+    c.update(K=K, theta=float(theta), win=win, abort=None if abort is None else float(abort))
     return c
 
 
 def name_of(c):
     s = q.name_of(c).replace("P2 ", "P4 ", 1)
     if c["restart"]:
-        s += " ver-" if c["K"] is None else f" ver{c['K']}/{c['theta']:g}" + ("" if c["win"] == "M" else f" w{c['win']}")
+        s += " ver-" if c["K"] is None else f" ver{c['K']}/{c['theta']:g}" + ("" if c["win"] == "M" else f" w{c['win']}") + ("" if c.get("abort") is None else f" ab{c['abort']:g}")
     return s
 
 
@@ -93,7 +98,10 @@ class P4(q.P2):
         applied = s.tr["restart_apply_block"]
         applied.append(-1)
         rolled = False
-        if s.pending is not None and i == s.pending["block"] + s.c["K"]:
+        final = s.pending is not None and i == s.pending["block"] + s.c["K"]
+        watch = (s.pending is not None and s.c.get("abort") is not None
+                 and s.pending["block"] + 2 <= i < s.pending["block"] + s.c["K"])
+        if final or watch:
             w0, trial = s.pending["w0"], s.trials[-1]
             t_new, t_old = s.frame.trial_frame(c.w), s.frame.trial_frame(w0)
             rhos = {}
@@ -101,10 +109,20 @@ class P4(q.P2):
                 a, b = float(t_new[-L:] @ t_new[-L:]), float(t_old[-L:] @ t_old[-L:])
                 rhos[k] = a / b if b > 0 else float("inf")
             rho = rhos[s.c["win"]]
-            ok = bool(np.isfinite(rho) and rho <= s.c["theta"])
-            trial.update(decide=i, rho=rho, ok=ok, status="confirmed" if ok else "rollback",
-                         rho_M=rhos["M"], rho_2B=rhos["2B"], rho_B=rhos["B"])
-            if ok:
+            if final:
+                ok = bool(np.isfinite(rho) and rho <= s.c["theta"])
+                status = "confirmed" if ok else "rollback"
+            else:                                       # early abort: the trial is clearly making things worse
+                ok = None if (np.isfinite(rho) and rho <= s.c["abort"]) else False
+                status = "abort"
+            if ok is None:
+                pass                                    # keep the trial pending
+            else:
+                trial.update(decide=i, rho=rho, ok=ok, status=status,
+                             rho_M=rhos["M"], rho_2B=rhos["2B"], rho_B=rhos["B"])
+            if ok is None:
+                pass
+            elif ok:
                 s.restarts.append(trial["block"])
                 start = trial["block"] + 1
                 applied[start] = start
@@ -112,7 +130,8 @@ class P4(q.P2):
                 rolled = True
                 s.until = i + 1
                 s._close(i + 1, "rollback")
-            s.pending = None
+            if ok is not None:
+                s.pending = None
         if rolled:
             mu, dv = 1.0, (c.w - w0) / T.KD     # simulator applies w - KD * mu * dv
         else:
@@ -151,10 +170,14 @@ def run_p4(data, Rall, st, c, nb, X4, hook=None):
 # Experiment E10
 # ----------------------------------------------------------------------------------------------
 def out_dir(smoke):
-    return HERE / "out" / ("dev3_smoke" if smoke else "dev3")
+    return HERE / "out" / (DEV[EXP] + ("_smoke" if smoke else ""))
 
 
 def specs():
+    if EXP == "E11":                                    # final check before freezing: decide at K with window B, abort early
+        out = [config(restart=False), config(), config(K=16, win="B"), config(K=16, win="B", abort=4.0),
+               config(K=16, win="B", abort=2.0), config(K=12, win="B", abort=4.0), config(K=16, win="M", abort=4.0)]
+        return out
     out = [config(restart=False), config()]
     out += [config(K=k) for k in (4, 8, 16)]
     out += [config(K=8, win=w) for w in ("2B", "B")] + [config(K=4, win="B"), config(K=16, win="B")]
@@ -163,7 +186,7 @@ def specs():
 
 def run_job(job):
     tag, smoke = job
-    f = out_dir(smoke) / "E10" / (tag + ".json")
+    f = out_dir(smoke) / EXP / (tag + ".json")
     cfgs = specs(); names = [name_of(c) for c in cfgs]
     if f.exists():
         old = json.loads(f.read_text())
@@ -178,13 +201,13 @@ def run_job(job):
     rows = []
     for c, nm in zip(cfgs, names):
         rule, sim = run_p4(data, Rall, st, c, nb, o.X4)
-        row = q.score(tag, nm, rule, sim, data, False); row["exp"] = "E10"
-        row.update(n_trial=len(rule.trials), n_rollback=sum(t["status"] == "rollback" for t in rule.trials))
+        row = q.score(tag, nm, rule, sim, data, False); row["exp"] = EXP
+        row.update(n_trial=len(rule.trials), n_rollback=sum(t["status"] in ("rollback", "abort") for t in rule.trials))
         row["trials"] = [dict(t, true=any(cb <= t["block"] < cb + p.RS_TRUE_WIN for cb in changes)) for t in rule.trials]
         rows.append(row)
     f.parent.mkdir(parents=True, exist_ok=True)
     ab.atomic_write(f, lambda h: json.dump(dict(version=2, nb=nb, rows=rows), h))
-    print(f"E10 {tag}: {len(rows)} rules, div={sum(r['div_num'] for r in rows)}, {time.monotonic() - t0:.0f} s", flush=True)
+    print(f"{EXP} {tag}: {len(rows)} rules, div={sum(r['div_num'] for r in rows)}, {time.monotonic() - t0:.0f} s", flush=True)
     return rows
 
 
@@ -203,7 +226,7 @@ def rho_db(rho):
 
 
 def report(smoke):
-    d = out_dir(smoke) / "E10"
+    d = out_dir(smoke) / EXP
     rows = [r for f in (sorted(d.glob("*.json")) if d.exists() else []) for r in json.loads(f.read_text())["rows"]]
     dest = out_dir(smoke) if smoke else HERE
     dest.mkdir(parents=True, exist_ok=True)
@@ -213,7 +236,7 @@ def report(smoke):
         for r in rows:
             w.writerow({k: ("" if v is None or (isinstance(v, float) and not math.isfinite(v)) else v)
                         for k, v in r.items()})
-    ab.atomic_write(dest / "RESULTS_dev3.csv", write_csv)
+    ab.atomic_write(dest / f"RESULTS_{DEV[EXP]}.csv", write_csv)
 
     def write_trials(h):
         w = csv.writer(h, lineterminator="\n")
@@ -224,9 +247,10 @@ def report(smoke):
                 confirmed = None if t["ok"] is None else int(t["ok"])
                 w.writerow([r["class"], r["seed"], r["rule"], t["block"], t["block"] / BPS, t["decide"], int(t["true"]),
                             t["rho"], rho_db(t["rho"]), confirmed, t["status"], t["rho_M"], t["rho_2B"], t["rho_B"]])
-    ab.atomic_write(dest / "RESULTS_dev3_trials.csv", write_trials)
+    ab.atomic_write(dest / f"RESULTS_{DEV[EXP]}_trials.csv", write_trials)
 
-    L = ["# dev3：再始動の試行と検証（E10）", "",
+    L = [f"# {DEV[EXP]}：再始動の試行と検証（{EXP}）", "",
+         "ab4 は、試行中（検出の 2 ブロック後から判定の前まで）に ρ > 4 になったらその場で取り消す設定。",
          "表は自動生成。値は dB（小さいほど良い）。クラス内で seed 平均、クラス間で等重み平均。件数は合計。",
          "規則名：ver- は検証なし（検出したら必ず再始動）、ver8/0.5 は検出の 8 ブロック後に ρ = E(w)/E(w0) ≤ 0.5 を確かめ、"
          "wB / w2B は ρ を最新の B / 2B サンプルだけで測る（無印は直近 M サンプル）。"
@@ -270,8 +294,8 @@ def report(smoke):
               "## クラスごとの ex_ev（イベント直後 2 秒の Φ 超過）", "", q.per_class(rows, "ex_ev"), ""]
     L += ["## 再現手順", "", "```sh", "export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1",
           "python prop4.py check", "python prop4.py run --procs <コア数>", "python prop4.py report", "```", ""]
-    (dest / "RESULTS_dev3.md").write_text("\n".join(L), encoding="utf-8")
-    print("wrote", dest / "RESULTS_dev3.md", len(rows), "rows")
+    (dest / f"RESULTS_{DEV[EXP]}.md").write_text("\n".join(L), encoding="utf-8")
+    print("wrote", dest / f"RESULTS_{DEV[EXP]}.md", len(rows), "rows")
 
 
 def check():
@@ -337,7 +361,10 @@ def main():
     a.add_argument("cmd", choices=("check", "run", "report"))
     a.add_argument("--procs", type=int, default=os.cpu_count() or 1)
     a.add_argument("--smoke", action="store_true")
+    a.add_argument("--exp", default="E11", choices=tuple(DEV))
     o = a.parse_args()
+    global EXP
+    EXP = o.exp
     if o.cmd == "check":
         check()
     elif o.cmd == "run":
