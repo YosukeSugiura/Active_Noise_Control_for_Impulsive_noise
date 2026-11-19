@@ -50,7 +50,9 @@ REAL = ("machinegun", "factory1", "destroyerengine", "volvo", "valve", "jackhamm
 SYNTH = ("G", "PS", "BU", "II300", "a145", "a120")
 BURSTS = ((10.0, 10.5), (20.0, 20.5))
 DIV_GAIN = 1e4                                 # block error power above this x the full-run primary power = divergence
-VERSION = 2
+VERSION = 3
+HP_HZ = 100.0                                  # operating band: 4th-order Butterworth high-pass on every excitation
+RMODES = ("fd",)                               # S1: "td" gave no gain and broke the identity with no-restart; dropped
 
 BASE = {  # name: (default step, parameters) from config.json / repro/config_a145.json
     "FxNLMS": (0.3, {}),
@@ -77,6 +79,15 @@ def guard_seed(seed, final=False):
 
 
 def excitation(cls, seed):
+    """Excitation limited to the operating band.  Below about 60 Hz the measured responses are at the noise floor
+    (the loudspeakers do not radiate there) and the truncated model has phase errors above 90 degrees, so any
+    filtered-x method diverges when the input has power there (S1 pilot).  Real recordings are scaled after the
+    high-pass."""
+    x = p.signal.sosfilt(p.signal.butter(4, HP_HZ, "highpass", fs=FS, output="sos"), _excitation(cls, seed))
+    return x * np.sqrt(g_power() / np.mean(x ** 2)) if cls in REAL else x
+
+
+def _excitation(cls, seed):
     if cls in REAL:
         fs, wav = wavfile.read(HERE / "data" / "prepared" / f"{cls}.wav")
         assert fs == FS and wav.ndim == 1, (cls, fs, wav.shape)
@@ -442,7 +453,7 @@ def trial_stats(rule, dd):
 # ----------------------------------------------------------------------------------------------
 # Jobs
 # ----------------------------------------------------------------------------------------------
-PILOT_CLASSES = ("G", "a145", "II300", "machinegun", "jackhammer")
+PILOT_CLASSES = ("G", "a145", "II300") + REAL
 PILOT_SCEN = ("stat", "RS-near", "RS-far", "RM-10", "RM-10s", "EN0")
 PILOT_SEEDS = (10, 11)
 PILOT_LS = (256, 512)
@@ -451,7 +462,7 @@ TD_RULES = ("nors", "P5-early")
 
 
 def out_dir(smoke):
-    return HERE / "out" / ("final_pilot_smoke" if smoke else "final_pilot")
+    return HERE / "out" / ("final_pilot2_smoke" if smoke else "final_pilot2")
 
 
 def run_job(job):
@@ -465,10 +476,10 @@ def run_job(job):
     n_tot = None if nb is None else nb * B
     with_post = scen in POST_FOR and not smoke
     rows = []
-    data = {m: build(cls, scen, seed, Ls, m) for m in ("fd", "td")}
-    posts = {m: build(cls, "post:" + scen, seed, Ls, m) for m in ("fd", "td")} if with_post else {}
+    data = {m: build(cls, scen, seed, Ls, m) for m in RMODES}
+    posts = {m: build(cls, "post:" + scen, seed, Ls, m) for m in RMODES} if with_post else {}
     ref = {}
-    for rmode in ("fd", "td"):
+    for rmode in RMODES:
         dd, Rall, st = data[rmode]
         for label in (RULES if rmode == "fd" else TD_RULES):
             rule, sim = run_rule(label, dd, Rall, st, X4, nb)
@@ -579,7 +590,7 @@ def report(smoke):
                               and r["rmode"] in ("fd", "-") and not r["div"]], "L1_last10")) for c in classes]
             L.append(f"| {m} | " + " | ".join(cells) + " |")
         L.append("")
-    dest = (d if smoke else HERE) / "RESULTS_final_pilot.md"
+    dest = (d if smoke else HERE) / "RESULTS_final_pilot2.md"
     dest.write_text("\n".join(L), encoding="utf-8")
     print("wrote", dest, len(rows), "rows")
 
