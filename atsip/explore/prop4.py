@@ -1,4 +1,4 @@
-"""P4: restart as a trial that is verified on identical data and rolled back if it did not help.  Experiment E10.
+"""P4: restart as a trial that is verified on identical data and rolled back if it did not help.  Experiments E10 and E11.
 
 dev2 (RESULTS_dev2.md) showed that the split-coherence gate cannot separate path changes from other detections at
 the detection block: with impulsive inputs the two B-sample halves are dominated by a few samples and the coherence
@@ -10,7 +10,9 @@ P4 (early=ND only).  When the rsN2 detector fires at block n0:
   2. at block n0 + K rebuild the last M error samples twice, with the current coefficients w and with w0, from the
      same reference and the same disturbance estimate d-hat = e - S-hat * y:
          rho = E(w) / E(w0)          (energies of the two rebuilt frames);
-  3. rho <= theta: the restart is confirmed and the early phase continues;
+  3. if abort is enabled, check the configured window from n0 + 2 through n0 + K - 1.
+     Restore w0 immediately for a non-finite ratio or rho > abort and resume the late phase on the next block;
+  4. rho <= theta at the final check: the restart is confirmed and the early phase continues;
      rho >  theta: roll back, i.e. restore w0 and return to the late step at block n0 + K + 1.
 Both energies contain the same disturbance and the same input samples, so the input scale (impulses) and any
 disturbance that is uncorrelated with the reference cancel in the comparison: after a path change the adaptation
@@ -54,7 +56,7 @@ DEV = {"E10": "dev3", "E11": "dev4"}
 
 
 def config(K=None, theta=0.5, restart=True, win="M", abort=None):
-    """abort: while a trial is pending (2 .. K-1 blocks after the detection) roll back at once if rho > abort."""
+    """abort: while a trial is pending (2 .. K-1 blocks after the detection) roll back at once if rho > abort or rho is non-finite."""
     assert K is None or (isinstance(K, int) and 0 < K < 64), K      # shorter than the detector's guard interval
     assert win in WINDOWS, win
     c = q.config(ND0["early"], ND0["mu_e"], ND0["end"], restart=restart)
@@ -109,31 +111,27 @@ class P4(q.P2):
                 a, b = float(t_new[-L:] @ t_new[-L:]), float(t_old[-L:] @ t_old[-L:])
                 rhos[k] = a / b if b > 0 else float("inf")
             rho = rhos[s.c["win"]]
-            if final:
-                ok = bool(np.isfinite(rho) and rho <= s.c["theta"])
-                status = "confirmed" if ok else "rollback"
-            else:                                       # early abort: the trial is clearly making things worse
-                ok = None if (np.isfinite(rho) and rho <= s.c["abort"]) else False
-                status = "abort"
-            if ok is None:
-                pass                                    # keep the trial pending
-            else:
+            if final or not np.isfinite(rho) or rho > s.c["abort"]:
+                ok = bool(final and np.isfinite(rho) and rho <= s.c["theta"])
+                status = ("confirmed" if ok else "rollback") if final else "abort"
                 trial.update(decide=i, rho=rho, ok=ok, status=status,
                              rho_M=rhos["M"], rho_2B=rhos["2B"], rho_B=rhos["B"])
-            if ok is None:
-                pass
-            elif ok:
-                s.restarts.append(trial["block"])
-                start = trial["block"] + 1
-                applied[start] = start
-            else:
-                rolled = True
-                s.until = i + 1
-                s._close(i + 1, "rollback")
-            if ok is not None:
+                if ok:
+                    s.restarts.append(trial["block"])
+                    start = trial["block"] + 1
+                    applied[start] = start
+                else:
+                    rolled = True
+                    s.until = i + 1
+                    s._close(i + 1, status)
+                    if status == "abort":
+                        c.w_override = w0
                 s.pending = None
         if rolled:
-            mu, dv = 1.0, (c.w - w0) / T.KD     # simulator applies w - KD * mu * dv
+            if c.w_override is not None:
+                mu, dv = 0.0, None           # simulator directly restores the saved coefficients
+            else:
+                mu, dv = 1.0, (c.w - w0) / T.KD
         else:
             mu = internal / max(c.g, s.gmin)
             dv = p.SFm.sf_dir(c.R, c.E, c.Srr, c.Pbar, c.eps, s.c["eps"])
@@ -188,9 +186,10 @@ def run_job(job):
     tag, smoke = job
     f = out_dir(smoke) / EXP / (tag + ".json")
     cfgs = specs(); names = [name_of(c) for c in cfgs]
+    cache_version = 3 if EXP == "E11" else 2
     if f.exists():
         old = json.loads(f.read_text())
-        if old.get("version") == 2 and [r["rule"] for r in old["rows"]] == names:
+        if old.get("version") == cache_version and [r["rule"] for r in old["rows"]] == names:
             return old["rows"]
     t0 = time.monotonic()
     short = 1250 if smoke else None
@@ -206,7 +205,7 @@ def run_job(job):
         row["trials"] = [dict(t, true=any(cb <= t["block"] < cb + p.RS_TRUE_WIN for cb in changes)) for t in rule.trials]
         rows.append(row)
     f.parent.mkdir(parents=True, exist_ok=True)
-    ab.atomic_write(f, lambda h: json.dump(dict(version=2, nb=nb, rows=rows), h))
+    ab.atomic_write(f, lambda h: json.dump(dict(version=cache_version, nb=nb, rows=rows), h))
     print(f"{EXP} {tag}: {len(rows)} rules, div={sum(r['div_num'] for r in rows)}, {time.monotonic() - t0:.0f} s", flush=True)
     return rows
 
@@ -250,9 +249,9 @@ def report(smoke):
     ab.atomic_write(dest / f"RESULTS_{DEV[EXP]}_trials.csv", write_trials)
 
     L = [f"# {DEV[EXP]}：再始動の試行と検証（{EXP}）", "",
-         "ab4 は、試行中（検出の 2 ブロック後から判定の前まで）に ρ > 4 になったらその場で取り消す設定。",
+         "ab2 / ab4 は、検出の 2 ブロック後から最終判定の前まで、設定窓の ρ が 2 / 4 を超えるか非有限ならその場で取り消す。",
          "表は自動生成。値は dB（小さいほど良い）。クラス内で seed 平均、クラス間で等重み平均。件数は合計。",
-         "規則名：ver- は検証なし（検出したら必ず再始動）、ver8/0.5 は検出の 8 ブロック後に ρ = E(w)/E(w0) ≤ 0.5 を確かめ、"
+         "規則名：ver- は検証なし（検出したら必ず再始動）、verK/0.5 は検出の K ブロック後に ρ = E(w)/E(w0) ≤ 0.5 を確かめ、"
          "wB / w2B は ρ を最新の B / 2B サンプルだけで測る（無印は直近 M サンプル）。"
          "満たさなければ係数を w0 に戻す。nors は再始動なし。false_rs / missed_rs は確定した再始動だけを数える。", ""]
     if rows:
@@ -268,19 +267,36 @@ def report(smoke):
             if v:
                 L.append(f"| {q.md_cell(rule)} | {cls} | {kind} | {len(ts)} | {min(v):.2f} | {np.median(v):.2f} | {max(v):.2f} | "
                          f"{sum(t['ok'] for t in ts)} |")
-        L += ["", "## 窓ごとの ρ（dB。K ごとに、全試行について 3 つの窓の値を記録したもの）", "",
-              "| K | 窓 | 経路変化：件数 | 最小 | 中央 | 最大 | それ以外：件数 | 最小 | 中央 | 最大 | 間隔（それ以外の最小 − 経路変化の最大） |",
-              "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
-        for K in (4, 8, 16):
-            nm = name_of(config(K=K))
-            ts = [t for r in rows if r["rule"] == nm for t in r.get("trials") or []]
-            for k in WINDOWS:
-                tv = [v for t in ts if t["true"] and (v := rho_db(t["rho_" + k])) is not None]
-                fv = [v for t in ts if not t["true"] and (v := rho_db(t["rho_" + k])) is not None]
-                if tv and fv:
-                    L.append(f"| {K} | {k} | {len(tv)} | {min(tv):.2f} | {np.median(tv):.2f} | {max(tv):.2f} | {len(fv)} | "
-                             f"{min(fv):.2f} | {np.median(fv):.2f} | {max(fv):.2f} | {min(fv) - max(tv):.2f} |")
-        L.append("")
+        if EXP == "E11":
+            L += ["", "## 窓ごとの ρ（線形比、最終判定に到達した試行）", "",
+                  "| 規則 | クラス | seed | 検出ブロック | 判定ブロック | 結果 | ρ_M | ρ_2B | ρ_B |",
+                  "|---|---|---:|---:|---:|---|---:|---:|---:|"]
+            aborted = []
+            for r in rows:
+                rule = q.md_cell(r["rule"])
+                for t in r["trials"]:
+                    prefix = f"| {rule} | {r['class']} | {r['seed']} | {t['block']} | {t['decide']} |"
+                    if t["status"] in ("confirmed", "rollback"):
+                        L.append(f"{prefix} {t['status']} | {t['rho_M']:.6g} | {t['rho_2B']:.6g} | {t['rho_B']:.6g} |")
+                    elif t["status"] == "abort":
+                        aborted.append(f"{prefix} {t['rho']:.6g} |")
+            L += ["", "## 早期取り消し（設定窓の ρ、線形比）", "",
+                  "| 規則 | クラス | seed | 検出ブロック | 取り消しブロック | ρ |",
+                  "|---|---|---:|---:|---:|---:|", *aborted, ""]
+        else:
+            L += ["", "## 窓ごとの ρ（dB。K ごとに、全試行について 3 つの窓の値を記録したもの）", "",
+                  "| K | 窓 | 経路変化：件数 | 最小 | 中央 | 最大 | それ以外：件数 | 最小 | 中央 | 最大 | 間隔（それ以外の最小 − 経路変化の最大） |",
+                  "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
+            for K in (4, 8, 16):
+                nm = name_of(config(K=K))
+                ts = [t for r in rows if r["rule"] == nm for t in r.get("trials") or []]
+                for k in WINDOWS:
+                    tv = [v for t in ts if t["true"] and (v := rho_db(t["rho_" + k])) is not None]
+                    fv = [v for t in ts if not t["true"] and (v := rho_db(t["rho_" + k])) is not None]
+                    if tv and fv:
+                        L.append(f"| {K} | {k} | {len(tv)} | {min(tv):.2f} | {np.median(tv):.2f} | {max(tv):.2f} | {len(fv)} | "
+                                 f"{min(fv):.2f} | {np.median(fv):.2f} | {max(fv):.2f} | {min(fv) - max(tv):.2f} |")
+            L.append("")
         groups = (("経路変化あり（pc、pcb、EVpc）", ("pc", "pcb", "EVpc")), ("誤差側の外乱（ENm20、ENm10、EN0）", ("ENm20", "ENm10", "EN0")),
                   ("入力の色の変化（SC）", ("SC",)), ("変化なし（G、BU、PS、II300、a145、a120）", q.BASE6))
         for title, cl in groups:
@@ -354,6 +370,72 @@ def check():
           f"during the trial {q.db(sim['ex'][t['decide'] - 1]):.2f} dB, after the roll-back {q.db(after):.2f} dB")
     np.testing.assert_allclose(captured["restored"], captured["w0"], rtol=0, atol=1e-12)
     print("check 4 ok: rebuilt frame, newest B samples, and restored simulator coefficients")
+
+
+    # 5. Watching a successful trial leaves all outputs and traces unchanged.
+    watched = config(K=16, win="B", abort=4.0)
+    nb = 2100
+    data, Rall, st = q.prep("pc_s10", nb)
+    reference, expected = run_p4(data, Rall, st, config(K=16, win="B"), nb, o.X4)
+    rule, sim = run_p4(data, Rall, st, watched, nb, o.X4)
+    assert len(rule.trials) == 1 and rule.trials[0]["status"] == "confirmed"
+    assert rule.trials == reference.trials and rule.restarts == reference.restarts
+    np.testing.assert_equal(sim, expected)
+    print("check 5 ok: pc_s10 confirmed; complete simulation matches abort=None")
+
+    # 6. The burst reaches the final judgment without triggering abort.
+    nb = 1400
+    data, Rall, st = q.prep("EN0_s10", nb)
+    rule, sim = run_p4(data, Rall, st, watched, nb, o.X4)
+    assert not sim["div"] and len(rule.trials) == 1
+    t = rule.trials[0]
+    assert t["status"] == "rollback" and t["decide"] == t["block"] + 16, t
+    print("check 6 ok: EN0_s10 final rollback", t)
+
+    # 7. Check the actual next-block coefficients after an early abort.
+    data, Rall, st = q.prep("SC_s10")
+    nb = len(data["d"]) // B
+    captured = {}
+
+    def inspect_abort(i, w, mu, dv, c, rule, mf, **_):
+        if not rule.trials:
+            return
+        t = rule.trials[0]
+        if i == t["block"]:
+            captured["w0"] = w.copy()
+        if t["decide"] is not None and i == t["decide"] + 1:
+            captured["restored"] = w.copy()
+
+    rule, sim = run_p4(data, Rall, st, watched, nb, o.X4, hook=inspect_abort)
+    assert not sim["div"] and len(rule.trials) == 1 and not rule.restarts
+    t = rule.trials[0]
+    assert t["status"] == "abort" and 2 <= t["decide"] - t["block"] < 16 and t["rho"] > 4, t
+    np.testing.assert_array_equal(captured["restored"], captured["w0"])
+    assert sim["tr"]["mu_state"][t["decide"] + 1] == q.mu_late(0.03)
+    print("check 7 ok: SC_s10 early abort and exact coefficient restoration", t)
+
+    # 8. Force a detection on the abort block despite the normal detector guard.
+    abort_block = t["decide"]
+    fired = []
+
+    def force_detection(i, w, mu, dv, c, rule, mf, **_):
+        if i != 0:
+            return
+        update = rule.det.update
+
+        def detect(j, z):
+            detected = update(j, z)
+            if j == abort_block:
+                fired.append(j)
+                return True
+            return detected
+
+        rule.det.update = detect
+
+    collision, sim = run_p4(data, Rall, st, watched, abort_block + 2, o.X4, hook=force_detection)
+    assert fired == [abort_block] and collision.trials == [t] and not collision.restarts
+    assert sim["tr"]["mu_state"][abort_block + 1] == q.mu_late(0.03)
+    print("check 8 ok: detection on the abort block leaves the next block in the late phase")
 
 
 def main():

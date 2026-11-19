@@ -191,10 +191,11 @@ def pi_seq(data, nb, which):
 
 
 class Ctx:
-    __slots__ = ("i", "R", "E", "Srr", "Pbar", "eps", "g", "w", "pi")
+    __slots__ = ("i", "R", "E", "Srr", "Pbar", "eps", "g", "w", "pi", "w_override")
 
     def __init__(s, i, R, E, st, w):
         s.i, s.R, s.E, s.w = i, R, E, w
+        s.w_override = None  # A rule may replace the entire coefficient update.
         s.Srr, s.Pbar, s.eps, s.g = st.Srr[i], st.Pbar[i], st.eps[i], st.g[i]
         s.pi = {k: v[i] for k, v in st.pi.items()}
 
@@ -513,7 +514,7 @@ def simulate(data, Rall, st, rule, nb=None, w0=None, hook=None, fps=None, error_
         mu, dv = rule.block(i, c)
         if hook is not None:
             hook(i, w, mu, dv, c, rule, mf, zi=zi, e_all=e_all)
-        w = w - 2 * mu * B / M * dv
+        w = c.w_override if c.w_override is not None else w - 2 * mu * B / M * dv
         p = path_of(data, i); wr, _, Jr = REFS[p]
         if not (np.isfinite(w).all() and np.isfinite(e_all[s0:s0 + B]).all()):
             div = True
