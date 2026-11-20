@@ -288,6 +288,31 @@ class AlwaysTrial(q5.P5):
         return mu, dv
 
 
+GE_CAP = 0.55      # floor of g in steps taken on rebuilt frames: a = s h / g <= 0.25 / 0.55 = 0.455 (< 0.47, E7: 0/20)
+
+
+class _CapMixin:
+    """Floor GE_CAP on g for the early step (foreground early phase and background trial); late step unchanged.
+    Without it the floor is GMIN = 0.25, so the early step can reach a = 1.0, above the measured limit 0.55-0.625."""
+
+    def block(s, i, c):
+        g0 = c.g; early = s.in_early(i)
+        c.g = max(g0, GE_CAP)
+        mu, dv = super().block(i, c)
+        c.g = g0
+        if not early and dv is not None and c.w_override is None:
+            mu = s.late / max(g0, s.gmin); s.tr["mu_app"][-1] = mu
+        return mu, dv
+
+
+class P5Cap(_CapMixin, q5.P5):
+    pass
+
+
+class P4Cap(_CapMixin, q4.P4):
+    pass
+
+
 class SwitchedFrame(q4.Frame4):
     """Use each sample's active model for the synthesis of frozen errors."""
 
@@ -340,6 +365,10 @@ def run_rule(label, dd, Rall, st, X4, nb=None):
             st = copy.copy(st); st.g = np.ones_like(st.g)
     elif label == "P4":
         rule = q4.P4(q4.config(K=16, win="B", abort=4.0), dd, nbr, X4)
+    elif label == "P5-early-cap":
+        rule = P5Cap(q5.config(early_ok=(4, 0.25)), dd, nbr, X4)
+    elif label == "nors-cap":
+        rule = P4Cap(q4.config(restart=False), dd, nbr, X4)
     elif label in ("nors", "ND-always"):
         rule = q4.P4(q4.config(restart=False), dd, nbr, X4)
     elif label == "SF-fix":
@@ -535,6 +564,92 @@ def run_job(job):
     f.parent.mkdir(parents=True, exist_ok=True)
     ab.atomic_write(f, lambda h: json.dump(dict(version=VERSION, rows=rows, wall_seconds=time.monotonic()-t0), h))
     print(f"{f.stem}: {len(rows)} rows, div={sum(r['div'] for r in rows)}, {time.monotonic() - t0:.0f} s", flush=True)
+
+
+# ----------------------------------------------------------------------------------------------
+# S1c: floor on g for the early step (design seeds 10-14, S-hat 256, rules only)
+# ----------------------------------------------------------------------------------------------
+CAP_RULES = ("nors", "P5-early", "nors-cap", "P5-early-cap")
+CAP_REF = {"P5-early": "nors", "P5-early-cap": "nors-cap"}
+CAP_SEEDS = (10, 11, 12, 13, 14)
+CAP_DIR = HERE / "out" / "final_cap"
+H_STEP = 0.25                                   # h = (2B/M)(M_e/N); a = mu_app * h
+
+
+def run_cap_job(job):
+    cls, scen, seed = job
+    f = CAP_DIR / f"{cls}_{scen}_s{seed}.json"
+    if f.exists() and json.loads(f.read_text()).get("version") == VERSION:
+        return
+    t0 = time.monotonic()
+    X4 = p.parse(["c5", "--preset", "final"]).X4
+    dd, Rall, st = build(cls, scen, seed, 256)
+    post = build(cls, "post:" + scen, seed, 256) if scen in POST_FOR else None
+    rows, ref = [], {}
+    for label in CAP_RULES:
+        rule, sim = run_rule(label, dd, Rall, st, X4)
+        pm = None
+        if post is not None:
+            _, ps = run_rule(label, post[0], post[1], post[2], X4)
+            pm = dict(e=ps["e"], d=post[0]["d"][:len(ps["e"])], div=ps["div"])
+        row = dict(method=label, cls=cls, scen=scen, seed=int(seed), **measures(sim, dd, pm),
+                   **trial_stats(rule, dict(dd, scored_blocks=sim["n_done"])))
+        mu = np.asarray(sim["tr"]["mu_app"], float); early = np.asarray(sim["tr"].get("early", []), float) > 0
+        n = min(len(mu), len(early))
+        row["a_max_early"] = float(np.max(mu[:n][early[:n]]) * H_STEP) if n and early[:n].any() else None
+        row["a_max_late"] = float(np.max(mu[:n][~early[:n]]) * H_STEP) if n and (~early[:n]).any() else None
+        row["g_min32"] = float(np.min(st.g[:32]))
+        ref[label] = sim
+        r0 = ref.get(CAP_REF.get(label))
+        if r0 is not None and not sim["div"] and not r0["div"]:
+            row["same_as_ref"] = int(np.array_equal(sim["e"], r0["e"]))
+        rows.append(row)
+    f.parent.mkdir(parents=True, exist_ok=True)
+    ab.atomic_write(f, lambda h: json.dump(dict(version=VERSION, rows=rows), h))
+    print(f"{f.stem}: div={[r['div'] for r in rows]}, {time.monotonic() - t0:.0f} s", flush=True)
+
+
+def cap(procs):
+    jobs = [(c, s, sd) for c in PILOT_CLASSES for s in PILOT_SCEN for sd in CAP_SEEDS]
+    with Pool(procs) as pool:
+        list(pool.imap_unordered(run_cap_job, jobs))
+    rows = [r for f in sorted(CAP_DIR.glob("*.json")) for r in json.loads(f.read_text())["rows"]]
+    med = lambda v: "—" if not v else ("打切" if sorted(v)[(len(v) - 1) // 2] == float("inf") else fmt(float(sorted(v)[(len(v) - 1) // 2]), 0))
+    L = ["# S1c：前半のステップに使う g の下限（設計用 seed 10–14、Ŝ 256）", "",
+         f"cap = 作り直した誤差で進む更新（前半と裏の試行）だけ g の下限を {GE_CAP} にする（a ≤ {0.25 / GE_CAP:.3f}）。後半は変更なし。",
+         "表は自動生成。L1 は完走した実行の平均（dB）。rec は回復までのブロック数の中央値（打ち切りを含む）。", ""]
+    for scen in PILOT_SCEN:
+        L += [f"## {scen}", "", "| 手法 | 試行 | 発散 | L1 whole | L1 last10 | L1 直後2秒 | rec 中央値 | 打切 | 誤確定 | 見逃し | 基準と一致 | a 最大（前半） |",
+              "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
+        for m in CAP_RULES:
+            rm = [r for r in rows if r["scen"] == scen and r["method"] == m]; ok = [r for r in rm if not r["div"]]
+            recs = [float("inf") if r["rec_blocks"] is None else r["rec_blocks"] for r in ok if r.get("rec_cens") is not None]
+            cnt = lambda k: "—" if all(r.get(k) is None for r in ok) else str(sum(r.get(k) or 0 for r in ok))
+            am = [r["a_max_early"] for r in rm if r.get("a_max_early") is not None]
+            L.append(f"| {m} | {len(rm)} | {sum(r['div'] for r in rm)} | {fmt(agg(ok, 'L1_whole'))} | {fmt(agg(ok, 'L1_last10'))} | {fmt(agg(ok, 'L1_ev'))} | "
+                     f"{med(recs)} | {sum(v == float('inf') for v in recs) if recs else '—'} | {cnt('false_confirm')} | {cnt('missed')} | "
+                     f"{cnt('same_as_ref')}/{sum(r.get('same_as_ref') is not None for r in ok)} | {fmt(max(am), 3) if am else '—'} |")
+        L.append("")
+    L += ["## 発散した実行", "", "| クラス | 条件 | seed | 手法 | 発散ブロック | a 最大（前半） | g 最小（先頭32ブロック） |", "|---|---|---:|---|---:|---:|---:|"]
+    L += [f"| {r['cls']} | {r['scen']} | {r['seed']} | {r['method']} | {r.get('div_block', '—')} | {fmt(r.get('a_max_early'), 3)} | {fmt(r.get('g_min32'), 3)} |"
+          for r in rows if r["div"]]
+    L += ["", "## 対応のある差（cap − 変更前、両方完走した実行）", "", "| 組 | 条件 | L1 whole の差 | L1 直後2秒の差 | 対数 |", "|---|---|---:|---:|---:|"]
+    key = lambda r: (r["cls"], r["scen"], r["seed"])
+    for a, b in (("nors-cap", "nors"), ("P5-early-cap", "P5-early")):
+        for scen in PILOT_SCEN + ("全条件",):
+            A = {key(r): r for r in rows if r["method"] == a and not r["div"] and scen in (r["scen"], "全条件")}
+            Bm = {key(r): r for r in rows if r["method"] == b and not r["div"] and scen in (r["scen"], "全条件")}
+            ks = sorted(set(A) & set(Bm))
+            dif = lambda k_: [A[k][k_] - Bm[k][k_] for k in ks if A[k].get(k_) is not None and Bm[k].get(k_) is not None]
+            L.append(f"| {a} − {b} | {scen} | {fmt(float(np.mean(dif('L1_whole'))) if dif('L1_whole') else None, 3)} | "
+                     f"{fmt(float(np.mean(dif('L1_ev'))) if dif('L1_ev') else None, 3)} | {len(ks)} |")
+    L += ["", "## クラスごとの a 最大（前半、変更前の P5-early）と発散", "", "| クラス | a 最大 | a>0.55 の実行 | 発散（P5-early） | 発散（P5-early-cap） |", "|---|---:|---:|---:|---:|"]
+    for c in PILOT_CLASSES:
+        rc = [r for r in rows if r["cls"] == c and r["method"] == "P5-early"]; am = [r["a_max_early"] for r in rc if r.get("a_max_early") is not None]
+        L.append(f"| {c} | {fmt(max(am), 3) if am else '—'} | {sum(v > 0.55 for v in am)}/{len(am)} | {sum(r['div'] for r in rc)} | "
+                 f"{sum(r['div'] for r in rows if r['cls'] == c and r['method'] == 'P5-early-cap')} |")
+    (HERE / "RESULTS_final_cap.md").write_text("\n".join(L) + "\n", encoding="utf-8")
+    print("wrote RESULTS_final_cap.md", len(rows), "rows")
 
 
 def pilot(procs, smoke):
@@ -738,7 +853,7 @@ def check():
 
 def main():
     a = argparse.ArgumentParser()
-    a.add_argument("cmd", choices=("check", "pilot", "report"))
+    a.add_argument("cmd", choices=("check", "pilot", "report", "cap"))
     a.add_argument("--procs", type=int, default=os.cpu_count() or 1)
     a.add_argument("--smoke", action="store_true")
     o = a.parse_args()
@@ -746,6 +861,8 @@ def main():
         check()
     elif o.cmd == "pilot":
         pilot(o.procs, o.smoke)
+    elif o.cmd == "cap":
+        cap(o.procs)
     else:
         report(o.smoke)
 
