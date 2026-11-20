@@ -325,6 +325,10 @@ class P4Cap(_CapMixin, q4.P4):
     pass
 
 
+class AlwaysTrialCap(_CapMixin, AlwaysTrial):
+    pass
+
+
 class SwitchedFrame(q4.Frame4):
     """Use each sample's active model for the synthesis of frozen errors."""
 
@@ -379,8 +383,13 @@ def run_rule(label, dd, Rall, st, X4, nb=None, hook=None):
         rule = q4.P4(q4.config(K=16, win="B", abort=4.0), dd, nbr, X4)
     elif label == "P5-early-cap":
         rule = P5Cap(q5.config(early_ok=(4, 0.25)), dd, nbr, X4)
-    elif label == "nors-cap":
+    elif label in ("nors-cap", "ND-always-cap"):
         rule = P4Cap(q4.config(restart=False), dd, nbr, X4)
+    elif label == "P4-cap":
+        rule = P4Cap(q4.config(K=16, win="B", abort=4.0), dd, nbr, X4)
+    elif label == "TP-always-cap":
+        cfg = q5.config(early_ok=(4, 0.25)); cfg["restart"] = False
+        rule = AlwaysTrialCap(cfg, dd, nbr, X4)
     elif label in ("nors", "ND-always"):
         rule = q4.P4(q4.config(restart=False), dd, nbr, X4)
     elif label == "SF-fix":
@@ -388,8 +397,8 @@ def run_rule(label, dd, Rall, st, X4, nb=None, hook=None):
     else:
         raise ValueError(label)
     if frame:
-        rule.frame = (SwitchedFrame(dd, rule, always=label == "ND-always")
-                      if len(dd["hSm_seq"]) > 1 or label == "ND-always" else q4.Frame4(dd, rule))
+        nd = label in ("ND-always", "ND-always-cap")
+        rule.frame = SwitchedFrame(dd, rule, always=nd) if len(dd["hSm_seq"]) > 1 or nd else q4.Frame4(dd, rule)
     t0 = time.perf_counter()
     sim = simulate(dd, Rall, st, rule, nb=nb, error_frame=rule.frame if frame else None, hook=hook)
     sim["seconds"] = time.perf_counter() - t0
@@ -1033,9 +1042,181 @@ def check():
     print("check 13 ok: foreground/background cap and original late-step log")
 
 
+# ----------------------------------------------------------------------------------------------
+# S3: final evaluation.  --dry = the same pipeline on design seeds 10-12 (no reserved seed is touched).
+# ----------------------------------------------------------------------------------------------
+FINAL_CLASSES = ("G", "II300", "a145", "a120") + REAL
+FINAL_SCEN = ("stat", "RS-near", "RS-far", "RM-10", "RM-40", "RM-10s", "EN0", "ENm10")
+FINAL_RULES = ("nors-cap", "P5-early-cap", "P5-early-noG", "P4-cap", "TP-always-cap", "ND-always-cap", "SF-fix")
+FINAL_SEEDS = tuple(range(100, 120))
+DRY_SEEDS = (10, 11, 12)
+PROPOSED = "P5-early-cap"
+FINAL_VERSION = 1
+
+
+def final_dir(dry):
+    return HERE / "out" / ("final_dry" if dry else "final_run")
+
+
+def has_post(scen):
+    return scen.startswith(("RS-", "RM-"))
+
+
+def run_final_job(job):
+    cls, scen, seed, dry = job
+    f = final_dir(dry) / f"{cls}_{scen}_s{seed}.json"
+    if f.exists() and json.loads(f.read_text()).get("version") == FINAL_VERSION:
+        return
+    t0 = time.monotonic()
+    tune_ = json.loads((HERE / "TUNE.json").read_text())
+    assert tune_["Ls"] == LS_FINAL and tune_["hp_hz"] == HP_HZ
+    X4 = p.parse(["c5", "--preset", "final"]).X4
+    dd, Rall, st = build(cls, scen, seed, LS_FINAL, final=not dry)
+    post = build("%s" % cls, "post:" + scen, seed, LS_FINAL, final=not dry) if has_post(scen) else None
+    rows, ref = [], None
+    for label in FINAL_RULES:
+        rule, sim = run_rule(label, dd, Rall, st, X4)
+        pm = None
+        if post is not None:
+            _, ps = run_rule(label, post[0], post[1], post[2], X4)
+            pm = dict(e=ps["e"], d=post[0]["d"][:len(ps["e"])], div=ps["div"])
+        row = dict(method=label, kind="rule", variant="main", **measures(sim, dd, pm),
+                   **trial_stats(rule, dict(dd, scored_blocks=sim["n_done"])))
+        if label == "nors-cap":
+            ref = sim
+        elif ref is not None and not sim["div"] and not ref["div"]:
+            row["same_as_nors"] = int(np.array_equal(sim["e"], ref["e"]) and np.array_equal(sim["y"], ref["y"]))
+        rows.append(row)
+    for name in BASE:
+        settings = [("main", tune_["chosen"][name])]
+        pc = tune_["per_class"][name][cls]
+        if scen in TUNE_SCEN and pc["key"] != tune_["chosen"][name]["key"]:
+            settings.append(("class", pc))
+        for variant, s_ in settings:
+            sim = run_baseline(name, s_["mu"], s_["params"], dd)
+            pm = None
+            if post is not None:
+                ps = run_baseline(name, s_["mu"], s_["params"], post[0])
+                pm = dict(e=ps["e"], d=post[0]["d"][:len(ps["e"])], div=ps["div"])
+            rows.append(dict(method=name, kind="base", variant=variant, key=s_["key"], mu=s_["mu"], **measures(sim, dd, pm)))
+    for r in rows:
+        r.update(cls=cls, scen=scen, seed=int(seed))
+    f.parent.mkdir(parents=True, exist_ok=True)
+    ab.atomic_write(f, lambda h: json.dump(dict(version=FINAL_VERSION, rows=rows, wall_seconds=time.monotonic() - t0), h))
+    print(f"{f.stem}: {len(rows)} rows, div={sum(r['div'] for r in rows)}, {time.monotonic() - t0:.0f} s", flush=True)
+
+
+def final_jobs(dry):
+    return [(c, s, sd, dry) for sd in (DRY_SEEDS if dry else FINAL_SEEDS) for c in FINAL_CLASSES for s in FINAL_SCEN]
+
+
+def final_run(procs, dry, shard):
+    if not dry and not (HERE / "EVAL_FROZEN.json").exists():
+        raise SystemExit("EVAL_FROZEN.json is required for the final run")
+    jobs = final_jobs(dry)
+    k, n = shard
+    jobs = [j for i, j in enumerate(jobs) if i % n == k]
+    with Pool(procs) as pool:
+        list(pool.imap_unordered(run_final_job, jobs))
+
+
+def seed_table(rows, key):
+    """{seed: mean over classes of the per-class mean of key} for the rows given."""
+    out = {}
+    for sd in sorted({r["seed"] for r in rows}):
+        v = class_mean([r for r in rows if r["seed"] == sd], key)
+        if v is not None:
+            out[sd] = v
+    return out
+
+
+def paired(rows_a, rows_b, key, n_boot=2000):
+    """Mean and 95% interval (seeds resampled) of key(a) - key(b) over runs that both completed."""
+    idx = lambda rows: {(r["cls"], r["seed"]): r[key] for r in rows if not r["div"] and r.get(key) is not None}
+    A, Bm = idx(rows_a), idx(rows_b)
+    ks = sorted(set(A) & set(Bm))
+    if not ks:
+        return None
+    per_seed = {}
+    for c, sd in ks:
+        per_seed.setdefault(sd, {}).setdefault(c, []).append(A[(c, sd)] - Bm[(c, sd)])
+    vals = np.array([np.mean([np.mean(v) for v in per_seed[sd].values()]) for sd in sorted(per_seed)])
+    rng = np.random.default_rng(0)
+    boot = rng.choice(vals, size=(n_boot, len(vals)), replace=True).mean(axis=1)
+    return float(vals.mean()), float(np.quantile(boot, 0.025)), float(np.quantile(boot, 0.975)), len(ks)
+
+
+def final_report(dry):
+    jobs = final_jobs(dry); d = final_dir(dry)
+    missing = [j for j in jobs if not (d / f"{j[0]}_{j[1]}_s{j[2]}.json").exists()]
+    rows = [r for c, s, sd, _ in jobs if (d / f"{c}_{s}_s{sd}.json").exists()
+            for r in json.loads((d / f"{c}_{s}_s{sd}.json").read_text())["rows"]]
+    title = "最終評価の予行（設計用 seed 10–12）" if dry else "最終評価（seed 100–119）"
+    L = [f"# {title}", "", f"Ŝ {LS_FINAL} タップ、高域通過 {HP_HZ:g} Hz、提案法 = {PROPOSED}。外部手法は TUNE.json の全条件共通の設定（main）。",
+         f"完了 {len(jobs) - len(missing)}/{len(jobs)} 条件。表は自動生成。L1 はクラス平均（クラスを等しい重みで平均、完走した実行のみ、dB）。"
+         "rec は回復までのブロック数の中央値（打ち切りを含む。中央値が打ち切りなら「打切」）。", ""]
+    methods = list(FINAL_RULES) + list(BASE)
+    main = [r for r in rows if r["variant"] == "main"]
+    for scen in FINAL_SCEN:
+        rs = [r for r in main if r["scen"] == scen]
+        if not rs:
+            continue
+        L += [f"## {scen}", "", "| 手法 | 試行 | 発散 | L1 whole | L1 last10 | L1 直後2秒 | rec 中央値 | 打切 | 誤確定 | 見逃し | nors と一致 | 提案 − 当手法：L1 whole [95%] | 同：直後2秒 [95%] |",
+              "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|"]
+        prop = [r for r in rs if r["method"] == PROPOSED]
+        for m in methods:
+            rm = [r for r in rs if r["method"] == m]; ok = [r for r in rm if not r["div"]]
+            recs = [float("inf") if r["rec_blocks"] is None else r["rec_blocks"] for r in ok if r.get("rec_cens") is not None]
+            med = "—" if not recs else ("打切" if np.isinf(np.median(recs)) else fmt(float(np.median(recs)), 1))
+            cnt = lambda k: "—" if all(r.get(k) is None for r in ok) else str(sum(r.get(k) or 0 for r in ok))
+            same = [r["same_as_nors"] for r in ok if r.get("same_as_nors") is not None]
+            pd_ = lambda key: (lambda v: "—" if v is None or m == PROPOSED else f"{v[0]:+.2f} [{v[1]:+.2f}, {v[2]:+.2f}]（{v[3]}）")(paired(prop, rm, key))
+            L.append(f"| {m} | {len(rm)} | {sum(r['div'] for r in rm)} | {fmt(class_mean(ok, 'L1_whole'))} | {fmt(class_mean(ok, 'L1_last10'))} | "
+                     f"{fmt(class_mean(ok, 'L1_ev'))} | {med} | {sum(np.isinf(v) for v in recs) if recs else '—'} | {cnt('false_confirm')} | {cnt('missed')} | "
+                     f"{(str(sum(same)) + '/' + str(len(same))) if same else '—'} | {pd_('L1_whole')} | {pd_('L1_ev')} |")
+        L.append("")
+    L += ["## クラスごとの L1 whole（stat、main）", "", "| 手法 | " + " | ".join(FINAL_CLASSES) + " |", "|---|" + "---:|" * len(FINAL_CLASSES)]
+    for m in methods:
+        L.append(f"| {m} | " + " | ".join(fmt(agg([r for r in main if r["scen"] == "stat" and r["method"] == m and r["cls"] == c and not r["div"]], "L1_whole"))
+                                          for c in FINAL_CLASSES) + " |")
+    for scen in ("RS-near", "RS-far", "RM-10", "RM-40"):
+        L += ["", f"## クラスごとの回復の中央値（{scen}、main。括弧は打ち切りの件数）", "", "| 手法 | " + " | ".join(FINAL_CLASSES) + " |", "|---|" + "---:|" * len(FINAL_CLASSES)]
+        for m in methods:
+            cells = []
+            for c in FINAL_CLASSES:
+                rc = [r for r in main if r["scen"] == scen and r["method"] == m and r["cls"] == c and not r["div"] and r.get("rec_cens") is not None]
+                v = [float("inf") if r["rec_blocks"] is None else r["rec_blocks"] for r in rc]
+                cells.append("—" if not v else (("打切" if np.isinf(np.median(v)) else fmt(float(np.median(v)), 0)) + f"（{sum(np.isinf(x) for x in v)}）"))
+            L.append(f"| {m} | " + " | ".join(cells) + " |")
+    L += ["", "## 補助表：外部手法をクラスごとの最良の設定にした場合（stat と RS-far。提案法は共通の設定のまま）", "",
+          "| 条件 | 手法 | 発散 | L1 whole | L1 直後2秒 | rec 中央値 | 提案 − 当手法：L1 whole [95%] |", "|---|---|---:|---:|---:|---:|---|"]
+    for scen in TUNE_SCEN:
+        prop = [r for r in main if r["scen"] == scen and r["method"] == PROPOSED]
+        for m in BASE:
+            best = {}
+            for r in rows:
+                if r["scen"] == scen and r["method"] == m:
+                    k = (r["cls"], r["seed"])
+                    if k not in best or r["variant"] == "class":
+                        best[k] = r
+            rm = list(best.values()); ok = [r for r in rm if not r["div"]]
+            recs = [float("inf") if r["rec_blocks"] is None else r["rec_blocks"] for r in ok if r.get("rec_cens") is not None]
+            v = paired(prop, rm, "L1_whole")
+            L.append(f"| {scen} | {m} | {sum(r['div'] for r in rm)} | {fmt(class_mean(ok, 'L1_whole'))} | {fmt(class_mean(ok, 'L1_ev'))} | "
+                     f"{'—' if not recs else ('打切' if np.isinf(np.median(recs)) else fmt(float(np.median(recs)), 1))} | "
+                     f"{'—' if v is None else f'{v[0]:+.2f} [{v[1]:+.2f}, {v[2]:+.2f}]（{v[3]}）'} |")
+    L += ["", "## 計算時間（1 実行あたりの平均、秒）", "", "| 手法 | 秒 |", "|---|---:|"]
+    L += [f"| {m} | {fmt(agg([r for r in main if r['method'] == m], 'seconds'), 2)} |" for m in methods]
+    name = "RESULTS_final_dry.md" if dry else "RESULTS_final.md"
+    (HERE / name).write_text("\n".join(L) + "\n", encoding="utf-8")
+    print("wrote", name, len(rows), "rows; missing", len(missing))
+
+
 def main():
     a = argparse.ArgumentParser()
-    a.add_argument("cmd", choices=("check", "pilot", "report", "cap", "tune"))
+    a.add_argument("cmd", choices=("check", "pilot", "report", "cap", "tune", "final", "final-report"))
+    a.add_argument("--dry", action="store_true")
+    a.add_argument("--shard", default="0/1", help="k/n: run the jobs with index k modulo n")
     a.add_argument("--ls", type=int, default=256, choices=(256, 512))
     a.add_argument("--procs", type=int, default=os.cpu_count() or 1)
     a.add_argument("--smoke", action="store_true")
@@ -1048,6 +1229,10 @@ def main():
         cap(o.procs, o.ls)
     elif o.cmd == "tune":
         tune(o.procs)
+    elif o.cmd == "final":
+        final_run(o.procs, o.dry, tuple(int(v) for v in o.shard.split("/")))
+    elif o.cmd == "final-report":
+        final_report(o.dry)
     else:
         report(o.smoke)
 
