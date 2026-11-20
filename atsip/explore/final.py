@@ -608,8 +608,10 @@ def cap_dir(Ls):
 def run_cap_job(job):
     cls, scen, seed, Ls = job
     f = cap_dir(Ls) / f"{cls}_{scen}_s{seed}.json"
-    if f.exists() and json.loads(f.read_text()).get("version") == CAP_VERSION:
-        return
+    if f.exists():
+        cached = json.loads(f.read_text())
+        if cached.get("version") == CAP_VERSION and cached.get("Ls", 256) == Ls:
+            return
     t0 = time.monotonic()
     X4 = p.parse(["c5", "--preset", "final"]).X4
     dd, Rall, st = build(cls, scen, seed, Ls)
@@ -633,7 +635,7 @@ def run_cap_job(job):
             row["same_as_ref"] = int(all(np.array_equal(sim[k], r0[k]) for k in ("e", "y")))
         rows.append(row)
     f.parent.mkdir(parents=True, exist_ok=True)
-    ab.atomic_write(f, lambda h: json.dump(dict(version=CAP_VERSION, rows=rows), h))
+    ab.atomic_write(f, lambda h: json.dump(dict(version=CAP_VERSION, Ls=Ls, rows=rows), h))
     print(f"{f.stem}: div={[r['div'] for r in rows]}, {time.monotonic() - t0:.0f} s", flush=True)
 
 
@@ -642,7 +644,7 @@ def cap(procs, Ls=256):
     with Pool(procs) as pool:
         list(pool.imap_unordered(run_cap_job, jobs))
     files = [json.loads((cap_dir(Ls) / f"{c}_{s}_s{sd}.json").read_text()) for c, s, sd, _ in jobs]
-    if any(f["version"] != CAP_VERSION or tuple(r["method"] for r in f["rows"]) != CAP_RULES for f in files):
+    if any(f["version"] != CAP_VERSION or f.get("Ls", 256) != Ls or tuple(r["method"] for r in f["rows"]) != CAP_RULES for f in files):
         raise ValueError("Incomplete or stale S1c results")
     rows = [r for f in files for r in f["rows"]]
 
@@ -652,7 +654,8 @@ def cap(procs, Ls=256):
         mid = float(np.median(values))
         return "打切" if np.isinf(mid) else fmt(mid, 1)
 
-    L = [f"# S1c：前半のステップに使う g の下限（設計用 seed 10–14、Ŝ {Ls}）", "",
+    stage = "S1c" if Ls == 256 else "S1d"
+    L = [f"# {stage}：前半のステップに使う g の下限（設計用 seed 10–14、Ŝ {Ls}）", "",
          f"cap = 作り直した誤差で進む更新（前半と裏の試行）だけ g の下限を {GE_CAP} にする（a ≤ {0.25 / GE_CAP:.3f}）。後半は変更なし。",
          "表は自動生成。L1 は完走した実行の平均（dB）。rec は回復までのブロック数の中央値（打ち切りを含む）。", ""]
     for scen in PILOT_SCEN:
@@ -707,13 +710,27 @@ def tune_grid(name):
     mu0, par = BASE[name]
     if name == "Th_FxNLMS":
         return [(f"x{k:g}|c{c:g}", mu0 * k, dict(par, c1=-c, c2=c)) for c in TH_LIMITS for k in TUNE_FACTORS]
-    return [(f"x{k:g}", mu0 * k, par) for k in TUNE_FACTORS]
+    return [(f"x{k:g}", mu0 * k, dict(par)) for k in TUNE_FACTORS]
+
+
+def tune_case_path(cls, scen, seed):
+    return TUNE_DIR / f"{cls}_{scen}_s{seed}.json"
+
+
+def tune_case_rows(obj, cls, scen, seed):
+    expected = [(method, key, mu, cls, scen, seed)
+                for method in BASE for key, mu, _ in tune_grid(method)]
+    rows = obj.get("rows", [])
+    fields = ("method", "key", "mu", "cls", "scen", "seed")
+    if obj.get("version") != TUNE_VERSION or [tuple(r.get(k) for k in fields) for r in rows] != expected:
+        return None
+    return rows
 
 
 def run_tune_job(job):
     cls, scen, seed = job
-    f = TUNE_DIR / f"{cls}_{scen}_s{seed}.json"
-    if f.exists() and json.loads(f.read_text()).get("version") == TUNE_VERSION:
+    f = tune_case_path(cls, scen, seed)
+    if f.exists() and tune_case_rows(json.loads(f.read_text()), cls, scen, seed) is not None:
         return
     t0 = time.monotonic()
     dd, _, _ = build(cls, scen, seed, LS_FINAL)
@@ -740,11 +757,17 @@ def tune(procs):
     jobs = [(c, s, sd) for c in PILOT_CLASSES for s in TUNE_SCEN for sd in TUNE_SEEDS]
     with Pool(procs) as pool:
         list(pool.imap_unordered(run_tune_job, jobs))
-    rows = [r for c, s, sd in jobs for r in json.loads((TUNE_DIR / f"{c}_{s}_s{sd}.json").read_text())["rows"]]
+    rows = []
+    for c, s, sd in jobs:
+        case = tune_case_rows(json.loads(tune_case_path(c, s, sd).read_text()), c, s, sd)
+        if case is None:
+            raise ValueError(f"Incomplete tune cache: {c}/{s}/s{sd}")
+        rows.extend(case)
     L = [f"# S2：外部手法のステップ探索（設計用 seed 10–14、Ŝ {LS_FINAL}、条件 {'・'.join(TUNE_SCEN)}）", "",
          "選び方（事前に固定）：発散が最も少ない設定の中で、L1 whole のクラス平均（クラスを等しい重みで平均。完走した実行のみ）が最小のもの。"
          "発散 0 件の設定がない手法は、その旨を示す。表は自動生成。", ""]
     chosen, per_class = {}, {}
+    render_key = lambda key: key.replace("|", "\\|")
     for name in BASE:
         L += [f"## {name}", "", "| 設定 | ステップ | 発散 | L1 whole（クラス平均） | L1 last10 | L1 直後2秒 | 選択 |", "|---|---:|---:|---:|---:|---:|---|"]
         cand = []
@@ -752,9 +775,9 @@ def tune(procs):
             rk = [r for r in rows if r["method"] == name and r["key"] == key]; ok = [r for r in rk if not r["div"]]
             cand.append((sum(r["div"] for r in rk), class_mean(ok, "L1_whole") if ok else float("inf"), key, mu, par, ok))
         best = min(cand, key=lambda c: (c[0], c[1]))
-        chosen[name] = dict(key=best[2], mu=best[3], params=best[4], div=best[0], L1_whole=best[1])
+        chosen[name] = dict(key=best[2], mu=best[3], params=best[4], div=best[0], L1_whole=best[1] if np.isfinite(best[1]) else None)
         for ndiv, l1, key, mu, par, ok in cand:
-            L.append(f"| {key} | {mu:.6g} | {ndiv} | {fmt(l1 if np.isfinite(l1) else None)} | {fmt(class_mean(ok, 'L1_last10'))} | "
+            L.append(f"| {render_key(key)} | {mu:.6g} | {ndiv} | {fmt(l1 if np.isfinite(l1) else None)} | {fmt(class_mean(ok, 'L1_last10'))} | "
                      f"{fmt(class_mean(ok, 'L1_ev'))} | {'○' if key == best[2] else ''} |")
         L.append("")
         per_class[name] = {}
@@ -767,15 +790,15 @@ def tune(procs):
             per_class[name][c] = dict(key=b[2], mu=b[3], params=b[4], div=b[0], L1_whole=b[1] if np.isfinite(b[1]) else None)
     L += ["## 選ばれた設定", "", "| 手法 | 設定 | ステップ | 発散 | L1 whole | 格子の端か |", "|---|---|---:|---:|---:|---|"]
     for name, c in chosen.items():
-        keys = [k for k, _, _ in tune_grid(name)]; fac = c["key"].split("|")[0]
+        fac = c["key"].split("|")[0]
         edge = "下端" if fac == f"x{TUNE_FACTORS[0]:g}" else ("上端" if fac == f"x{TUNE_FACTORS[-1]:g}" else "")
-        L.append(f"| {name} | {c['key']} | {c['mu']:.6g} | {c['div']} | {fmt(c['L1_whole'])} | {edge} |")
+        L.append(f"| {name} | {render_key(c['key'])} | {c['mu']:.6g} | {c['div']} | {fmt(c['L1_whole'])} | {edge} |")
     L += ["", "## クラスごとの最良の設定（補助表用。外部手法に有利な上限）", "", "| 手法 | " + " | ".join(PILOT_CLASSES) + " |", "|---|" + "---|" * len(PILOT_CLASSES)]
     for name in BASE:
-        L.append(f"| {name} | " + " | ".join(f"{per_class[name][c]['key']}（{fmt(per_class[name][c]['L1_whole'])}、発散 {per_class[name][c]['div']}）" for c in PILOT_CLASSES) + " |")
+        L.append(f"| {name} | " + " | ".join(f"{render_key(per_class[name][c]['key'])}（{fmt(per_class[name][c]['L1_whole'])}、発散 {per_class[name][c]['div']}）" for c in PILOT_CLASSES) + " |")
     (HERE / "RESULTS_final_tune.md").write_text("\n".join(L) + "\n", encoding="utf-8")
     ab.atomic_write(HERE / "TUNE.json", lambda h: json.dump(dict(Ls=LS_FINAL, hp_hz=HP_HZ, seeds=TUNE_SEEDS, scen=TUNE_SCEN, chosen=chosen,
-                                                                 per_class=per_class), h, indent=1))
+                                                                 per_class=per_class), h, indent=1, allow_nan=False))
     print("wrote RESULTS_final_tune.md and TUNE.json", len(rows), "runs")
 
 
