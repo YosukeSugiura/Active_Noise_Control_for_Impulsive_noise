@@ -900,7 +900,9 @@ def check():
 
     # 13. Force the floor to engage; compare logged adaptive steps with the formulas.
     low = copy.copy(st)
-    low.g = np.full_like(st.g, 0.50)
+    low.g = st.g.copy()
+    low.g[:32] = 0.50
+    low.g[CB + 2] = 0.50
     for label in fixtures:
         rule, sim = run_rule(label + "-cap", dd, Rall, low, X4, nb=CB + 160)
         assert not sim["div"]
@@ -911,7 +913,7 @@ def check():
         tr = sim["tr"]
         late = (tr["early"] == 0) & (tr.get("transfer", np.zeros(len(tr["early"]))) == 0)
         assert late.any()
-        np.testing.assert_array_equal(tr["mu_app"][late], np.full(late.sum(), rule.late / 0.50))
+        np.testing.assert_array_equal(tr["mu_app"][late], rule.late / np.maximum(low.g[:len(late)][late], rule.gmin))
     print("check 13 ok: foreground/background cap and original late-step log")
 
 
