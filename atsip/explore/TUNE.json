@@ -1,0 +1,975 @@
+{
+ "Ls": 512,
+ "hp_hz": 100.0,
+ "seeds": [
+  10,
+  11,
+  12,
+  13,
+  14
+ ],
+ "scen": [
+  "stat",
+  "RS-far"
+ ],
+ "chosen": {
+  "FxNLMS": {
+   "key": "x0.0625",
+   "mu": 0.01875,
+   "params": {},
+   "div": 0,
+   "L1_whole": -7.7789884416739135
+  },
+  "Th_FxNLMS": {
+   "key": "x0.0625|c200",
+   "mu": 0.01875,
+   "params": {
+    "c1": -200.0,
+    "c2": 200.0
+   },
+   "div": 0,
+   "L1_whole": -7.778979659750994
+  },
+  "FxlogNLMS": {
+   "key": "x0.03125",
+   "mu": 0.015625,
+   "params": {
+    "G_l": 10000.0
+   },
+   "div": 0,
+   "L1_whole": -2.040162843576171
+  },
+  "MFxLMM": {
+   "key": "x0.125",
+   "mu": 0.000125,
+   "params": {
+    "eps_l": 0.001,
+    "gzai_l": 0.05,
+    "lmd_l": 0.99
+   },
+   "div": 0,
+   "L1_whole": -6.712111722106531
+  },
+  "FxNFLOC": {
+   "key": "x1",
+   "mu": 0.1,
+   "params": {
+    "Ne": 512,
+    "Nx": 512,
+    "eps": 1e-12,
+    "omega": 0.01
+   },
+   "div": 0,
+   "L1_whole": -8.193642591940268
+  },
+  "EVSS_FxeLMS": {
+   "key": "x0.0625",
+   "mu": 0.003125,
+   "params": {
+    "alpha": 1.0,
+    "gamma": 0.0001,
+    "k": 0.2,
+    "lmd_e": 0.99
+   },
+   "div": 0,
+   "L1_whole": -6.568759165681389
+  },
+  "FreqFxLMS": {
+   "key": "x0.0625",
+   "mu": 0.0225,
+   "params": {
+    "M": 512,
+    "BlockSize": 128,
+    "eps": 1e-06
+   },
+   "div": 0,
+   "L1_whole": -7.413686499209705
+  },
+  "Freq_FxNLMS_CohVSS": {
+   "key": "x0.25",
+   "mu": 0.09,
+   "params": {
+    "M": 512,
+    "BlockSize": 128,
+    "eps": 1e-06,
+    "rg_alpha": 0.05,
+    "coh_pivot": 0.35,
+    "mu_scale_min": 0.6,
+    "mu_scale_max": 1.3,
+    "boost_power": 0.6,
+    "suppress_power": 1.6,
+    "coh_gain": 1.5,
+    "coh_weight_mix": 0.6,
+    "coh_weight_power": 1.6,
+    "coh_weight_min": 0.55,
+    "grad_norm_mix": 0.45
+   },
+   "div": 0,
+   "L1_whole": -9.204663167870665
+  }
+ },
+ "per_class": {
+  "FxNLMS": {
+   "G": {
+    "key": "x0.5",
+    "mu": 0.15,
+    "params": {},
+    "div": 0,
+    "L1_whole": -12.777749615377784
+   },
+   "a145": {
+    "key": "x0.25",
+    "mu": 0.075,
+    "params": {},
+    "div": 0,
+    "L1_whole": -9.965147780625163
+   },
+   "II300": {
+    "key": "x0.5",
+    "mu": 0.15,
+    "params": {},
+    "div": 0,
+    "L1_whole": -10.190727630855239
+   },
+   "machinegun": {
+    "key": "x0.03125",
+    "mu": 0.009375,
+    "params": {},
+    "div": 0,
+    "L1_whole": -2.5099325780966995
+   },
+   "factory1": {
+    "key": "x0.125",
+    "mu": 0.0375,
+    "params": {},
+    "div": 0,
+    "L1_whole": -8.646989707236317
+   },
+   "destroyerengine": {
+    "key": "x0.125",
+    "mu": 0.0375,
+    "params": {},
+    "div": 0,
+    "L1_whole": -11.120684299421846
+   },
+   "volvo": {
+    "key": "x0.03125",
+    "mu": 0.009375,
+    "params": {},
+    "div": 0,
+    "L1_whole": -5.566514552691453
+   },
+   "valve": {
+    "key": "x0.125",
+    "mu": 0.0375,
+    "params": {},
+    "div": 0,
+    "L1_whole": -8.082925146961447
+   },
+   "jackhammer": {
+    "key": "x0.125",
+    "mu": 0.0375,
+    "params": {},
+    "div": 0,
+    "L1_whole": -8.607478193173245
+   }
+  },
+  "Th_FxNLMS": {
+   "G": {
+    "key": "x0.5|c5",
+    "mu": 0.15,
+    "params": {
+     "c1": -5.0,
+     "c2": 5.0
+    },
+    "div": 0,
+    "L1_whole": -12.777749615377784
+   },
+   "a145": {
+    "key": "x0.25|c200",
+    "mu": 0.075,
+    "params": {
+     "c1": -200.0,
+     "c2": 200.0
+    },
+    "div": 0,
+    "L1_whole": -9.965071857207061
+   },
+   "II300": {
+    "key": "x0.5|c200",
+    "mu": 0.15,
+    "params": {
+     "c1": -200.0,
+     "c2": 200.0
+    },
+    "div": 0,
+    "L1_whole": -10.190727630855239
+   },
+   "machinegun": {
+    "key": "x0.03125|c5",
+    "mu": 0.009375,
+    "params": {
+     "c1": -5.0,
+     "c2": 5.0
+    },
+    "div": 0,
+    "L1_whole": -2.5099325780966995
+   },
+   "factory1": {
+    "key": "x0.125|c5",
+    "mu": 0.0375,
+    "params": {
+     "c1": -5.0,
+     "c2": 5.0
+    },
+    "div": 0,
+    "L1_whole": -8.646989707236317
+   },
+   "destroyerengine": {
+    "key": "x0.125|c5",
+    "mu": 0.0375,
+    "params": {
+     "c1": -5.0,
+     "c2": 5.0
+    },
+    "div": 0,
+    "L1_whole": -11.120684299421846
+   },
+   "volvo": {
+    "key": "x0.03125|c5",
+    "mu": 0.009375,
+    "params": {
+     "c1": -5.0,
+     "c2": 5.0
+    },
+    "div": 0,
+    "L1_whole": -5.566514552691453
+   },
+   "valve": {
+    "key": "x0.125|c10",
+    "mu": 0.0375,
+    "params": {
+     "c1": -10.0,
+     "c2": 10.0
+    },
+    "div": 0,
+    "L1_whole": -8.082925146961447
+   },
+   "jackhammer": {
+    "key": "x0.125|c5",
+    "mu": 0.0375,
+    "params": {
+     "c1": -5.0,
+     "c2": 5.0
+    },
+    "div": 0,
+    "L1_whole": -8.607478193173245
+   }
+  },
+  "FxlogNLMS": {
+   "G": {
+    "key": "x0.25",
+    "mu": 0.125,
+    "params": {
+     "G_l": 10000.0
+    },
+    "div": 0,
+    "L1_whole": -6.108783381411897
+   },
+   "a145": {
+    "key": "x0.0625",
+    "mu": 0.03125,
+    "params": {
+     "G_l": 10000.0
+    },
+    "div": 0,
+    "L1_whole": -0.24541853596064
+   },
+   "II300": {
+    "key": "x0.25",
+    "mu": 0.125,
+    "params": {
+     "G_l": 10000.0
+    },
+    "div": 0,
+    "L1_whole": -4.320735232239781
+   },
+   "machinegun": {
+    "key": "x0.03125",
+    "mu": 0.015625,
+    "params": {
+     "G_l": 10000.0
+    },
+    "div": 0,
+    "L1_whole": 9.800791327629273
+   },
+   "factory1": {
+    "key": "x0.125",
+    "mu": 0.0625,
+    "params": {
+     "G_l": 10000.0
+    },
+    "div": 0,
+    "L1_whole": -5.875282543885371
+   },
+   "destroyerengine": {
+    "key": "x0.125",
+    "mu": 0.0625,
+    "params": {
+     "G_l": 10000.0
+    },
+    "div": 0,
+    "L1_whole": -7.708983622483542
+   },
+   "volvo": {
+    "key": "x0.03125",
+    "mu": 0.015625,
+    "params": {
+     "G_l": 10000.0
+    },
+    "div": 0,
+    "L1_whole": -3.6053776812947325
+   },
+   "valve": {
+    "key": "x0.03125",
+    "mu": 0.015625,
+    "params": {
+     "G_l": 10000.0
+    },
+    "div": 0,
+    "L1_whole": -5.911728454307722
+   },
+   "jackhammer": {
+    "key": "x0.03125",
+    "mu": 0.015625,
+    "params": {
+     "G_l": 10000.0
+    },
+    "div": 0,
+    "L1_whole": -4.03998841657292
+   }
+  },
+  "MFxLMM": {
+   "G": {
+    "key": "x0.5",
+    "mu": 0.0005,
+    "params": {
+     "eps_l": 0.001,
+     "gzai_l": 0.05,
+     "lmd_l": 0.99
+    },
+    "div": 0,
+    "L1_whole": -11.994708867621968
+   },
+   "a145": {
+    "key": "x2",
+    "mu": 0.002,
+    "params": {
+     "eps_l": 0.001,
+     "gzai_l": 0.05,
+     "lmd_l": 0.99
+    },
+    "div": 0,
+    "L1_whole": -6.930775668142525
+   },
+   "II300": {
+    "key": "x0.5",
+    "mu": 0.0005,
+    "params": {
+     "eps_l": 0.001,
+     "gzai_l": 0.05,
+     "lmd_l": 0.99
+    },
+    "div": 0,
+    "L1_whole": -9.911502588482588
+   },
+   "machinegun": {
+    "key": "x0.03125",
+    "mu": 3.125e-05,
+    "params": {
+     "eps_l": 0.001,
+     "gzai_l": 0.05,
+     "lmd_l": 0.99
+    },
+    "div": 0,
+    "L1_whole": -2.733990316618864
+   },
+   "factory1": {
+    "key": "x0.25",
+    "mu": 0.00025,
+    "params": {
+     "eps_l": 0.001,
+     "gzai_l": 0.05,
+     "lmd_l": 0.99
+    },
+    "div": 0,
+    "L1_whole": -8.297524449990831
+   },
+   "destroyerengine": {
+    "key": "x0.125",
+    "mu": 0.000125,
+    "params": {
+     "eps_l": 0.001,
+     "gzai_l": 0.05,
+     "lmd_l": 0.99
+    },
+    "div": 0,
+    "L1_whole": -10.945079817816481
+   },
+   "volvo": {
+    "key": "x0.03125",
+    "mu": 3.125e-05,
+    "params": {
+     "eps_l": 0.001,
+     "gzai_l": 0.05,
+     "lmd_l": 0.99
+    },
+    "div": 0,
+    "L1_whole": -5.505346295364955
+   },
+   "valve": {
+    "key": "x0.125",
+    "mu": 0.000125,
+    "params": {
+     "eps_l": 0.001,
+     "gzai_l": 0.05,
+     "lmd_l": 0.99
+    },
+    "div": 0,
+    "L1_whole": -7.749027211278407
+   },
+   "jackhammer": {
+    "key": "x0.25",
+    "mu": 0.00025,
+    "params": {
+     "eps_l": 0.001,
+     "gzai_l": 0.05,
+     "lmd_l": 0.99
+    },
+    "div": 0,
+    "L1_whole": -8.557011709514342
+   }
+  },
+  "FxNFLOC": {
+   "G": {
+    "key": "x2",
+    "mu": 0.2,
+    "params": {
+     "Ne": 512,
+     "Nx": 512,
+     "eps": 1e-12,
+     "omega": 0.01
+    },
+    "div": 0,
+    "L1_whole": -12.514019096669704
+   },
+   "a145": {
+    "key": "x1",
+    "mu": 0.1,
+    "params": {
+     "Ne": 512,
+     "Nx": 512,
+     "eps": 1e-12,
+     "omega": 0.01
+    },
+    "div": 0,
+    "L1_whole": -8.303540080058912
+   },
+   "II300": {
+    "key": "x2",
+    "mu": 0.2,
+    "params": {
+     "Ne": 512,
+     "Nx": 512,
+     "eps": 1e-12,
+     "omega": 0.01
+    },
+    "div": 0,
+    "L1_whole": -10.338460332355336
+   },
+   "machinegun": {
+    "key": "x0.25",
+    "mu": 0.025,
+    "params": {
+     "Ne": 512,
+     "Nx": 512,
+     "eps": 1e-12,
+     "omega": 0.01
+    },
+    "div": 0,
+    "L1_whole": -3.950778607511959
+   },
+   "factory1": {
+    "key": "x1",
+    "mu": 0.1,
+    "params": {
+     "Ne": 512,
+     "Nx": 512,
+     "eps": 1e-12,
+     "omega": 0.01
+    },
+    "div": 0,
+    "L1_whole": -8.533385132504439
+   },
+   "destroyerengine": {
+    "key": "x1",
+    "mu": 0.1,
+    "params": {
+     "Ne": 512,
+     "Nx": 512,
+     "eps": 1e-12,
+     "omega": 0.01
+    },
+    "div": 0,
+    "L1_whole": -11.018859932563206
+   },
+   "volvo": {
+    "key": "x0.25",
+    "mu": 0.025,
+    "params": {
+     "Ne": 512,
+     "Nx": 512,
+     "eps": 1e-12,
+     "omega": 0.01
+    },
+    "div": 0,
+    "L1_whole": -5.512762737125351
+   },
+   "valve": {
+    "key": "x1",
+    "mu": 0.1,
+    "params": {
+     "Ne": 512,
+     "Nx": 512,
+     "eps": 1e-12,
+     "omega": 0.01
+    },
+    "div": 0,
+    "L1_whole": -8.18165099322184
+   },
+   "jackhammer": {
+    "key": "x1",
+    "mu": 0.1,
+    "params": {
+     "Ne": 512,
+     "Nx": 512,
+     "eps": 1e-12,
+     "omega": 0.01
+    },
+    "div": 0,
+    "L1_whole": -8.48846293134955
+   }
+  },
+  "EVSS_FxeLMS": {
+   "G": {
+    "key": "x0.5",
+    "mu": 0.025,
+    "params": {
+     "alpha": 1.0,
+     "gamma": 0.0001,
+     "k": 0.2,
+     "lmd_e": 0.99
+    },
+    "div": 0,
+    "L1_whole": -12.513180787179838
+   },
+   "a145": {
+    "key": "x2",
+    "mu": 0.1,
+    "params": {
+     "alpha": 1.0,
+     "gamma": 0.0001,
+     "k": 0.2,
+     "lmd_e": 0.99
+    },
+    "div": 0,
+    "L1_whole": -8.920322319748866
+   },
+   "II300": {
+    "key": "x0.5",
+    "mu": 0.025,
+    "params": {
+     "alpha": 1.0,
+     "gamma": 0.0001,
+     "k": 0.2,
+     "lmd_e": 0.99
+    },
+    "div": 0,
+    "L1_whole": -10.450462021934646
+   },
+   "machinegun": {
+    "key": "x0.03125",
+    "mu": 0.0015625,
+    "params": {
+     "alpha": 1.0,
+     "gamma": 0.0001,
+     "k": 0.2,
+     "lmd_e": 0.99
+    },
+    "div": 0,
+    "L1_whole": -2.7369966319372203
+   },
+   "factory1": {
+    "key": "x0.25",
+    "mu": 0.0125,
+    "params": {
+     "alpha": 1.0,
+     "gamma": 0.0001,
+     "k": 0.2,
+     "lmd_e": 0.99
+    },
+    "div": 0,
+    "L1_whole": -8.57471366880175
+   },
+   "destroyerengine": {
+    "key": "x0.125",
+    "mu": 0.00625,
+    "params": {
+     "alpha": 1.0,
+     "gamma": 0.0001,
+     "k": 0.2,
+     "lmd_e": 0.99
+    },
+    "div": 0,
+    "L1_whole": -10.991135357225996
+   },
+   "volvo": {
+    "key": "x0.03125",
+    "mu": 0.0015625,
+    "params": {
+     "alpha": 1.0,
+     "gamma": 0.0001,
+     "k": 0.2,
+     "lmd_e": 0.99
+    },
+    "div": 0,
+    "L1_whole": -5.55158594234356
+   },
+   "valve": {
+    "key": "x0.125",
+    "mu": 0.00625,
+    "params": {
+     "alpha": 1.0,
+     "gamma": 0.0001,
+     "k": 0.2,
+     "lmd_e": 0.99
+    },
+    "div": 0,
+    "L1_whole": -7.849483494417666
+   },
+   "jackhammer": {
+    "key": "x0.125",
+    "mu": 0.00625,
+    "params": {
+     "alpha": 1.0,
+     "gamma": 0.0001,
+     "k": 0.2,
+     "lmd_e": 0.99
+    },
+    "div": 0,
+    "L1_whole": -8.435859674495202
+   }
+  },
+  "FreqFxLMS": {
+   "G": {
+    "key": "x1",
+    "mu": 0.36,
+    "params": {
+     "M": 512,
+     "BlockSize": 128,
+     "eps": 1e-06
+    },
+    "div": 0,
+    "L1_whole": -12.717628924237587
+   },
+   "a145": {
+    "key": "x0.5",
+    "mu": 0.18,
+    "params": {
+     "M": 512,
+     "BlockSize": 128,
+     "eps": 1e-06
+    },
+    "div": 0,
+    "L1_whole": -10.383496487555089
+   },
+   "II300": {
+    "key": "x0.5",
+    "mu": 0.18,
+    "params": {
+     "M": 512,
+     "BlockSize": 128,
+     "eps": 1e-06
+    },
+    "div": 0,
+    "L1_whole": -10.4354923498095
+   },
+   "machinegun": {
+    "key": "x0.03125",
+    "mu": 0.01125,
+    "params": {
+     "M": 512,
+     "BlockSize": 128,
+     "eps": 1e-06
+    },
+    "div": 0,
+    "L1_whole": -3.489035867402694
+   },
+   "factory1": {
+    "key": "x0.25",
+    "mu": 0.09,
+    "params": {
+     "M": 512,
+     "BlockSize": 128,
+     "eps": 1e-06
+    },
+    "div": 0,
+    "L1_whole": -8.60282516826832
+   },
+   "destroyerengine": {
+    "key": "x0.0625",
+    "mu": 0.0225,
+    "params": {
+     "M": 512,
+     "BlockSize": 128,
+     "eps": 1e-06
+    },
+    "div": 0,
+    "L1_whole": -9.37126820685882
+   },
+   "volvo": {
+    "key": "x0.03125",
+    "mu": 0.01125,
+    "params": {
+     "M": 512,
+     "BlockSize": 128,
+     "eps": 1e-06
+    },
+    "div": 0,
+    "L1_whole": -5.3930290785050925
+   },
+   "valve": {
+    "key": "x0.125",
+    "mu": 0.045,
+    "params": {
+     "M": 512,
+     "BlockSize": 128,
+     "eps": 1e-06
+    },
+    "div": 0,
+    "L1_whole": -7.885231109772296
+   },
+   "jackhammer": {
+    "key": "x0.25",
+    "mu": 0.09,
+    "params": {
+     "M": 512,
+     "BlockSize": 128,
+     "eps": 1e-06
+    },
+    "div": 0,
+    "L1_whole": -8.430044419284506
+   }
+  },
+  "Freq_FxNLMS_CohVSS": {
+   "G": {
+    "key": "x0.5",
+    "mu": 0.18,
+    "params": {
+     "M": 512,
+     "BlockSize": 128,
+     "eps": 1e-06,
+     "rg_alpha": 0.05,
+     "coh_pivot": 0.35,
+     "mu_scale_min": 0.6,
+     "mu_scale_max": 1.3,
+     "boost_power": 0.6,
+     "suppress_power": 1.6,
+     "coh_gain": 1.5,
+     "coh_weight_mix": 0.6,
+     "coh_weight_power": 1.6,
+     "coh_weight_min": 0.55,
+     "grad_norm_mix": 0.45
+    },
+    "div": 0,
+    "L1_whole": -12.866690563171858
+   },
+   "a145": {
+    "key": "x0.25",
+    "mu": 0.09,
+    "params": {
+     "M": 512,
+     "BlockSize": 128,
+     "eps": 1e-06,
+     "rg_alpha": 0.05,
+     "coh_pivot": 0.35,
+     "mu_scale_min": 0.6,
+     "mu_scale_max": 1.3,
+     "boost_power": 0.6,
+     "suppress_power": 1.6,
+     "coh_gain": 1.5,
+     "coh_weight_mix": 0.6,
+     "coh_weight_power": 1.6,
+     "coh_weight_min": 0.55,
+     "grad_norm_mix": 0.45
+    },
+    "div": 0,
+    "L1_whole": -10.88377742285922
+   },
+   "II300": {
+    "key": "x0.25",
+    "mu": 0.09,
+    "params": {
+     "M": 512,
+     "BlockSize": 128,
+     "eps": 1e-06,
+     "rg_alpha": 0.05,
+     "coh_pivot": 0.35,
+     "mu_scale_min": 0.6,
+     "mu_scale_max": 1.3,
+     "boost_power": 0.6,
+     "suppress_power": 1.6,
+     "coh_gain": 1.5,
+     "coh_weight_mix": 0.6,
+     "coh_weight_power": 1.6,
+     "coh_weight_min": 0.55,
+     "grad_norm_mix": 0.45
+    },
+    "div": 0,
+    "L1_whole": -11.197081985261516
+   },
+   "machinegun": {
+    "key": "x0.25",
+    "mu": 0.09,
+    "params": {
+     "M": 512,
+     "BlockSize": 128,
+     "eps": 1e-06,
+     "rg_alpha": 0.05,
+     "coh_pivot": 0.35,
+     "mu_scale_min": 0.6,
+     "mu_scale_max": 1.3,
+     "boost_power": 0.6,
+     "suppress_power": 1.6,
+     "coh_gain": 1.5,
+     "coh_weight_mix": 0.6,
+     "coh_weight_power": 1.6,
+     "coh_weight_min": 0.55,
+     "grad_norm_mix": 0.45
+    },
+    "div": 0,
+    "L1_whole": -4.387764995457148
+   },
+   "factory1": {
+    "key": "x0.25",
+    "mu": 0.09,
+    "params": {
+     "M": 512,
+     "BlockSize": 128,
+     "eps": 1e-06,
+     "rg_alpha": 0.05,
+     "coh_pivot": 0.35,
+     "mu_scale_min": 0.6,
+     "mu_scale_max": 1.3,
+     "boost_power": 0.6,
+     "suppress_power": 1.6,
+     "coh_gain": 1.5,
+     "coh_weight_mix": 0.6,
+     "coh_weight_power": 1.6,
+     "coh_weight_min": 0.55,
+     "grad_norm_mix": 0.45
+    },
+    "div": 0,
+    "L1_whole": -8.909540722437667
+   },
+   "destroyerengine": {
+    "key": "x0.25",
+    "mu": 0.09,
+    "params": {
+     "M": 512,
+     "BlockSize": 128,
+     "eps": 1e-06,
+     "rg_alpha": 0.05,
+     "coh_pivot": 0.35,
+     "mu_scale_min": 0.6,
+     "mu_scale_max": 1.3,
+     "boost_power": 0.6,
+     "suppress_power": 1.6,
+     "coh_gain": 1.5,
+     "coh_weight_mix": 0.6,
+     "coh_weight_power": 1.6,
+     "coh_weight_min": 0.55,
+     "grad_norm_mix": 0.45
+    },
+    "div": 0,
+    "L1_whole": -10.729390465616975
+   },
+   "volvo": {
+    "key": "x0.125",
+    "mu": 0.045,
+    "params": {
+     "M": 512,
+     "BlockSize": 128,
+     "eps": 1e-06,
+     "rg_alpha": 0.05,
+     "coh_pivot": 0.35,
+     "mu_scale_min": 0.6,
+     "mu_scale_max": 1.3,
+     "boost_power": 0.6,
+     "suppress_power": 1.6,
+     "coh_gain": 1.5,
+     "coh_weight_mix": 0.6,
+     "coh_weight_power": 1.6,
+     "coh_weight_min": 0.55,
+     "grad_norm_mix": 0.45
+    },
+    "div": 0,
+    "L1_whole": -6.13808725617892
+   },
+   "valve": {
+    "key": "x0.25",
+    "mu": 0.09,
+    "params": {
+     "M": 512,
+     "BlockSize": 128,
+     "eps": 1e-06,
+     "rg_alpha": 0.05,
+     "coh_pivot": 0.35,
+     "mu_scale_min": 0.6,
+     "mu_scale_max": 1.3,
+     "boost_power": 0.6,
+     "suppress_power": 1.6,
+     "coh_gain": 1.5,
+     "coh_weight_mix": 0.6,
+     "coh_weight_power": 1.6,
+     "coh_weight_min": 0.55,
+     "grad_norm_mix": 0.45
+    },
+    "div": 0,
+    "L1_whole": -8.874656953417762
+   },
+   "jackhammer": {
+    "key": "x0.25",
+    "mu": 0.09,
+    "params": {
+     "M": 512,
+     "BlockSize": 128,
+     "eps": 1e-06,
+     "rg_alpha": 0.05,
+     "coh_pivot": 0.35,
+     "mu_scale_min": 0.6,
+     "mu_scale_max": 1.3,
+     "boost_power": 0.6,
+     "suppress_power": 1.6,
+     "coh_gain": 1.5,
+     "coh_weight_mix": 0.6,
+     "coh_weight_power": 1.6,
+     "coh_weight_min": 0.55,
+     "grad_norm_mix": 0.45
+    },
+    "div": 0,
+    "L1_whole": -9.042923998099644
+   }
+  }
+ }
+}
