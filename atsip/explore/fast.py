@@ -4,11 +4,17 @@ Nothing in the rule changes; only how the quantities it needs are computed:
   A1  filtered reference r = s_hat * x: newest B samples from irfft(R_n) (R_n = S_hat X_n is computed anyway).
       Exact because len(s_hat) <= N - B + 1, so the last B samples of the circular product carry no wrap-around.
   A2  model output s_hat * y: newest B samples from irfft(S_hat rfft(y frame)) (same argument).
-  A3  control output w * x: first B taps directly, the remaining M - B taps by one 4B-point circular product on
-      past input only (no delay is added: the tail needs x up to the previous block).
+  A3  control output w * x: first B taps directly, the remaining M - B taps as three B-tap partitions, each a
+      2B-point circular product with the spectrum of a past 2B-sample input window.  One input spectrum is
+      computed per block and reused for the next two blocks (no delay is added: the tail needs x up to the
+      previous block).
   A4  one FFT of the reference window and one spectral factor F per block, shared by the main frame, the trial
       frames and both directions.
   A5  real cepstrum by irfft instead of a complex ifft.
+  A6  s_hat * y only in blocks that rebuild a frame (early phase or trial): the last M samples come from one
+      product, since N - len(s_hat) + 1 >= M.  Ordinary blocks only store y.
+  A7  the rebuilt part for the foreground coefficients is computed once per block and shared by the main frame
+      and the acceptance ratio.
 
 Commands:
   python fast.py check     equivalence with final.simulate on synthetic inputs + operation counts -> RESULTS_fast.md
@@ -26,8 +32,9 @@ from numpy.lib.stride_tricks import sliding_window_view
 p, np, T = F.p, F.np, F.T
 B, M, N = F.B, F.M, F.N
 TRUNC = p.SFm.TRUNC
-NT = 4 * B                      # size of the circular product for the tail of w
-assert M - B <= NT - B + 1 and NT == M
+NT = 2 * B                      # size of the circular products for the tail of w
+NP = M // B - 1                 # tail partitions
+assert M % B == 0
 
 
 class Ops:
@@ -87,22 +94,29 @@ class FastFrame:
         s.rule, s.Sf = rule, Sf
         s.rwin = np.zeros(N)                    # last 2M samples of the filtered reference
         s.ybuf = np.zeros(N)                    # last N samples of the control output
-        s.sec = np.zeros(M)                     # last M samples of s_hat * y
         s.energy, s.n_rebuilt, s.rw = 0.0, 0, 0.0
-        s._ref = None
+        s._ref = s._sec = None; s._frozen = {}
+        assert len(Sf) == N // 2 + 1
 
     def push(s, R, yb):
         s.rwin[:-B] = s.rwin[B:]; s.rwin[-B:] = irfft(R, N)[-B:]                    # A1
         s.ybuf[:-B] = s.ybuf[B:]; s.ybuf[-B:] = yb
-        s.sec[:-B] = s.sec[B:]; s.sec[-B:] = irfft(s.Sf * rfft(s.ybuf), N)[-B:]     # A2
         s.rw = float(s.rwin @ s.rwin)           # reference energy over 2M samples for the detector
-        s._ref = None
+        s._ref = s._sec = None; s._frozen = {}
+
+    @property
+    def sec(s):
+        if s._sec is None:
+            s._sec = irfft(s.Sf * rfft(s.ybuf), N)[-M:]                              # A2, A6
+        return s._sec
 
     def trial_frame(s, w):
         end = s.end; start = max(0, end - M); n = end - start
         if s._ref is None:
             s._ref = rfft(s.rwin[1:], N)                                             # A4
-        frozen = irfft(s._ref * rfft(w, N), N)
+        if id(w) not in s._frozen:                                                   # A7
+            s._frozen[id(w)] = (w, irfft(s._ref * rfft(w, N), N))
+        frozen = s._frozen[id(w)][1]
         return (s.e_all[start:end] - s.sec[-n:]) + frozen[2 * M - 1 - n:2 * M - 1]
 
     def __call__(s, i, w, e_all, ys=None):
@@ -125,12 +139,14 @@ def simulate_fast(dd, st, rule, nb=None):
     d, xq = dd["d"], dd["xq"]
     nbmax = len(d) // B; nb = nbmax if nb is None else min(nb, nbmax)
     Sf = _rfft(dd["hSm_seq"][0][1], N)
+    assert N - len(dd["hSm_seq"][0][1]) + 1 >= M
     hS = dd["hS_seq"][0][1]
     frame = FastFrame(rule, Sf); rule.frame = frame
     if getattr(rule, "det", None) is not None:
         rule.rw = np.zeros(nb)
     direction = Direction()
     swB = sliding_window_view(xq, B)
+    xwin = [np.zeros(NT // 2 + 1, complex) for _ in range(NP)]      # spectra of the 2B-sample windows ending at s0, s0-B, ...
     w = np.zeros(M); e_all = np.zeros(nb * B); y_all = np.zeros_like(e_all)
     zi = np.zeros(len(hS) - 1)
     pref = dd.get("primary_power", float(np.mean(d ** 2)))
@@ -146,8 +162,11 @@ def simulate_fast(dd, st, rule, nb=None):
             a = N + s0 - B + 1
             yb = swB[a:a + B][:, ::-1] @ w[:B]
             OPS.mac += B * B
-            tail = irfft(rfft(xq[N + s0 - NT:N + s0], NT) * rfft(w[B:], NT), NT)
-            yb = yb + tail[M - B:NT]
+            xwin = [rfft(xq[N + s0 - NT:N + s0], NT)] + xwin[:-1]
+            acc = 0
+            for q in range(NP):
+                acc = acc + xwin[q] * rfft(w[(q + 1) * B:(q + 2) * B], NT)
+            yb = yb + irfft(acc, NT)[B:]
             y_all[s0:s0 + B] = yb
             ys, zi = p.signal.lfilter(hS, [1.0], yb, zi=zi)          # the acoustic path (not part of the controller)
             eb = d[s0:s0 + B] + ys
@@ -243,7 +262,7 @@ def check():
     cases = [("G", "stat", 10), ("a145", "stat", 10), ("II300", "stat", 11), ("a145", "RS-far", 10), ("G", "RS-far", 12),
              ("a120", "RS-near", 13), ("a145", "EN0", 10), ("G", "ENm10", 14)]
     Ls = F.LS_FINAL
-    L = ["# 出力を変えない演算量の削減（A1–A5）", "",
+    L = ["# 出力を変えない演算量の削減（A1–A7）", "",
          f"凍結した手法（final.P5Cap、Ŝ {Ls} タップ）を、同じ出力のまま少ない演算で実現する形（fast.py）と、基準の実装（final.simulate）の比較。",
          "表は自動生成。乗算の数は、N 点の実 FFT を 4·(N/4)·log2(N/2) + 2N 回と数えた概算（加算、対数・指数、除算は含めない）。", "",
          "## 出力の一致", "", "| 入力 | 条件 | seed | 誤差の最大差（相対） | 出力の最大差（相対） | 試行の判定が一致 | 移した回数 |", "|---|---|---:|---:|---:|---|---:|"]
@@ -268,7 +287,7 @@ def check():
             fast_phase[phase].append((fft, mac))
     L += ["", f"最大の相対差は {worst:.1e}（丸め誤差の範囲）。試行の開始・判定・移行のブロックはすべて一致。", "",
           "## 1 ブロック（128 サンプル）あたりの演算", "",
-          "| 状態 | ブロック数 | 基準：FFT 回数（最大） | 基準：乗算 | 削減後：FFT 回数（1024 点／512 点、最大） | 削減後：乗算（最大） | 比 |",
+          "| 状態 | ブロック数 | 基準：FFT 回数（最大） | 基準：乗算 | 削減後：FFT 回数（1024 点／256 点、最大） | 削減後：乗算（最大） | 比 |",
           "|---|---:|---:|---:|---|---:|---:|"]
     summary = {}
     for phase in ("late", "early", "late+trial", "early+trial"):
@@ -287,7 +306,7 @@ def check():
           f"1 サンプルあたり 出力 M + 濾波参照 Ls + 更新 M（正規化は逐次更新）として、1 ブロックあたり {fx:,} 回（M = {M}、Ls = {Ls}）。", "",
           "## 内訳（削減後、late）", ""]
     f, m = fast_phase["late"][len(fast_phase["late"]) // 2]
-    L += [f"- 制御出力の先頭 {B} タップ（直接）：{m:,} 回", f"- FFT：1024 点 {f.get(N, 0)} 回、512 点 {f.get(NT, 0)} 回（1 回あたり {fft_cost(N):,}／{fft_cost(NT):,} 回）",
+    L += [f"- 制御出力の先頭 {B} タップ（直接）：{m:,} 回", f"- FFT：1024 点 {f.get(N, 0)} 回、256 点 {f.get(NT, 0)} 回（1 回あたり {fft_cost(N):,}／{fft_cost(NT):,} 回）",
           "", f"計時（Python、参考）：基準 {t_ref:.1f} 秒、削減後 {t_fast:.1f} 秒（{len(cases)} 実行の合計。Python では FIR が BLAS で速く、演算数の比を反映しない）。"]
     (HERE / "RESULTS_fast.md").write_text("\n".join(L) + "\n", encoding="utf-8")
     print("\n".join(L))
