@@ -20,6 +20,7 @@ BLOCK = ("Freq_FxNLMS_CohVSS", "FreqFxLMS")
 SCEN = ("RS-near", "RS-far", "RM-10", "RM-40")
 SKIP = 4096                      # samples after the change left out of J (tail of the old path)
 VERSION = 1
+MAIN_KS = (16, 64)               # evaluation points of the main table: 0.13 s and 0.51 s after the change (fixed before the run)
 
 
 def out_dir(dry):
@@ -124,6 +125,30 @@ def report(dry):
          f"完了 {len(cond)}/{len(jobs(dry))} 条件。変化から k ブロック後の係数を固定し、変化後の信号全体に適用したときの 誤差／一次騒音 のパワー比 J(k)（dB）。",
          "回復＝J が基準 +3 dB 以内に入り、以後の格子点でとどまる最初の k（格子：" + "、".join(map(str, KS)) + "）。「なし」＝最後まで入らない。",
          "基準は 2 通り：共通（その条件で全手法の最終値の最良）、手法ごと（その手法の最終値）。発散した実行は「なし」。", ""]
+    L += ["## 主表：J(16) と J(64)（評価点は seed 100–119 の実行前に固定。2026-11-21）", "",
+          "提案 − 比較の対応差（dB、負は提案法が良い）。seed を再標本化した 95% 区間。両方が完走した対。", "",
+          "| 条件 | クラス | k | 提案法 | CohVSS | 再始動なし | 提案 − CohVSS [95%] | 提案 − 再始動なし [95%] |", "|---|---|---:|---:|---:|---:|---|---|"]
+    rng0 = np.random.default_rng(1)
+
+    def pdiff(scen, c, k, other):
+        per = {}
+        for (cl, sc, sd), ms in cond.items():
+            if sc == scen and (c == "全クラス" or cl == c) and other in ms and "P5-early-cap" in ms:
+                x, y = ms["P5-early-cap"]["J"][str(k)], ms[other]["J"][str(k)]
+                if x is not None and y is not None:
+                    per.setdefault(sd, []).append(x - y)
+        if not per:
+            return "—"
+        v = np.array([np.mean(x) for x in per.values()]); bt = rng0.choice(v, size=(2000, len(v))).mean(axis=1)
+        return f"{v.mean():+.2f} [{np.quantile(bt, .025):+.2f}, {np.quantile(bt, .975):+.2f}]"
+    for scen in SCEN:
+        for c in ("全クラス",) + F.FINAL_CLASSES:
+            for k in MAIN_KS:
+                mj = lambda m: (lambda v: f"{np.median(v):.2f}" if v else "—")([r["J"][str(k)] for r in rows if r["method"] == m and r["scen"] == scen
+                                                                             and (c == "全クラス" or r["cls"] == c) and r["J"][str(k)] is not None])
+                L.append(f"| {scen} | {c} | {k} | {mj('P5-early-cap')} | {mj('Freq_FxNLMS_CohVSS')} | {mj('nors-cap')} | "
+                         f"{pdiff(scen, c, k, 'Freq_FxNLMS_CohVSS')} | {pdiff(scen, c, k, 'nors-cap')} |")
+    L += ["", "以下は補助（曲線の全体と、回復までのブロック数）。", ""]
     for key, name in (("rec_common", "共通の基準"), ("rec_own", "手法ごとの基準")):
         for scen in SCEN:
             L += [f"## 回復の中央値（{name}、{scen}）", "", "| 手法 | 全クラス | " + " | ".join(F.FINAL_CLASSES) + " |", "|---|---:|" + "---:|" * len(F.FINAL_CLASSES)]
