@@ -901,7 +901,7 @@ def check():
     # 13. Force the floor to engage; compare logged adaptive steps with the formulas.
     low = copy.copy(st)
     low.g = st.g.copy()
-    low.g[:32] = 0.50
+    low.g[0] = 0.50
     low.g[CB + 2] = 0.50
     for label in fixtures:
         rule, sim = run_rule(label + "-cap", dd, Rall, low, X4, nb=CB + 160)
