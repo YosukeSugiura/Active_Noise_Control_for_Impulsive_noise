@@ -601,15 +601,19 @@ def cap_steps(tr):
     return dict(a_max_early=maximum(mu[early & adaptive]), a_max_late=maximum(mu[~early & adaptive]),
                 a_max_bg=maximum(bg[np.isfinite(bg)]))
 
+def cap_dir(Ls):
+    return CAP_DIR if Ls == 256 else HERE / "out" / f"final_cap{Ls}"
+
+
 def run_cap_job(job):
-    cls, scen, seed = job
-    f = CAP_DIR / f"{cls}_{scen}_s{seed}.json"
+    cls, scen, seed, Ls = job
+    f = cap_dir(Ls) / f"{cls}_{scen}_s{seed}.json"
     if f.exists() and json.loads(f.read_text()).get("version") == CAP_VERSION:
         return
     t0 = time.monotonic()
     X4 = p.parse(["c5", "--preset", "final"]).X4
-    dd, Rall, st = build(cls, scen, seed, 256)
-    post = build(cls, "post:" + scen, seed, 256) if scen in POST_FOR else None
+    dd, Rall, st = build(cls, scen, seed, Ls)
+    post = build(cls, "post:" + scen, seed, Ls) if scen in POST_FOR else None
     rows, ref = [], {}
     for label in CAP_RULES:
         rule, sim = run_rule(label, dd, Rall, st, X4)
@@ -633,11 +637,11 @@ def run_cap_job(job):
     print(f"{f.stem}: div={[r['div'] for r in rows]}, {time.monotonic() - t0:.0f} s", flush=True)
 
 
-def cap(procs):
-    jobs = [(c, s, sd) for c in PILOT_CLASSES for s in PILOT_SCEN for sd in CAP_SEEDS]
+def cap(procs, Ls=256):
+    jobs = [(c, s, sd, Ls) for c in PILOT_CLASSES for s in PILOT_SCEN for sd in CAP_SEEDS]
     with Pool(procs) as pool:
         list(pool.imap_unordered(run_cap_job, jobs))
-    files = [json.loads((CAP_DIR / f"{c}_{s}_s{sd}.json").read_text()) for c, s, sd in jobs]
+    files = [json.loads((cap_dir(Ls) / f"{c}_{s}_s{sd}.json").read_text()) for c, s, sd, _ in jobs]
     if any(f["version"] != CAP_VERSION or tuple(r["method"] for r in f["rows"]) != CAP_RULES for f in files):
         raise ValueError("Incomplete or stale S1c results")
     rows = [r for f in files for r in f["rows"]]
@@ -648,7 +652,7 @@ def cap(procs):
         mid = float(np.median(values))
         return "打切" if np.isinf(mid) else fmt(mid, 1)
 
-    L = ["# S1c：前半のステップに使う g の下限（設計用 seed 10–14、Ŝ 256）", "",
+    L = [f"# S1c：前半のステップに使う g の下限（設計用 seed 10–14、Ŝ {Ls}）", "",
          f"cap = 作り直した誤差で進む更新（前半と裏の試行）だけ g の下限を {GE_CAP} にする（a ≤ {0.25 / GE_CAP:.3f}）。後半は変更なし。",
          "表は自動生成。L1 は完走した実行の平均（dB）。rec は回復までのブロック数の中央値（打ち切りを含む）。", ""]
     for scen in PILOT_SCEN:
@@ -682,8 +686,97 @@ def cap(procs):
         rc = [r for r in rows if r["cls"] == c and r["method"] == "P5-early"]; am = [r["a_max_early"] for r in rc if r.get("a_max_early") is not None]
         L.append(f"| {c} | {fmt(max(am), 3) if am else '—'} | {sum(v > 0.55 for v in am)}/{len(am)} | {sum(r['div'] for r in rc)} | "
                  f"{sum(r['div'] for r in rows if r['cls'] == c and r['method'] == 'P5-early-cap')} |")
-    (HERE / "RESULTS_final_cap.md").write_text("\n".join(L) + "\n", encoding="utf-8")
-    print("wrote RESULTS_final_cap.md", len(rows), "rows")
+    name = "RESULTS_final_cap.md" if Ls == 256 else f"RESULTS_final_cap{Ls}.md"
+    (HERE / name).write_text("\n".join(L) + "\n", encoding="utf-8")
+    print("wrote", name, len(rows), "rows")
+
+
+# ----------------------------------------------------------------------------------------------
+# S2: step sizes of the external methods (design seeds 10-14).  One setting per method for all conditions.
+# ----------------------------------------------------------------------------------------------
+LS_FINAL = 512
+TUNE_SCEN = ("stat", "RS-far")
+TUNE_SEEDS = (10, 11, 12, 13, 14)
+TUNE_FACTORS = (1 / 32, 1 / 16, 1 / 8, 1 / 4, 1 / 2, 1.0, 2.0)          # x the published step
+TH_LIMITS = (5.0, 10.0, 20.0, 200.0)                                     # Th_FxNLMS: clipping level (200 = published)
+TUNE_DIR = HERE / "out" / "final_tune"
+TUNE_VERSION = 1
+
+
+def tune_grid(name):
+    mu0, par = BASE[name]
+    if name == "Th_FxNLMS":
+        return [(f"x{k:g}|c{c:g}", mu0 * k, dict(par, c1=-c, c2=c)) for c in TH_LIMITS for k in TUNE_FACTORS]
+    return [(f"x{k:g}", mu0 * k, par) for k in TUNE_FACTORS]
+
+
+def run_tune_job(job):
+    cls, scen, seed = job
+    f = TUNE_DIR / f"{cls}_{scen}_s{seed}.json"
+    if f.exists() and json.loads(f.read_text()).get("version") == TUNE_VERSION:
+        return
+    t0 = time.monotonic()
+    dd, _, _ = build(cls, scen, seed, LS_FINAL)
+    rows = []
+    for name in BASE:
+        for key, mu, par in tune_grid(name):
+            sim = run_baseline(name, mu, par, dd)
+            rows.append(dict(method=name, key=key, mu=mu, cls=cls, scen=scen, seed=int(seed), **measures(sim, dd)))
+    f.parent.mkdir(parents=True, exist_ok=True)
+    ab.atomic_write(f, lambda h: json.dump(dict(version=TUNE_VERSION, rows=rows), h))
+    print(f"{f.stem}: {len(rows)} runs, div={sum(r['div'] for r in rows)}, {time.monotonic() - t0:.0f} s", flush=True)
+
+
+def class_mean(rows, key):
+    """Mean over classes of the per-class mean (classes weigh equally)."""
+    per = {}
+    for r in rows:
+        if r.get(key) is not None:
+            per.setdefault(r["cls"], []).append(r[key])
+    return float(np.mean([np.mean(v) for v in per.values()])) if per else None
+
+
+def tune(procs):
+    jobs = [(c, s, sd) for c in PILOT_CLASSES for s in TUNE_SCEN for sd in TUNE_SEEDS]
+    with Pool(procs) as pool:
+        list(pool.imap_unordered(run_tune_job, jobs))
+    rows = [r for c, s, sd in jobs for r in json.loads((TUNE_DIR / f"{c}_{s}_s{sd}.json").read_text())["rows"]]
+    L = [f"# S2：外部手法のステップ探索（設計用 seed 10–14、Ŝ {LS_FINAL}、条件 {'・'.join(TUNE_SCEN)}）", "",
+         "選び方（事前に固定）：発散が最も少ない設定の中で、L1 whole のクラス平均（クラスを等しい重みで平均。完走した実行のみ）が最小のもの。"
+         "発散 0 件の設定がない手法は、その旨を示す。表は自動生成。", ""]
+    chosen, per_class = {}, {}
+    for name in BASE:
+        L += [f"## {name}", "", "| 設定 | ステップ | 発散 | L1 whole（クラス平均） | L1 last10 | L1 直後2秒 | 選択 |", "|---|---:|---:|---:|---:|---:|---|"]
+        cand = []
+        for key, mu, par in tune_grid(name):
+            rk = [r for r in rows if r["method"] == name and r["key"] == key]; ok = [r for r in rk if not r["div"]]
+            cand.append((sum(r["div"] for r in rk), class_mean(ok, "L1_whole") if ok else float("inf"), key, mu, par, ok))
+        best = min(cand, key=lambda c: (c[0], c[1]))
+        chosen[name] = dict(key=best[2], mu=best[3], params=best[4], div=best[0], L1_whole=best[1])
+        for ndiv, l1, key, mu, par, ok in cand:
+            L.append(f"| {key} | {mu:.6g} | {ndiv} | {fmt(l1 if np.isfinite(l1) else None)} | {fmt(class_mean(ok, 'L1_last10'))} | "
+                     f"{fmt(class_mean(ok, 'L1_ev'))} | {'○' if key == best[2] else ''} |")
+        L.append("")
+        per_class[name] = {}
+        for c in PILOT_CLASSES:                 # the setting that is best for this class alone (upper bound for the method)
+            cc = []
+            for key, mu, par in tune_grid(name):
+                rk = [r for r in rows if r["method"] == name and r["key"] == key and r["cls"] == c]; ok = [r for r in rk if not r["div"]]
+                cc.append((sum(r["div"] for r in rk), agg(ok, "L1_whole") if ok else float("inf"), key, mu, par))
+            b = min(cc, key=lambda v: (v[0], v[1]))
+            per_class[name][c] = dict(key=b[2], mu=b[3], params=b[4], div=b[0], L1_whole=b[1] if np.isfinite(b[1]) else None)
+    L += ["## 選ばれた設定", "", "| 手法 | 設定 | ステップ | 発散 | L1 whole | 格子の端か |", "|---|---|---:|---:|---:|---|"]
+    for name, c in chosen.items():
+        keys = [k for k, _, _ in tune_grid(name)]; fac = c["key"].split("|")[0]
+        edge = "下端" if fac == f"x{TUNE_FACTORS[0]:g}" else ("上端" if fac == f"x{TUNE_FACTORS[-1]:g}" else "")
+        L.append(f"| {name} | {c['key']} | {c['mu']:.6g} | {c['div']} | {fmt(c['L1_whole'])} | {edge} |")
+    L += ["", "## クラスごとの最良の設定（補助表用。外部手法に有利な上限）", "", "| 手法 | " + " | ".join(PILOT_CLASSES) + " |", "|---|" + "---|" * len(PILOT_CLASSES)]
+    for name in BASE:
+        L.append(f"| {name} | " + " | ".join(f"{per_class[name][c]['key']}（{fmt(per_class[name][c]['L1_whole'])}、発散 {per_class[name][c]['div']}）" for c in PILOT_CLASSES) + " |")
+    (HERE / "RESULTS_final_tune.md").write_text("\n".join(L) + "\n", encoding="utf-8")
+    ab.atomic_write(HERE / "TUNE.json", lambda h: json.dump(dict(Ls=LS_FINAL, hp_hz=HP_HZ, seeds=TUNE_SEEDS, scen=TUNE_SCEN, chosen=chosen,
+                                                                 per_class=per_class), h, indent=1))
+    print("wrote RESULTS_final_tune.md and TUNE.json", len(rows), "runs")
 
 
 def pilot(procs, smoke):
@@ -919,7 +1012,8 @@ def check():
 
 def main():
     a = argparse.ArgumentParser()
-    a.add_argument("cmd", choices=("check", "pilot", "report", "cap"))
+    a.add_argument("cmd", choices=("check", "pilot", "report", "cap", "tune"))
+    a.add_argument("--ls", type=int, default=256, choices=(256, 512))
     a.add_argument("--procs", type=int, default=os.cpu_count() or 1)
     a.add_argument("--smoke", action="store_true")
     o = a.parse_args()
@@ -928,7 +1022,9 @@ def main():
     elif o.cmd == "pilot":
         pilot(o.procs, o.smoke)
     elif o.cmd == "cap":
-        cap(o.procs)
+        cap(o.procs, o.ls)
+    elif o.cmd == "tune":
+        tune(o.procs)
     else:
         report(o.smoke)
 
