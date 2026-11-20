@@ -1281,6 +1281,7 @@ def run_final_job(job):
     X4 = p.parse(["c5", "--preset", "final"]).X4
     dd, Rall, st = build(cls, scen, seed, LS_FINAL, final=not dry)
     post = build(cls, "post:" + scen, seed, LS_FINAL, final=not dry) if has_post(scen) else None
+    prepared = time.monotonic()
     rows, ref = [], None
     for label in FINAL_RULES:
         rule, sim = run_rule(label, dd, Rall, st, X4)
@@ -1296,6 +1297,7 @@ def run_final_job(job):
             row["max_output_diff"] = float(np.max(np.abs(sim["y"] - ref["y"])))
             row["same_as_nors"] = int(row["max_output_diff"] == 0 and np.array_equal(sim["e"], ref["e"]))
         rows.append(row)
+    rules_done = time.monotonic()
     for name in BASE:
         for variant, s_ in final_settings(tune_, name, cls, scen):
             sim = run_baseline(name, s_["mu"], s_["params"], dd)
@@ -1304,10 +1306,14 @@ def run_final_job(job):
                 ps = run_baseline(name, s_["mu"], s_["params"], post[0])
                 pm = dict(e=ps["e"], d=post[0]["d"][:len(ps["e"])], div=ps["div"])
             rows.append(dict(method=name, kind="base", variant=variant, key=s_["key"], mu=s_["mu"], **measures(sim, dd, pm)))
+    bases_done = time.monotonic()
     for r in rows:
         r.update(cls=cls, scen=scen, seed=int(seed))
     f.parent.mkdir(parents=True, exist_ok=True)
-    ab.atomic_write(f, lambda h: json.dump(dict(version=FINAL_VERSION, rows=rows, wall_seconds=time.monotonic() - t0), h))
+    timings = dict(preparation=prepared - t0, rules=rules_done - prepared,
+                   baselines=bases_done - rules_done)
+    ab.atomic_write(f, lambda h: json.dump(dict(version=FINAL_VERSION, rows=rows,
+                                               wall_seconds=time.monotonic() - t0, timings=timings), h))
     print(f"{f.stem}: {len(rows)} rows, div={sum(r['div'] for r in rows)}, {time.monotonic() - t0:.0f} s", flush=True)
 
 
