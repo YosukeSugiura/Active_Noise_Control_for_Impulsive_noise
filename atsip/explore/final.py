@@ -35,6 +35,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1]))
 
 import ablate as ab
+import fastbase
 import prop2 as q
 import prop4 as q4
 import prop5 as q5
@@ -185,7 +186,12 @@ def build(cls, scen, seed, Ls, rmode="fd", final=False):
     else:
         rq = np.concatenate([np.zeros(N), r])
         Rall = np.array([np.fft.rfft(rq[i * B + B:i * B + B + N]) for i in range(nb)])
-    return dd, Rall, T.Stats(dd, Rall)
+    saved, T.PI_DEFS = T.PI_DEFS, []                # the pi statistics are not used by any rule here (0.6 s per build)
+    try:
+        st = T.Stats(dd, Rall)
+    finally:
+        T.PI_DEFS = saved
+    return dd, Rall, st
 
 
 def seq_at(seq, i):
@@ -213,8 +219,9 @@ def filtered_block(states, i, hist, yb, seq):
         zi = np.zeros(len(h) - 1)
         if len(zi):
             _, zi = p.signal.lfilter(h, [1.0], hist[-len(zi):], zi=zi)
-    out, zi = p.signal.lfilter(h, [1.0], yb, zi=zi)
-    return out, (h, zi)
+    full = np.convolve(h, yb)                       # scipy.signal.lfilter with a = [1] computes exactly this
+    full[:len(zi)] += zi
+    return full[:len(yb)], (h, full[len(yb):])
 
 
 def diverged(eb, primary_power):
@@ -408,7 +415,68 @@ def run_rule(label, dd, Rall, st, X4, nb=None, hook=None):
 # ----------------------------------------------------------------------------------------------
 # Per-sample simulator for the external methods
 # ----------------------------------------------------------------------------------------------
+BLOCK_BASE = ("FreqFxLMS", "Freq_FxNLMS_CohVSS")     # update their coefficients once per B samples
+
+
+def run_baseline_block(name, mu, params, dd, n_tot=None):
+    """run_baseline for the block methods: the coefficients are constant inside a block, so the control output and
+    the acoustic path are computed per block; the method's own update is still called once per sample."""
+    x, d = dd["x"], dd["d"]
+    T_ = len(d) if n_tot is None else min(n_tot, len(d))
+    model = dd["hSm_seq"]
+    par = dict(params); par.setdefault("c_impulse", model[0][1]); par.setdefault("order_control", M)
+    algo = make_algo(name, par)
+    assert algo.BlockSize == B and T_ % B == 0
+    mswitch = {b0: m for b0, m in model[1:]}
+    swv = sliding_window_view(dd["xq"], M)
+    Lh = max(len(h) for _, h in dd["hS_seq"]); hist = np.zeros(Lh - 1); state = (None, None)
+    multi = len(dd["hS_seq"]) > 1
+    w = np.zeros(M); e = np.zeros(T_)
+    pref = dd.get("primary_power", float(np.mean(d ** 2))); div = False; n_done = T_; failure = None
+    one = [0.0]
+    t0 = time.perf_counter()
+    for i in range(T_ // B):
+        s0 = i * B
+        if i in mswitch and hasattr(algo, "Hc"):
+            algo.Hc = np.fft.rfft(mswitch[i], n=algo.N)
+        yb = swv[s0 + N - M + 1:s0 + N - M + 1 + B][:, ::-1] @ w
+        ys, state = filtered_block(state, i, hist, yb, dd["hS_seq"])
+        if multi:
+            hist = np.concatenate([hist, yb])[-hist.size:]
+        eb = d[s0:s0 + B] + ys
+        e[s0:s0 + B] = eb
+        ok = bool(np.isfinite(eb).all())
+        if ok:
+            xb = x[s0:s0 + B]
+            # The first B - 1 samples of a block only enter the method's two ring buffers (x2, e2: every sample is
+            # written twice, at head and head + length); write them at once and call update for the last sample.
+            assert algo.count == 0
+            for buf, head, length, vals in ((algo.x2, algo.x_head, algo.N, xb), (algo.e2, algo.e_head, algo.M, eb)):
+                idx = (head + np.arange(B - 1)) % length
+                buf[idx] = vals[:-1]; buf[idx + length] = vals[:-1]
+            algo.x_head = (algo.x_head + B - 1) % algo.N; algo.e_head = (algo.e_head + B - 1) % algo.M
+            algo.count = B - 1
+            one[0] = xb[-1]
+            w, _ = algo.update(w, eb[-1], None, one, mu)
+        if not ok or diverged(eb, pref) or not np.isfinite(w).all():
+            div = True; n_done = s0
+            failure = dict(error_peak(e, n_done), sample=s0 + B - 1)
+            e[n_done:] = np.nan
+            break
+    return dict(e=e, w=w, div=div, n_done=n_done, failure=failure, seconds=time.perf_counter() - t0)
+
+
 def run_baseline(name, mu, params, dd, n_tot=None):
+    if name in fastbase.KIND and fastbase.HAVE_NUMBA and not os.environ.get("ANC_NO_JIT"):
+        pref = dd.get("primary_power", float(np.mean(dd["d"] ** 2)))
+        e, w, div, n_done, fail_n, sec = fastbase.run(name, mu, params, dd, n_tot, M, B, pref, DIV_GAIN)
+        failure = None
+        if div:
+            failure = dict(error_peak(e, n_done), sample=fail_n)
+            e[n_done:] = np.nan
+        return dict(e=e, w=w, div=div, n_done=n_done, failure=failure, seconds=sec)
+    if name in BLOCK_BASE and not os.environ.get("ANC_NO_JIT") and (len(dd["d"]) if n_tot is None else n_tot) % B == 0:
+        return run_baseline_block(name, mu, params, dd, n_tot)
     x, d, r = dd["x"], dd["d"], dd["r"]
     T_ = len(d) if n_tot is None else min(n_tot, len(d))
     model = dd["hSm_seq"]; plant = [(b0 * B, h[::-1].copy()) for b0, h in dd["hS_seq"]]
