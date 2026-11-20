@@ -125,9 +125,12 @@ def report(dry):
          f"完了 {len(cond)}/{len(jobs(dry))} 条件。変化から k ブロック後の係数を固定し、変化後の信号全体に適用したときの 誤差／一次騒音 のパワー比 J(k)（dB）。",
          "回復＝J が基準 +3 dB 以内に入り、以後の格子点でとどまる最初の k（格子：" + "、".join(map(str, KS)) + "）。「なし」＝最後まで入らない。",
          "基準は 2 通り：共通（その条件で全手法の最終値の最良）、手法ごと（その手法の最終値）。発散した実行は「なし」。", ""]
-    L += ["## 主表：J(16) と J(64)（評価点は seed 100–119 の実行前に固定。2026-11-21）", "",
+    sec = lambda k: f"{k * B / F.FS:.2f} 秒"
+    L += [f"## 主表：変化から {sec(MAIN_KS[0])}後と {sec(MAIN_KS[1])}後の消音量（評価点は seed 100–119 の実行前に固定。2026-11-21）", "",
+          f"その時点の係数を固定して変化後の信号全体に適用したときの 誤差／一次騒音（dB、小さいほど良い）。{sec(MAIN_KS[0])}＝{MAIN_KS[0]} ブロック＝{MAIN_KS[0] * B} サンプル、"
+          f"{sec(MAIN_KS[1])}＝{MAIN_KS[1]} ブロック＝{MAIN_KS[1] * B} サンプル（16 kHz）。", "",
           "提案 − 比較の対応差（dB、負は提案法が良い）。seed を再標本化した 95% 区間。両方が完走した対。", "",
-          "| 条件 | クラス | k | 提案法 | CohVSS | 再始動なし | 提案 − CohVSS [95%] | 提案 − 再始動なし [95%] |", "|---|---|---:|---:|---:|---:|---|---|"]
+          "| 条件 | クラス | 変化からの時間 | 提案法 | APSIPA 2026 版 | 再始動なし | 提案 − APSIPA 2026 版 [95%] | 提案 − 再始動なし [95%] |", "|---|---|---:|---:|---:|---:|---|---|"]
     rng0 = np.random.default_rng(1)
 
     def pdiff(scen, c, k, other):
@@ -146,7 +149,7 @@ def report(dry):
             for k in MAIN_KS:
                 mj = lambda m: (lambda v: f"{np.median(v):.2f}" if v else "—")([r["J"][str(k)] for r in rows if r["method"] == m and r["scen"] == scen
                                                                              and (c == "全クラス" or r["cls"] == c) and r["J"][str(k)] is not None])
-                L.append(f"| {scen} | {c} | {k} | {mj('P5-early-cap')} | {mj('Freq_FxNLMS_CohVSS')} | {mj('nors-cap')} | "
+                L.append(f"| {scen} | {c} | {sec(k)} | {mj('P5-early-cap')} | {mj('Freq_FxNLMS_CohVSS')} | {mj('nors-cap')} | "
                          f"{pdiff(scen, c, k, 'Freq_FxNLMS_CohVSS')} | {pdiff(scen, c, k, 'nors-cap')} |")
     L += ["", "以下は補助（曲線の全体と、回復までのブロック数）。", ""]
     for key, name in (("rec_common", "共通の基準"), ("rec_own", "手法ごとの基準")):
@@ -175,11 +178,11 @@ def report(dry):
                 v = np.array([np.mean(x) for x in per.values()])
                 bt = rng.choice(v, size=(2000, len(v))).mean(axis=1)
                 L.append(f"| {scen} | {c} | {other} | {v.mean():+.1f} | [{np.quantile(bt, .025):+.1f}, {np.quantile(bt, .975):+.1f}] | {sum(map(len, per.values()))} | {only_a} | {only_b} |")
-    L += ["", "## J(k) の中央値（dB）", ""]
+    L += ["", "## 消音量の時間変化（中央値、dB。列は変化からの時間）", ""]
     show = (0, 8, 16, 32, 64, 128, 256, 512, 1874)
     for scen in SCEN:
         for c in F.FINAL_CLASSES:
-            L += [f"### {scen}、{c}", "", "| 手法 | " + " | ".join(f"k={k}" for k in show) + " |", "|---|" + "---:|" * len(show)]
+            L += [f"### {scen}、{c}", "", "| 手法 | " + " | ".join(f"{k * B / F.FS:.2f} 秒" for k in show) + " |", "|---|" + "---:|" * len(show)]
             for m in methods:
                 cells = []
                 for k in show:
