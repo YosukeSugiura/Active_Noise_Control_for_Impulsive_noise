@@ -1,4 +1,4 @@
-"""Efficient realisation of the frozen method (final.P5Cap) with the same output (A1-A5), and its operation count.
+"""Efficient realisation of the frozen method (final.P5Cap) with the same output (A1–A7), and its operation count.
 
 Nothing in the rule changes; only how the quantities it needs are computed:
   A1  filtered reference r = s_hat * x: newest B samples from irfft(R_n) (R_n = S_hat X_n is computed anyway).
@@ -66,19 +66,19 @@ class Direction:
     """SF direction with the factor F cached for the block (A4) and a real cepstrum (A5)."""
 
     def __init__(s):
-        s.key = None; s.F = None
+        s.key = None; s.Srr = None; s.F = None
 
     def new_block(s):
-        s.key = None
+        s.key = None; s.Srr = None
 
     def __call__(s, R, E, Srr, Pbar, s_eps, eps_reg, trunc=TRUNC, ret_y=False):
-        key = (id(Srr), float(Pbar), float(s_eps), float(eps_reg))
-        if key != s.key:
+        key = (float(Pbar), float(s_eps), float(eps_reg))
+        if Srr is not s.Srr or key != s.key:
             Lam = np.maximum(Srr + s_eps + eps_reg * Pbar, 1e-300)
             c = irfft(0.5 * np.log(Lam), N)
             c[1:N // 2] *= 2.0
             c[N // 2 + 1:] = 0.0
-            s.F = np.exp(rfft(c)); s.key = key
+            s.F = np.exp(rfft(c)); s.key = key; s.Srr = Srr
         x = irfft(np.conj(R) * E / np.conj(s.F), N)
         x[trunc:] = 0.0
         G_ = rfft(x) / s.F
@@ -133,9 +133,11 @@ class FastFrame:
 
 
 def simulate_fast(dd, st, rule, nb=None):
-    """final.simulate for a single plant and a single model, with A1-A5.  Returns the same fields plus the
+    """final.simulate for a single plant and a single model, with A1–A7.  Returns the same fields plus the
     operation log (one entry per block: phase, FFT calls by size, direct multiply-accumulates)."""
     assert len(dd["hS_seq"]) == 1 and len(dd["hSm_seq"]) == 1
+    assert dd.get("rmode", "fd") == "fd"
+    assert 2 * M - 1 <= N
     d, xq = dd["d"], dd["xq"]
     nbmax = len(d) // B; nb = nbmax if nb is None else min(nb, nbmax)
     Sf = _rfft(dd["hSm_seq"][0][1], N)
@@ -203,9 +205,10 @@ def cost(fft, mac):
     return mac + sum(k * fft_cost(n) for n, k in fft.items())
 
 
-def reference_cost(phase_ffts, Ls):
-    """Straightforward realisation: three time-domain FIRs per sample + the FFT calls counted in final.simulate."""
-    return B * (M + 2 * Ls) + phase_ffts * fft_cost(N)
+def reference_cost(real_ffts, complex_ffts, Ls):
+    """Direct FIRs plus real and complex FFTs of the reference implementation."""
+    complex_cost = 4 * (N // 2) * int(np.log2(N))
+    return B * (M + 2 * Ls) + real_ffts * fft_cost(N) + complex_ffts * complex_cost
 
 
 def make_rule(dd, nb):
@@ -215,46 +218,35 @@ def make_rule(dd, nb):
 
 def count_reference(dd, Rall, st):
     """FFT calls per block of the reference simulator (plus one for R_n, which it takes precomputed)."""
-    calls = [0]
+    calls = [0, 0]
     saved = (np.fft.rfft, np.fft.irfft, np.fft.ifft)
 
-    def wrap(f):
+    def wrap(f, kind):
         def g(*a, **k):
-            calls[0] += 1
+            calls[kind] += 1
             return f(*a, **k)
         return g
 
-    rule = make_rule(dd, len(Rall)); rule.frame = F.q4.Frame4(dd, rule)
-    log = []; inner = rule.block; mark = [0]
+    rule = make_rule(dd, len(Rall))
+    rule.frame = F.q4.Frame4(dd, rule)
+    per = collections.defaultdict(list)
+    inner = rule.block
 
     def block(i, c):
         early = rule.in_early(i); trial = rule.bg is not None
         out = inner(i, c)
-        log.append([("early" if early else "late") + ("+trial" if trial or rule.bg is not None else ""), None])
-        if len(log) > 1:
-            log[-2][1] = mark[0]
+        phase = ("early" if early else "late") + ("+trial" if trial or rule.bg is not None else "")
+        per[phase].append((calls[0] + 1, calls[1]))  # R_n's precomputed reference FFT
+        calls[:] = [0, 0]
         return out
 
     rule.block = block
-    np.fft.rfft, np.fft.irfft, np.fft.ifft = (wrap(f) for f in saved)
+    np.fft.rfft, np.fft.irfft, np.fft.ifft = (wrap(f, int(i == 2)) for i, f in enumerate(saved))
     try:
-        inner_frame = rule.frame.__call__
-
-        class Mark:
-            def __getattr__(s, k):
-                return getattr(rule_frame, k)
-
-            def __call__(s, *a, **k):
-                mark[0] = calls[0]; calls[0] = 0
-                return inner_frame(*a, **k)
-
-        rule_frame = rule.frame; rule.frame = Mark()
         sim = F.simulate(dd, Rall, st, rule, error_frame=rule.frame)
     finally:
         np.fft.rfft, np.fft.irfft, np.fft.ifft = saved
-    per = collections.defaultdict(list)
-    for phase, k in log[:-1]:
-        per[phase].append(k + 1)
+    assert sum(map(len, per.values())) == sim["n_done"] + int(sim["div"])
     return sim, rule, per
 
 
@@ -264,7 +256,7 @@ def check():
     Ls = F.LS_FINAL
     L = ["# 出力を変えない演算量の削減（A1–A7）", "",
          f"凍結した手法（final.P5Cap、Ŝ {Ls} タップ）を、同じ出力のまま少ない演算で実現する形（fast.py）と、基準の実装（final.simulate）の比較。",
-         "表は自動生成。乗算の数は、N 点の実 FFT を 4·(N/4)·log2(N/2) + 2N 回と数えた概算（加算、対数・指数、除算は含めない）。", "",
+         "表は自動生成。乗算は直接 FIR と FFT の概算。N 点の実 FFT は 4·(N/4)·log2(N/2) + 2N 回、複素 FFT は 4·(N/2)·log2(N) 回。スペクトルの点別演算、係数更新などは集計外。", "",
          "## 出力の一致", "", "| 入力 | 条件 | seed | 誤差の最大差（相対） | 出力の最大差（相対） | 試行の判定が一致 | 移した回数 |", "|---|---|---:|---:|---:|---|---:|"]
     ref_phase = collections.defaultdict(list); fast_phase = collections.defaultdict(list); worst = 0.0
     t_ref = t_fast = 0.0
@@ -282,23 +274,21 @@ def check():
         same = key(rule0) == key(rule1)
         worst = max(worst, de, dy)
         L.append(f"| {cls} | {scen} | {seed} | {de:.1e} | {dy:.1e} | {'○' if same else '×'} | {len(rule1.restarts)} |")
-        assert same and de < 1e-6 and dy < 1e-6, (cls, scen, seed, de, dy, same)
+        assert same and de < 1e-12 and dy < 1e-12, (cls, scen, seed, de, dy, same)
         for phase, fft, mac in sim["ops"]:
             fast_phase[phase].append((fft, mac))
     L += ["", f"最大の相対差は {worst:.1e}（丸め誤差の範囲）。試行の開始・判定・移行のブロックはすべて一致。", "",
           "## 1 ブロック（128 サンプル）あたりの演算", "",
-          "| 状態 | ブロック数 | 基準：FFT 回数（最大） | 基準：乗算 | 削減後：FFT 回数（1024 点／256 点、最大） | 削減後：乗算（最大） | 比 |",
+          "| 状態 | ブロック数 | 基準：FFT 回数（実／複素） | 基準：乗算 | 削減後：FFT 回数（1024 点／256 点、最大） | 削減後：乗算（最大） | 比 |",
           "|---|---:|---:|---:|---|---:|---:|"]
-    summary = {}
     for phase in ("late", "early", "late+trial", "early+trial"):
         if phase not in fast_phase:
             continue
-        rmax = max(ref_phase[phase]) if ref_phase[phase] else 0
-        rc = reference_cost(rmax, Ls)
+        real, complex_ = max(ref_phase[phase], key=lambda v: reference_cost(*v, Ls))
+        rc = reference_cost(real, complex_, Ls)
         costs = [cost(f, m) for f, m in fast_phase[phase]]
         k = int(np.argmax(costs)); f = fast_phase[phase][k][0]
-        summary[phase] = (rc, max(costs))
-        L.append(f"| {phase} | {len(costs)} | {rmax} | {rc:,} | {f.get(N, 0)}／{f.get(NT, 0)} | {max(costs):,} | {max(costs) / rc:.2f} |")
+        L.append(f"| {phase} | {len(costs)} | {real}／{complex_} | {rc:,} | {f.get(N, 0)}／{f.get(NT, 0)} | {max(costs):,} | {max(costs) / rc:.2f} |")
     fx = B * (2 * M + Ls)
     L += ["", "状態：late＝後半の通常ブロック、early＝前半（作り直した誤差）、+trial＝裏の試行が動いているブロック。",
           "基準の乗算は、時間領域の FIR 3 本（w∗x、ŝ∗x、ŝ∗y）と FFT の合計。", "",

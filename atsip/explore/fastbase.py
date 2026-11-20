@@ -42,10 +42,10 @@ def pack(name, p):
 
 
 @njit(cache=True)
-def _loop(kind, par, mu, d, xr, rr, sw, hrevs, M, B, pref, div_gain):
+def _loop(kind, par, mu, d, xr, rr, sw, hrevs, lengths, M, B, pref, div_gain):
     T_ = d.shape[0]; L = hrevs.shape[1]
     w = np.zeros(M); e = np.zeros(T_); y2 = np.zeros(2 * L)
-    head = 0; seg = 0; hrev = hrevs[0]
+    head = 0; seg = 0
     div = False; n_done = T_; fail_n = -1
     state = 0.0
     if kind == 3:
@@ -55,13 +55,14 @@ def _loop(kind, par, mu, d, xr, rr, sw, hrevs, M, B, pref, div_gain):
     two_over_sqrt_pi = 4.0 / math.sqrt(math.pi)
     for n in range(T_):
         if seg + 1 < sw.shape[0] and n == sw[seg + 1]:
-            seg += 1; hrev = hrevs[seg]
+            seg += 1
         a = T_ - 1 - n
         xv = xr[a:a + M]; rv = rr[a:a + M]
         y = np.dot(w, xv)
         y2[head] = y; y2[head + L] = y
         head = head + 1 if head + 1 < L else 0
-        en = d[n] + np.dot(y2[head:head + L], hrev)
+        lh = lengths[seg]
+        en = d[n] + np.dot(y2[head + L - lh:head + L], hrevs[seg, :lh])
         e[n] = en
         finite = math.isfinite(en)
         if finite:
@@ -158,16 +159,57 @@ def run(name, mu, params, dd, n_tot, M, B, pref, div_gain):
     x, d, r = dd["x"], dd["d"], dd["r"]
     T_ = len(d) if n_tot is None else min(n_tot, len(d))
     plant = dd["hS_seq"]
-    L = len(plant[0][1])
-    assert all(len(h) == L for _, h in plant)
-    hrevs = np.ascontiguousarray(np.stack([h[::-1] for _, h in plant]), dtype=np.float64)
+    lengths = np.array([len(h) for _, h in plant], dtype=np.int64)
+    hrevs = np.zeros((len(plant), int(lengths.max())))
+    for i, (_, h) in enumerate(plant):
+        hrevs[i, :lengths[i]] = h[::-1]
     sw = np.array([b0 * B for b0, _ in plant], dtype=np.int64)
     xr = np.concatenate([x[:T_][::-1], np.zeros(M - 1)])
     rr = np.concatenate([r[:T_][::-1], np.zeros(M - 1)])
     t0 = time.perf_counter()
     e, w, div, n_done, fail_n = _loop(KIND[name], np.array(pack(name, params), dtype=np.float64), float(mu),
-                                      np.ascontiguousarray(d[:T_], dtype=np.float64), xr, rr, sw, hrevs, M, B, float(pref), float(div_gain))
+                                      np.ascontiguousarray(d[:T_], dtype=np.float64), xr, rr, sw, hrevs, lengths, M, B, float(pref), float(div_gain))
     return e, w, bool(div), int(n_done), int(fail_n), time.perf_counter() - t0
+
+
+def check_block_state(F):
+    """Compare ring state after wrapping and after an incomplete, failed block."""
+    from unittest.mock import patch
+
+    rng = np.random.default_rng(10)
+    x = rng.standard_normal(11 * F.B)
+    d = rng.standard_normal(len(x))
+    h = np.array([0.0, 0.5, -0.1])
+    model = [(0, h), (6, h * 0.75)]
+    base = dict(x=x, xq=np.pad(x, (F.N, 0)), r=x, hSm_seq=model,
+                hS_seq=[(0, h), (6, h[:2])], primary_power=1.0)
+    create = F.make_algo
+    for bad in (None, 10 * F.B + 7):
+        disturbance = d.copy()
+        if bad is not None:
+            disturbance[bad] = np.nan
+        dd = dict(base, d=disturbance)
+        for name in F.BLOCK_BASE:
+            mu, params = F.BASE[name]
+            instances = []
+
+            def capture(*args):
+                algo = create(*args)
+                instances.append(algo)
+                return algo
+
+            with patch.object(F, "make_algo", side_effect=capture):
+                with patch.dict(os.environ, ANC_NO_JIT="1"):
+                    ref = F.run_baseline(name, mu, params, dd)
+                new = F.run_baseline_block(name, mu, params, dd)
+            assert (ref["div"], ref["failure"]) == (new["div"], new["failure"])
+            a, b = instances
+            for attr in ("x_head", "e_head", "count"):
+                assert getattr(a, attr) == getattr(b, attr), (name, bad, attr)
+            for attr in ("x2", "Hc"):
+                np.testing.assert_array_equal(getattr(a, attr), getattr(b, attr))
+            np.testing.assert_allclose(a.e2, b.e2, rtol=1e-12, atol=1e-12)
+    print("block baseline state ok: ring wrap, Hc switch and non-finite sample")
 
 
 def check():
@@ -175,6 +217,7 @@ def check():
     import json
     import final as F
     assert HAVE_NUMBA, "numba is not installed"
+    check_block_state(F)
     tune = json.loads((F.HERE / "TUNE.json").read_text())["chosen"]
     n_tot = 17 * F.BPS * F.B
     worst = 0.0
@@ -188,10 +231,12 @@ def check():
                 new = F.run_baseline(name, mu, par, dd, n_tot)
                 same_div = ref["div"] == new["div"]
                 if ref["div"] or new["div"]:
-                    ok = same_div and abs(ref["n_done"] - new["n_done"]) <= F.B
+                    ok = (same_div and ref["n_done"] == new["n_done"]
+                          and ref["failure"]["sample"] == new["failure"]["sample"])
                     rel = float("nan")
                 else:
                     rel = float(np.max(np.abs(ref["e"] - new["e"])) / np.max(np.abs(ref["e"])))
+                    np.testing.assert_allclose(new["w"], ref["w"], rtol=1e-8, atol=1e-10)
                     ok = rel < 1e-6; worst = max(worst, rel)
                 print(f"{cls:6s} {scen:7s} {name:12s} mu={mu:<9.6g} div {int(ref['div'])}/{int(new['div'])} rel diff {rel:.1e} "
                       f"time {ref['seconds']:.1f} -> {new['seconds']:.2f} s {'ok' if ok else 'MISMATCH'}", flush=True)
