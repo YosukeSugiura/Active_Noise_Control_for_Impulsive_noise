@@ -191,7 +191,45 @@ def build(cls, scen, seed, Ls, rmode="fd", final=False):
         st = T.Stats(dd, Rall)
     finally:
         T.PI_DEFS = saved
+    st.Fsf = np.array([sf_factor(st.Srr[i], st.Pbar[i], st.eps[i], SF_EPS) for i in range(len(Rall))])
     return dd, Rall, st
+
+
+# The minimum-phase factor F of the SF direction depends only on the reference statistics of the block, so it is the
+# same for every rule and every call in a condition.  It is computed once per block at build time (same code as
+# specfac.sf_dir) and looked up by the position of the Srr row; any call that does not match is computed as before.
+SF_EPS = 1e-2
+EXACT_OUTPUT = bool(os.environ.get("ANC_EXACT"))    # set ANC_EXACT=1 to reproduce vssT_lib.simulate bit for bit
+_SF_ORIG = p.SFm.sf_dir
+_SF_CACHE = [None]
+
+
+def sf_factor(Srr, Pbar, s_eps, eps_reg):
+    Lam = np.maximum(Srr + s_eps + eps_reg * Pbar, 1e-300)
+    full = np.concatenate([Lam, Lam[-2:0:-1]])
+    c = np.fft.ifft(0.5 * np.log(full)).real
+    c[1:N // 2] *= 2.0
+    c[N // 2 + 1:] = 0.0
+    return np.exp(np.fft.rfft(c))
+
+
+def sf_dir_cached(R, E, Srr, Pbar, s_eps, eps_reg, trunc=p.SFm.TRUNC, ret_y=False):
+    st = _SF_CACHE[0]
+    if st is None or eps_reg != SF_EPS or Srr.base is not st.Srr:
+        return _SF_ORIG(R, E, Srr, Pbar, s_eps, eps_reg, trunc, ret_y)
+    i = (Srr.__array_interface__["data"][0] - st.Srr.__array_interface__["data"][0]) // st.Srr.strides[0]
+    if not (0 <= i < len(st.Pbar)) or Pbar != st.Pbar[i] or s_eps != st.eps[i]:
+        return _SF_ORIG(R, E, Srr, Pbar, s_eps, eps_reg, trunc, ret_y)
+    F_ = st.Fsf[i]
+    x = np.fft.irfft(np.conj(R) * E / np.conj(F_), N)
+    x[trunc:] = 0.0
+    G_ = np.fft.rfft(x) / F_
+    if ret_y:
+        return np.fft.irfft(G_, N)[:M], x, F_
+    return np.fft.irfft(G_, N)[:M]
+
+
+p.SFm.sf_dir = sf_dir_cached
 
 
 def seq_at(seq, i):
@@ -244,8 +282,10 @@ def simulate(dd, Rall, st, rule, nb=None, error_frame=None, hook=None):
                           for (b, h), (c, m) in zip(dd["hS_seq"], dd["hSm_seq"])))
     for i in range(nb):
         s0 = i * B
-        Xb = swv[s0 + N - M + 1:s0 + N - M + 1 + B][:, ::-1]
-        yb = Xb @ w
+        if EXACT_OUTPUT:                            # the product of vssT_lib.simulate (bit-for-bit)
+            yb = swv[s0 + N - M + 1:s0 + N - M + 1 + B][:, ::-1] @ w
+        else:                                       # the same sum by np.convolve: 6x faster, differs by rounding only
+            yb = np.convolve(xq[s0 + N - M + 1:s0 + N + B], w, "valid")
         y_all[s0:s0+B] = yb
         ys, plant_state = filtered_block(plant_state, i, hist, yb, dd["hS_seq"])
         eb = d[s0:s0 + B] + ys
@@ -407,7 +447,11 @@ def run_rule(label, dd, Rall, st, X4, nb=None, hook=None):
         nd = label in ("ND-always", "ND-always-cap")
         rule.frame = SwitchedFrame(dd, rule, always=nd) if len(dd["hSm_seq"]) > 1 or nd else q4.Frame4(dd, rule)
     t0 = time.perf_counter()
-    sim = simulate(dd, Rall, st, rule, nb=nb, error_frame=rule.frame if frame else None, hook=hook)
+    _SF_CACHE[0] = st if hasattr(st, "Fsf") and not os.environ.get("ANC_NO_SFCACHE") else None
+    try:
+        sim = simulate(dd, Rall, st, rule, nb=nb, error_frame=rule.frame if frame else None, hook=hook)
+    finally:
+        _SF_CACHE[0] = None
     sim["seconds"] = time.perf_counter() - t0
     return rule, sim
 
@@ -439,7 +483,7 @@ def run_baseline_block(name, mu, params, dd, n_tot=None):
         s0 = i * B
         if i in mswitch and hasattr(algo, "Hc"):
             algo.Hc = np.fft.rfft(mswitch[i], n=algo.N)
-        yb = swv[s0 + N - M + 1:s0 + N - M + 1 + B][:, ::-1] @ w
+        yb = np.convolve(dd["xq"][s0 + N - M + 1:s0 + N + B], w, "valid")
         ys, state = filtered_block(state, i, hist, yb, dd["hS_seq"])
         if multi:
             hist = np.concatenate([hist, yb])[-hist.size:]
