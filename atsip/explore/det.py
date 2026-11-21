@@ -1,4 +1,4 @@
-"""Detector study on design seeds (10-14): log candidate statistics from runs without restart, then evaluate
+"""Detector study on design seeds (10-49): log candidate statistics from runs without restart, then evaluate
 detector rules offline on the logs.
 
 Why offline is valid: the proposed rule's foreground output equals the no-restart rule until a trial is confirmed
@@ -39,7 +39,7 @@ np, p = F.np, F.p
 B, M, N, CB, BPS = F.B, F.M, F.N, F.CB, F.BPS
 HERE = Path(__file__).resolve().parent
 OUT = HERE / "out" / "det_log"
-SEEDS = (10, 11, 12, 13, 14)
+SEEDS = tuple(range(10, 50))     # 40 seeds: every (recording segment, path pair) combination once (seed % 5, seed % 8)
 CLASSES = F.FINAL_CLASSES
 SCEN = ("stat", "RS-near", "RS-far", "EN0", "ENm10")
 LAMS = (0.1, 0.25, 0.5)
@@ -145,7 +145,7 @@ def evaluate():
     for f in sorted(p_ for p_ in OUT.glob("*.npz") if ".tmp" not in p_.name):
         cls, scen, s = f.stem.rsplit("_", 2)
         logs[(cls, scen, int(s[1:]))] = dict(np.load(f))
-    L = ["# 検出器の比較（設計用 seed 10–14、再始動なしの実行のログから、検出の規則をオフラインで評価）", "",
+    L = ["# 検出器の比較（設計用 seed 10–49、再始動なしの実行のログから、検出の規則をオフラインで評価）", "",
          f"ログ {len(logs)} 件。見逃し＝騒音源の切り替えの後 {WIN} ブロック以内に検出なし。"
          f"誤検出＝変化のない区間（stat 全体、外乱の条件全体、切り替えの前）での検出。開始 2 秒は数えない。"
          "誤検出は 1 分あたりの回数。遅れ＝変化から最初の検出までのブロック数の中央値。", "",
