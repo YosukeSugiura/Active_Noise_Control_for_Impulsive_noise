@@ -108,7 +108,7 @@ def run_log(job):
 
 
 @F.fastbase.njit(cache=True)
-def _triggers(series, ratios, thresholds, consecutive, beta, guard):
+def _triggers(series, ratios, thresholds, consecutive, beta, guard, freeze=False):
     n_part, n_block = series.shape
     base = np.full(n_part, np.nan)
     count = np.zeros(n_part, dtype=np.int64)
@@ -120,12 +120,15 @@ def _triggers(series, ratios, thresholds, consecutive, beta, guard):
         for j in range(n_part):
             v, ref = series[j, i], base[j]
             finite = np.isfinite(v)
-            if finite:
-                base[j] = v if np.isnan(ref) else (1 - beta) * ref + beta * v
             crossed = v > thresholds[j] * ref if ratios[j] else v - ref > thresholds[j]
             hit = armed and not np.isnan(ref) and finite and crossed
             count[j] = count[j] + 1 if hit else 0
             fire = fire or count[j] >= consecutive[j]
+        if not freeze or (armed and not fire):
+            for j in range(n_part):
+                v, ref = series[j, i], base[j]
+                if np.isfinite(v):
+                    base[j] = v if np.isnan(ref) else (1 - beta) * ref + beta * v
         if fire:
             last = i
             out.append(i)
@@ -138,11 +141,11 @@ def triggers(s, mode, k, d, beta=0.05, guard=64):
     return triggers_or(((s, mode, k, d),), beta, guard)
 
 
-def triggers_or(parts, beta=0.05, guard=64):
+def triggers_or(parts, beta=0.05, guard=64, freeze=False):
     """Independent previous EMAs and counts, with a shared guard and reset."""
     signals, modes, ks, ds = zip(*parts)
     return _triggers(np.asarray(signals), np.array([m == "ratio" for m in modes]),
-                     np.asarray(ks, dtype=float), np.asarray(ds), beta, guard)
+                     np.asarray(ks, dtype=float), np.asarray(ds), beta, guard, freeze)
 
 
 RULES = ([("z", "ratio", k, d) for k in (2, 3, 4, 6) for d in (1, 2, 3)]
@@ -272,13 +275,133 @@ def evaluate():
     print(f"wrote RESULTS_det.md {len(rows)} rules / {len(logs)} logs")
 
 
+DET2_SCEN = ("stat", "RS-near", "RS-far")
+DET2_GUARDS = (64, 32, 16, 8, 4, 0)
+
+
+def trial_starts(triggers_, busy=16):
+    """Count an accepted trigger and suppress the following busy blocks."""
+    starts = []
+    for t in triggers_:
+        if not starts or t - starts[-1] > busy:
+            starts.append(t)
+    return starts
+
+
+def evaluate_guard():
+    logs = {}
+    for cls, scen, seed in itertools.product(CLASSES, DET2_SCEN, SEEDS):
+        with np.load(OUT / f"{cls}_{scen}_s{seed}.npz") as entry:
+            if int(entry["version"]) != LOG_VERSION:
+                raise ValueError(f"incompatible detector log: {cls}/{scen}/{seed}")
+            if not bool(entry["div"]):
+                change = entry["changes"]
+                logs[cls, scen, seed] = (int(change[0]) if len(change) else None,
+                                         {k:entry[k] for k in ("z","c0.1","c0.25")})
+    current = ("z","ratio",4,2)
+    rules = {"z": (current,), "OR c0.1": (current,("c0.1","diff",.1,2)),
+             "OR c0.25": (current,("c0.25","diff",.1,2))}
+    near = DET2_SCEN[1:]
+    L = ["# 検出器の保護区間（設計用 seed 10–49）","",
+         f"保存ログ1,200件を再評価。発散による除外 {1200-len(logs)} 件。stat、RS-near、RS-far を使用。",
+         "見逃し窓は切替ブロック以上、切替+64未満。誤反応は stat の開始2秒以降と切替条件の開始2秒以降から切替直前まで。遅れは窓内最初の検出までのブロック数。",
+         "更新停止は発火ブロックを含め、保護が解除されるブロックの直前まで。保護0でも発火ブロックの更新を省く。",
+         "試行制約つきの列では、採用した検出の次の16ブロック（+1〜+16）に出た検出を数えない。抑制された検出で試行を延長せず、検出器自身の状態と保護は動かす。閉ループの移行は評価しない。",
+         "見逃しの95%区間は各クラス・条件内で seed を2,000回復元抽出した百分位区間。", ""]
+    def table(headers, values):
+        for row in (headers, ["---"]*len(headers), *values):
+            L.append("| " + " | ".join(map(str,row)) + " |")
+        L.append("")
+
+    def miss_cell(values):
+        if not values:
+            return "—"
+        a = np.array([v is None for v in values])
+        draws = np.random.default_rng(0).choice(a,size=(2000,len(a))).mean(axis=1)
+        lo,hi = np.quantile(draws,[.025,.975])
+        return f"{a.sum()}/{len(a)} ({a.mean():.1%} [{lo:.1%}, {hi:.1%}])"
+
+    results = {}
+    precedes = {}
+    for name,rule in rules.items():
+        for guard in DET2_GUARDS if name=="z" else (16,):
+            for freeze in (False,True):
+                detail={}
+                for key,(cb,series) in logs.items():
+                    hits=triggers_or([(series[s],mode,k,d) for s,mode,k,d in rule], guard=guard, freeze=freeze)
+                    starts=trial_starts(hits)
+                    end=cb if cb is not None else len(series["z"])
+                    delays=tuple(next((i-cb for i in seq if cb<=i<cb+WIN),None) if cb is not None else None
+                                 for seq in (hits,starts))
+                    detail[key]=(delays,sum(WARM<=i<end for i in hits),end-WARM)
+                    if name=="z" and guard==64 and not freeze and cb is not None and delays[0] is None:
+                        precedes[key]=any(cb-64<=i<cb for i in hits)
+                results[name,guard,freeze]=detail
+    means={}
+    miss_rates={}
+    for (name,guard,freeze),detail in results.items():
+        L += [f"## {name}・保護{guard}・{'更新停止' if freeze else '毎ブロック更新'}",""]
+        values=[]; rates=[]
+        for cls in CLASSES:
+            row=[cls]
+            for scen in near:
+                delays=[d for (c,s,_),(d,_,_) in detail.items() if c==cls and s==scen]
+                for v in zip(*delays):
+                    row.extend((miss_cell(v),F.fmt(float(np.median([i for i in v if i is not None]))
+                                                   if any(i is not None for i in v) else None,1)))
+                miss_rates[name,guard,freeze,cls,scen]=sum(d[0] is None for d in delays)/len(delays)
+            n=sum(v[1] for k,v in detail.items() if k[0]==cls)
+            blocks=sum(v[2] for k,v in detail.items() if k[0]==cls)
+            rate=n*60*BPS/blocks
+            rates.append(rate)
+            row.extend((f"{rate:.2f}",f"{rate*16/7500:.2%}"))
+            values.append(row)
+        means[name,guard,freeze]=(float(np.mean([d[0] is None for key,(d,_,_) in detail.items() if key[1] in near])),
+                                  float(np.mean(rates)),
+                                  float(np.mean([d[1] is None for key,(d,_,_) in detail.items() if key[1] in near])))
+        table(("クラス","near 見逃し [95%]","near 遅れ","near 試行制約つき [95%]","near 制約つき遅れ",
+               "far 見逃し [95%]","far 遅れ","far 試行制約つき [95%]","far 制約つき遅れ",
+               "誤反応/分","試行稼働率の概算"),values)
+    L += ["## 所見","","### 現行規則で見逃す直前の検出","",
+          "切替の直前64ブロック（−64〜−1）に一回以上検出した件数／見逃し件数。直前検出の存在を数える。", ""]
+    values=[]
+    for c in CLASSES:
+        row=[c]
+        for scenes in (near,*((s,) for s in near)):
+            v=[x for (cl,s,_),x in precedes.items() if cl==c and s in scenes]
+            row.append(f"{sum(v)}/{len(v)} ({sum(v)/len(v):.1%})" if v else "— (見逃し0)")
+        values.append(row)
+    table(("クラス","近遠合計","near","far"),values)
+    L += ["### 保護区間を短くしたときの見逃し","",
+          "毎ブロック更新の結果。数値は保護64・32・16・8・4・0の順。増減は保護64→0の端点で分類。", ""]
+    table(("クラス","near の見逃し率","near 増減","far の見逃し率","far 増減"),
+          [(c,*(v for s in near for rates in [[miss_rates["z",g,False,c,s] for g in DET2_GUARDS]]
+                for v in (" → ".join(f"{r:.1%}" for r in rates),
+                          "減少" if rates[-1]<rates[0] else "増加" if rates[-1]>rates[0] else "同率"))) for c in CLASSES])
+    L += ["### 誤反応と基準更新の差","",
+          "稼働率は誤反応/分 × 16 ÷ 7,500。実際の試行長や重なりを反映しない概算。見逃し率は完走した近遠の全実行、誤反応率は等重みクラス平均。", ""]
+    table(("規則","保護","毎回 見逃し","停止 見逃し","停止−毎回（ポイント）",
+           "毎回 誤反応/分","停止 誤反応/分","停止−毎回 /分","毎回 稼働率","停止 稼働率",
+           "制約つき 毎回の見逃し","制約つき 停止の見逃し"),
+          [(name,g,f"{a:.2%}",f"{b:.2%}",f"{100*(b-a):+.2f}",f"{x:.2f}",f"{y:.2f}",f"{y-x:+.2f}",
+            f"{x*16/7500:.2%}",f"{y*16/7500:.2%}",f"{u:.2%}",f"{v:.2%}")
+           for (name,g,freeze),(a,x,u) in means.items() if not freeze for b,y,v in [means[name,g,True]]])
+    (HERE/"RESULTS_det2.md").write_text("\n".join(L).rstrip()+"\n",encoding="utf-8")
+    print(f"wrote RESULTS_det2.md: {len(logs)} usable logs, {len(results)} variants")
+
+
 if __name__ == "__main__":
-    a = argparse.ArgumentParser(); a.add_argument("cmd", choices=("log", "eval")); a.add_argument("--procs", type=int, default=os.cpu_count() or 1)
+    a = argparse.ArgumentParser(); a.add_argument("cmd", choices=("log", "eval", "eval2")); a.add_argument("--procs", type=int, default=os.cpu_count() or 1)
     a.add_argument("--classes", default=",".join(CLASSES))
+    a.add_argument("--scen", type=lambda s: s.split(","), default=SCEN)
     o = a.parse_args()
+    if any(s not in SCEN for s in o.scen):
+        a.error("--scen expects a comma-separated list of known scenarios")
     if o.cmd == "log":
-        jobs = [(c, s, sd) for c in o.classes.split(",") for s in SCEN for sd in SEEDS]
+        jobs = [(c, s, sd) for c in o.classes.split(",") for s in o.scen for sd in SEEDS]
         with Pool(o.procs) as pool:
             list(pool.imap_unordered(run_log, jobs))
-    else:
+    elif o.cmd == "eval":
         evaluate()
+    else:
+        evaluate_guard()
