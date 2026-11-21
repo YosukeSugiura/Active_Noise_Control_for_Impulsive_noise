@@ -22,3 +22,10 @@
 - 追加の指摘 — すぐ鳴らす版と 1/g なしの誤った移行は全件が冷間始動の直後。回復の短縮はクラス別では 5〜6/10。実音は 5 区間・経路 8 組の使い回し。FxNLMS と Th_FxNLMS は実質同じ結果。
 - 未解決 — 2 つの査読の修正案を THEORY_frozen.md に反映するかの判断。
 - 成果物 — [REVIEW_claims_claude.md](REVIEW_claims_claude.md)。
+
+## ATSIP 事後分析 — 固定係数による回復の測定
+- 実行者 — Codex
+- 更新日時 — 2026-11-21 09:04:17 JST
+- 状態 — 設計用80条件と本実行800条件を完了。2プロセスでそれぞれ 256.72 秒、2486.29 秒。
+- 結果 — 6手法・4,800実行で発散 0 件。固定係数による比較、開始差の感度分析、短時間誤差の回復との照合を所見に記録。
+- 成果物 — [本実行](RESULTS_coef.md)、[設計用](RESULTS_coef_dry.md)、[アーカイブ](results/coef_run.tar.gz)、[レビュー](REVIEW_final.md)。ログは `out/coef_analysis/run.log`。
