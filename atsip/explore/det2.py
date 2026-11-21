@@ -22,7 +22,7 @@ SEEDS = tuple(range(10, 30))
 SCEN = ("stat", "RS-near", "RS-far", "EN0", "ENm10")
 VARIANTS = {"base": (False, 64), "F64": (True, 64), "F32": (True, 32)}
 KS = (16, 64)
-VERSION = 1
+VERSION = 2
 
 
 class FreezeDetector(p.RSNDetector):
@@ -63,24 +63,29 @@ def run_job(job):
     cls, scen, seed = job
     assert seed in SEEDS
     f = OUT / f"{cls}_{scen}_s{seed}.json"
-    if f.exists() and json.loads(f.read_text()).get("version") == VERSION:
+    cached = json.loads(f.read_text()) if f.exists() else {}
+    rows = cached["rows"] if cached.get("version") == VERSION else []
+    done = {r["variant"] for r in rows}
+    if done == set(VARIANTS):
         return
     t0 = time.monotonic()
     X4 = p.parse(["c5", "--preset", "final"]).X4
     dd, Rall, st = F.build(cls, scen, seed, F.LS_FINAL)
     assert len(dd["hSm_seq"]) == 1
     _, ref = F.run_rule("nors-cap", dd, Rall, st, X4)
-    rows = []
     for v in VARIANTS:
+        if v in done:
+            continue
         rule, sim, ws = run_one(v, dd, Rall, st, X4)
         row = dict(variant=v, cls=cls, scen=scen, seed=int(seed), **F.measures(sim, dd), **F.trial_stats(rule, dict(dd, scored_blocks=sim["n_done"])))
         row["n_trials"] = len(rule.trials); row["n_transfer"] = len(rule.restarts)
-        row["trial_blocks"] = int(sum((t["decide"] if t["decide"] is not None else t["block"] + 16) - t["block"] for t in rule.trials))
+        row["n_done"] = int(sim["n_done"])
+        row["trial_blocks"] = sum(max(0, (t["decide"] if t["decide"] is not None else sim["n_done"] - 1)
+                                      - t["block"]) for t in rule.trials)
         if not sim["div"] and not ref["div"]:
             row["same_as_nors"] = int(np.array_equal(sim["e"], ref["e"]) and np.array_equal(sim["y"], ref["y"]))
         if dd["changes"] and not sim["div"]:
             J = C.frozen_anr(dd, {k: ws.get(k) for k in KS}); row.update({f"J{k}": J[k] for k in KS})
-        row.pop("trials", None)
         rows.append(row)
     f.parent.mkdir(parents=True, exist_ok=True)
     F.ab.atomic_write(f, lambda h: json.dump(dict(version=VERSION, rows=rows), h))
@@ -99,7 +104,7 @@ def report():
         for v in VARIANTS:
             rs = [r for r in rows if r["scen"] == scen and r["variant"] == v]; ok = [r for r in rs if not r["div"]]
             same = [r["same_as_nors"] for r in ok if "same_as_nors" in r]
-            nblk = sum(r.get("n_done", 3750) if False else 3750 for r in ok)
+            nblk = sum(r["n_done"] for r in ok)
             L.append(f"| {scen} | {v} | {len(rs)} | {sum(r['div'] for r in rs)} | {sum(r.get('missed') or 0 for r in ok)} | {sum(r.get('false_confirm') or 0 for r in ok)} | "
                      f"{sum(same)}/{len(same)} | {sum(r['n_trials'] for r in ok) / max(nblk / F.BPS / 60, 1e-9):.1f} | {100 * sum(r['trial_blocks'] for r in ok) / max(nblk, 1):.1f}% | "
                      f"{mean([r['L1_whole'] for r in ok])} | " + " | ".join(mean([r[f'J{k}'] for r in ok if r.get(f'J{k}') is not None]) for k in KS) + " |")
