@@ -9,7 +9,8 @@ outputs go to separate folders and files.
   python final2.py coef [--dry] [--procs K] [--shard k/n]      -> out/coef2_run (or coef2_dry)
   python final2.py coef-report [--dry]                         -> RESULTS_coef2.md (or _dry)
 """
-import argparse, os, shutil
+import argparse, os
+from tempfile import TemporaryDirectory
 from multiprocessing import Pool
 from pathlib import Path
 import final as F
@@ -17,40 +18,42 @@ import coef as C
 import det2
 
 HERE = Path(__file__).resolve().parent
-F.p.RSNDetector = det2.FreezeDetector          # every rule with a detector (proposed, 1/g-free, immediate) uses it
-F.FINAL_SCEN = ("stat", "RS-near", "RS-far", "EN0", "ENm10")
-F.final_dir = lambda dry: HERE / "out" / ("final2_dry" if dry else "final2_run")
-C.SCEN = ("RS-near", "RS-far")
-C.out_dir = lambda dry: HERE / "out" / ("coef2_dry" if dry else "coef2_run")
+
+def configure():
+    """Install the evaluator settings in the parent and in every worker."""
+    F.p.RSNDetector = det2.FreezeDetector
+    F.FINAL_SCEN = ("stat", "RS-near", "RS-far", "EN0", "ENm10")
+    F.final_dir = lambda dry: HERE / "out" / ("final2_dry" if dry else "final2_run")
+    C.SCEN = ("RS-near", "RS-far")
+    C.out_dir = lambda dry: HERE / "out" / ("coef2_dry" if dry else "coef2_run")
 
 
-def report_to(fn, dry, old, new):
-    """Run a report function of final.py / coef.py that writes `old`, and store its output as `new` instead."""
-    old, new, keep = HERE / old, HERE / new, HERE / (old + ".keep")
-    had = old.exists()
-    if had:
-        shutil.copy2(old, keep)
-    try:
-        fn(dry)
-        shutil.move(old, new)
-    finally:
-        if had:
-            shutil.move(keep, old)
-    print("stored as", new.name)
+def report_to(module, fn, dry, old, new):
+    """Use the original report writer in a scratch directory."""
+    root = module.HERE
+    with TemporaryDirectory(dir=HERE, prefix=".final2-report-") as scratch:
+        module.HERE = Path(scratch)
+        try:
+            fn(dry)
+            (module.HERE / old).replace(HERE / new)
+        finally:
+            module.HERE = root
+    print("stored as", new)
 
 
 if __name__ == "__main__":
+    configure()
     a = argparse.ArgumentParser(); a.add_argument("cmd", choices=("final", "final-report", "coef", "coef-report"))
-    a.add_argument("--dry", action="store_true"); a.add_argument("--procs", type=int, default=os.cpu_count() or 1); a.add_argument("--shard", default="0/1")
+    a.add_argument("--dry", action="store_true"); a.add_argument("--procs", type=int, default=os.cpu_count() or 1); a.add_argument("--shard", default="0/1", type=F.parse_shard)
     o = a.parse_args(); sfx = "_dry" if o.dry else ""
-    k, n = (int(v) for v in o.shard.split("/"))
-    if o.cmd == "final":
-        F.final_run(o.procs, o.dry, (k, n))
+    if o.cmd in ("final", "coef"):
+        if not o.dry and not (HERE / "EVAL_FROZEN.json").is_file():
+            a.error("EVAL_FROZEN.json is required for the final run")
+        jobs, worker = ((F.final_jobs(o.dry), F.run_final_job) if o.cmd == "final"
+                        else (C.jobs(o.dry), C.run_job))
+        with Pool(o.procs, initializer=configure) as pool:
+            list(pool.imap_unordered(worker, F.shard_jobs(jobs, o.shard)))
     elif o.cmd == "final-report":
-        report_to(F.final_report, o.dry, f"RESULTS_final{sfx}.md", f"RESULTS_final2{sfx}.md")
-    elif o.cmd == "coef":
-        jobs = [j for i, j in enumerate(C.jobs(o.dry)) if i % n == k]
-        with Pool(o.procs) as pool:
-            list(pool.imap_unordered(C.run_job, jobs))
+        report_to(F, F.final_report, o.dry, f"RESULTS_final{sfx}.md", f"RESULTS_final2{sfx}.md")
     else:
-        report_to(C.report, o.dry, f"RESULTS_coef{sfx}.md", f"RESULTS_coef2{sfx}.md")
+        report_to(C, C.report, o.dry, f"RESULTS_coef{sfx}.md", f"RESULTS_coef2{sfx}.md")
