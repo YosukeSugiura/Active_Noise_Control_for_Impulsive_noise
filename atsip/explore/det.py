@@ -390,10 +390,94 @@ def evaluate_guard():
     print(f"wrote RESULTS_det2.md: {len(logs)} usable logs, {len(results)} variants")
 
 
+SCREEN_SCEN=("stat","RS-near","RS-far")
+SCREEN_SEEDS=tuple(range(10,30))
+def load_screen():
+    logs={}
+    for c,s,sd in itertools.product(CLASSES,SCREEN_SCEN,SCREEN_SEEDS):
+        with np.load(OUT/f"{c}_{s}_s{sd}.npz") as f:
+            assert int(f["version"])==LOG_VERSION and not bool(f["div"])
+            logs[c,s,sd]={k:f[k] for k in ("z","c0.1","c0.25")}
+    return logs
+
+@F.fastbase.njit(cache=True)
+def screen_clipped(z):
+    base=np.nan
+    last=-64
+    count=0
+    out=[]
+    for i,v in enumerate(z):
+        if not np.isfinite(v):
+            count=0
+            continue
+        armed=i-last>=64
+        count=count+1 if armed and np.isfinite(base) and v>4*base else 0
+        if count==2:
+            out.append(i)
+            last=i
+            count=0
+        elif armed:
+            base=v if not np.isfinite(base) else .95*base+.05*min(v,4*base)
+    return out
+
+SCREEN_VARIANTS={
+    "F64":(64,None),
+    "F32":(32,None),
+    "Clip":(64,None),
+    "C10":(64,"c0.1"),
+    "C25":(64,"c0.25"),
+}
+def screen_candidate(logs,name):
+    guard,coh=SCREEN_VARIANTS[name]
+    misses={};false={}
+    for (c,s,sd),data in logs.items():
+        rule=[(data["z"],"ratio",4,2)]
+        if coh:
+            rule.append((data[coh],"diff",.1,2))
+        hits=screen_clipped(data["z"]) if name=="Clip" else triggers_or(rule,guard=guard,freeze=True)
+        starts=trial_starts(hits)
+        end=CB if s!="stat" else len(data["z"])
+        false[c,s,sd]=sum(WARM<=i<end for i in starts)
+        if s!="stat":
+            misses[c,s,sd]=next((i-CB for i in starts if CB<=i<CB+WIN),None)
+    output={}
+    for c in CLASSES:
+        cells={}
+        for s in SCREEN_SCEN[1:]:
+            v=[i for (cc,ss,_),i in misses.items() if (cc,ss)==(c,s)]
+            d=[i for i in v if i is not None]
+            cells[s]=[len(v)-len(d),float(np.median(d)) if d else None]
+        blocks=sum((CB if s!="stat" else len(logs[c,s,sd]["z"]))-WARM
+                   for s,sd in itertools.product(SCREEN_SCEN,SCREEN_SEEDS))
+        cells["fa"]=sum(v for (cc,_,_),v in false.items() if cc==c)*BPS*60/blocks
+        output[c]=cells
+    return output,misses
+
+def screen_diagnostics(logs):
+    _, ms=screen_candidate(logs,"F64")
+    output={}
+    for s in SCREEN_SCEN[1:]:
+        traces=[logs[c,sc,sd] for (c,sc,sd),v in ms.items() if (c,sc)==("machinegun",s) and v is None]
+        series={k:np.median([t[k][CB-40:CB+41] for t in traces],axis=0).tolist()
+                for k in ("z","c0.1","c0.25")}
+        output[s]={"n":len(traces),"series":series}
+        print(s,len(traces),{k:[round(float(np.median(v[:40])),3),round(float(np.median(v[40:80])),3)] for k,v in series.items()})
+    return output
+
+def screen(name):
+    start = time.monotonic()
+    logs = load_screen()
+    data = screen_diagnostics(logs) if name == "diagnostics" else screen_candidate(logs,name)[0]
+    folder = HERE / "out" / "det4"
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder/f"{name}.json").write_text(json.dumps(dict(seconds=time.monotonic()-start,data=data),indent=2)+"\n")
+
+
 if __name__ == "__main__":
-    a = argparse.ArgumentParser(); a.add_argument("cmd", choices=("log", "eval", "eval2")); a.add_argument("--procs", type=int, default=os.cpu_count() or 1)
+    a = argparse.ArgumentParser(); a.add_argument("cmd", choices=("log", "eval", "eval2", "screen")); a.add_argument("--procs", type=int, default=os.cpu_count() or 1)
     a.add_argument("--classes", default=",".join(CLASSES))
     a.add_argument("--scen", type=lambda s: s.split(","), default=SCEN)
+    a.add_argument("--candidate", choices=("diagnostics", *SCREEN_VARIANTS), default="F64")
     o = a.parse_args()
     if any(s not in SCEN for s in o.scen):
         a.error("--scen expects a comma-separated list of known scenarios")
@@ -403,5 +487,7 @@ if __name__ == "__main__":
             list(pool.imap_unordered(run_log, jobs))
     elif o.cmd == "eval":
         evaluate()
-    else:
+    elif o.cmd == "eval2":
         evaluate_guard()
+    else:
+        screen(o.candidate)
