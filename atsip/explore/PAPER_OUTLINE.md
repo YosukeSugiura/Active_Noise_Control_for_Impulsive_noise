@@ -1,4 +1,4 @@
-# 論文の構成（第3版、2026-11-22）
+# 論文の構成（第4版、2026-11-22）
 
 投稿先は ATSIP か Applied Acoustics（未定）。どちらでも使える構成にしておき、決まったら字数と体裁を合わせる。
 主張と数字は THEORY_frozen.md（第8版）の「論文の目的と主張」に従う。調整の経緯は書かない。
@@ -8,16 +8,18 @@
 - Fast and output-preserving reconvergence of frequency-domain filtered-x ANC under impulsive noise and primary path changes
 - Background-trial restart for frequency-domain active noise control of impulsive noise
 
-## 節立て（第3版：7 節、図 4、表 3 に絞る）
+## 節立て（第4版：関連研究と問題設定を独立させた。8 節、図 4、表 3）
 
 | 節 | 内容 |
 |---|---|
-| 1. Introduction | 背景と課題、関連研究（インパルス性向けの更新則、SF 型の更新、誤差の作り直し、二重経路法）を 1 段落ずつ、本稿との違い、貢献 3 つ |
-| 2. Proposed method | 問題設定と記号、SF 方向と有限長での性質（定理 A、補題 B）、1/g（定理 C）、始動・再始動の直後の作り直し（補題 F）、裏の試行と検出器（命題 H）、擬似コード。証明は付録 |
-| 3. Evaluation framework | 経路、入力、比較手法とステップの決め方、指標と統計を短く（Table 1） |
-| 4. Reconvergence after a primary path change | 主結果。問い → 結果 → 読み取れること（見逃した入力の扱いも）。Fig. 3、Fig. 4、Table 2 |
-| 5. Cost of the restart mechanism | 変化がないときに損をしないか：定常、誤差側の外乱、出力の同一性、各要素の寄与、演算量をまとめて（Table 3） |
-| 6. Conclusion | 主張と範囲の限定 |
+| 1. Introduction | 背景と課題、本稿の考え方、貢献 3 つ |
+| 2. Related work | インパルス性向けの更新則、スペクトル因子型の更新、誤差の作り直し、二重経路法と可変ステップ。各項で本稿との違いを 1 文 |
+| 3. Problem formulation | 遅延なしブロック周波数領域 FxNLMS、記号、インパルス性の入力と一次経路の変化のモデル。対象の範囲（一次経路の変化。二次経路の変化と Ŝ の再同定は対象外）。Fig. 1 |
+| 4. Proposed method | SF 方向と有限長での性質（定理 A、補題 B）、1/g（定理 C）、始動・再始動の直後の作り直し（補題 F）、裏の試行と検出器（命題 H）、擬似コード。証明は付録。Fig. 2 |
+| 5. Evaluation framework | 経路、入力、比較手法とステップの決め方、指標と統計を短く（Table 1） |
+| 6. Reconvergence after a primary path change | 主結果。問い → 結果 → 読み取れること（見逃した入力の扱いも）。Fig. 3、Fig. 4、Table 2 |
+| 7. Cost of the restart mechanism | 定常、誤差側の外乱、出力の同一性、各要素の寄与、演算量をまとめて（Table 3） |
+| 8. Conclusion | 主張と範囲の限定 |
 | Appendix | 証明、後半のステップの設計式 |
 
 ## 図表
