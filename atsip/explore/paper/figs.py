@@ -15,6 +15,7 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib import font_manager
 from matplotlib.ticker import FixedLocator, FixedFormatter
 import numpy as np
 
@@ -144,8 +145,8 @@ def figure3(coef, report):
         ax.set_xlim(0,15)
         ax.xaxis.set_major_locator(FixedLocator([0,.128,.512,2,8,15]))
         ax.xaxis.set_major_formatter(FixedFormatter(["0","0.13","0.51","2","8","15"]))
-        ax.set_title(f"({'ab'[SWITCHES.index(s)]}) {SCEN[s]} source switch",loc="left",fontsize=10)
-        ax.set_xlabel("Time after switch (s)")
+        subtitle = f"({'ab'[SWITCHES.index(s)]}) {SCEN[s]} source switch"
+        ax.set_xlabel(f"Time after switch (s)\n{subtitle}", linespacing=1.6)
         ax.grid(axis="y",color=".9",lw=.6)
     axes[0].set_ylabel("Frozen-filter residual / primary (dB)")
     axes[1].legend(loc="upper right",fontsize=7,framealpha=.92)
@@ -495,7 +496,12 @@ def main():
     args = parser.parse_args()
     for path in ("fig","tab"):
         (PAPER/path).mkdir(exist_ok=True)
-    plt.rcParams.update({"font.family":"DejaVu Sans","font.size":9,"pdf.fonttype":42,
+    times_families = ("Times New Roman", "Liberation Serif", "Nimbus Roman", "TeX Gyre Termes")
+    installed = {font.name for font in font_manager.fontManager.ttflist}
+    family = next((name for name in times_families if name in installed), None)
+    if family is None:
+        raise RuntimeError("Install a Times-compatible font: " + ", ".join(times_families))
+    plt.rcParams.update({"font.family":family,"font.size":9,"pdf.fonttype":42,
                          "axes.spines.top":False,"axes.spines.right":False})
     final=load("final2_run",(*SWITCHES,*QUIET))
     coef=load("coef2_run",SWITCHES)
