@@ -47,3 +47,9 @@
 - 状態 — A の1,000条件、B の保存ログ4候補、C の設計用・確認用各1,000条件を完了。
 - 設定 — 設計用 seed 10–29 で Clip と C10 を固定。確認用 seed 30–49 は固定後に実行。
 - 結果 — [所見と段階別の結果](RESULTS_det4.md)、[設計用集計](RESULTS_det3.md)、[確認用集計](RESULTS_det3_hold.md)、[レビュー](REVIEW_final.md)。実行ログは `out/det4/`。
+
+## 検出器変更後の最終評価
+
+- 状態 — 予行150／40条件、本実行1,000／400条件を完了。
+- 時間 — 本実行は最終評価 6484.26 秒、係数 1192.94 秒（各2プロセス）。
+- 成果物 — [最終評価](RESULTS_final2.md)、[係数評価](RESULTS_coef2.md)、[レビュー](REVIEW_final.md)。ログは `out/final2_study/resume.log`。
