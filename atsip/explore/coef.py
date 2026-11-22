@@ -10,6 +10,7 @@ import argparse, json, os, sys, time
 from multiprocessing import Pool
 from pathlib import Path
 import final as F
+from paired_ci import paired
 
 np, p = F.np, F.p
 B, CB = F.B, F.CB
@@ -143,16 +144,17 @@ def report(dry):
           "| 条件 | クラス | 変化からの時間 | 提案法 | APSIPA 2026 版 | 再始動なし | 提案 − APSIPA 2026 版 [95%] | 提案 − 再始動なし [95%] |", "|---|---|---:|---:|---:|---:|---|---|"]
 
     def pdiff(scen, c, k, other):
-        per = {}
-        for (cl, sc, sd), ms in cond.items():
-            if sc == scen and (c == "全クラス" or cl == c) and other in ms and "P5-early-cap" in ms:
-                x, y = ms["P5-early-cap"]["J"][str(k)], ms[other]["J"][str(k)]
-                if not ms["P5-early-cap"]["div"] and not ms[other]["div"] and x is not None and y is not None:
-                    per.setdefault(sd, []).append(x - y)
-        if not per:
+        eligible = [ms for (cl, sc, _), ms in cond.items()
+                    if sc == scen and (c == "全クラス" or cl == c)]
+        result = paired(
+            [ms["P5-early-cap"] for ms in eligible if "P5-early-cap" in ms],
+            [ms[other] for ms in eligible if other in ms],
+            lambda row: row["J"][str(k)],
+        )
+        if result is None:
             return "—"
-        v = np.array([np.mean(x) for x in per.values()]); bt = np.random.default_rng(1).choice(v, size=(2000, len(v))).mean(axis=1)
-        return f"{v.mean():+.2f} [{np.quantile(bt, .025):+.2f}, {np.quantile(bt, .975):+.2f}]"
+        mean, lo, hi, _ = result
+        return f"{mean:+.2f} [{lo:+.2f}, {hi:+.2f}]"
     for scen in SCEN:
         for c in ("全クラス",) + F.FINAL_CLASSES:
             for k in MAIN_KS:

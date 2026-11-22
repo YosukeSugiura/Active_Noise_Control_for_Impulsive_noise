@@ -1,8 +1,13 @@
 """Generate paper figures and tables from archived JSON, without running ANC.
 
 Extract the two archives into atsip/explore/out before running this script.
+Use --refresh-reports to recompute the paper intervals and the change audit
+before rendering. Without that option, verify against the committed reports.
 """
+import argparse
 import json
+import subprocess
+import sys
 import re
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -15,6 +20,8 @@ import numpy as np
 
 PAPER = Path(__file__).resolve().parent
 ROOT = PAPER.parent
+sys.path.insert(0, str(ROOT))
+from paired_ci import paired
 P, A, N = "P5-early-cap", "Freq_FxNLMS_CohVSS", "nors-cap"
 NAMES = {P: "Proposed", A: "APSIPA 2026 [our prior work]", N: "No restart",
          "P5-early-noG": "Proposed without 1/g", "P4-cap": "Immediate restart",
@@ -66,20 +73,6 @@ def l1(rows, key):
     return np.mean([np.mean(v) for v in by_seed.values()]) if by_seed else None
 
 
-def paired(left, right, metric):
-    keyed = {(r["cls"], r["seed"]): metric(r) for r in right if not r["div"]}
-    by_seed = defaultdict(list)
-    for r in sorted(left, key=lambda r: (r["cls"], r["seed"])):
-        a, b = metric(r), keyed.get((r["cls"], r["seed"]))
-        if not r["div"] and a is not None and b is not None:
-            by_seed[r["seed"]].append(a-b)
-    v = np.array([np.mean(by_seed[s]) for s in sorted(by_seed)])
-    if not len(v):
-        return None
-    draws = np.random.default_rng(0).choice(v, (2000, len(v))).mean(axis=1)
-    return (v.mean(), *np.quantile(draws, [.025, .975]), sum(map(len, by_seed.values())))
-
-
 def recovery(rows):
     times = Counter((r["rec_limit"] if r["rec_cens"] else r["rec_blocks"], r["rec_cens"])
                     for r in rows if not r["div"] and "rec_cens" in r)
@@ -129,19 +122,18 @@ def save(fig, name):
 
 
 def figure3(coef, report):
-    wanted = (P,A,N,"FxNLMS")
-    available = [m for m in wanted if all((s,m) in coef for s in SWITCHES)]
-    styles = (("0.04","-","o"), ("0.32","--","s"), ("0.54","-.","^"), ("0.70",":","D"))
+    methods = (P,A,N)
+    styles = (("0.04","-","o"), ("0.32","--","s"), ("0.54","-.","^"))
     fig, axes = plt.subplots(1,2,figsize=(7.2,2.95),sharey=True,layout="constrained")
     for ax,s in zip(axes,SWITCHES):
-        for m,(color,ls,mark) in zip(available,styles):
+        for m,(color,ls,mark) in zip(methods,styles):
             rows = coef[s,m]
             blocks = sorted(map(int, rows[0]["J"]))
             series = np.array([np.quantile(values(rows,j(k)),[.25,.5,.75]) for k in blocks])
             if m in (P,A,N):
                 for k in KS:
                     key = (s,"全クラス",shown(k*BLOCK_SECONDS,2), A if m==P else m)
-                    verify(shown(series[blocks.index(k),1]), report[key][4 if m==P else 5], key)
+                    verify(shown(series[blocks.index(k),1],2), report[key][4 if m==P else 5], key)
             time = np.array(blocks)*BLOCK_SECONDS
             ax.fill_between(time,series[:,0],series[:,2],color=color,alpha=.12,linewidth=0)
             ax.plot(time,series[:,1],color=color,linestyle=ls,linewidth=1.65,marker=mark,
@@ -157,9 +149,7 @@ def figure3(coef, report):
         ax.grid(axis="y",color=".9",lw=.6)
     axes[0].set_ylabel("Frozen-filter residual / primary (dB)")
     axes[1].legend(loc="upper right",fontsize=7,framealpha=.92)
-    missing = ", ".join(m for m in wanted if m not in available)
-    fig.supxlabel("Bands: interquartile range. Time axis: linear to 0.55 s, logarithmic thereafter."
-                  + (f"\n{missing}: fixed-filter data unavailable." if missing else ""),fontsize=8)
+    fig.supxlabel("Bands: interquartile range. Time axis: linear to 0.55 s, logarithmic thereafter.",fontsize=8)
     save(fig,"fig3")
 
 
@@ -174,13 +164,12 @@ def figure4(coef, report):
                 key=(s,c,shown(k*BLOCK_SECONDS,2),m)
                 entry=report[key]
                 stats=paired(rows[0],r,j(k))
-                ci_verify(stats,entry[6],key)
-                verify((shown(np.median(values(rows[0],j(k)))),shown(np.median(values(r,j(k))))),entry[4:6],key)
+                verify(ci_display(stats,2),entry[6],key)
+                verify((shown(np.median(values(rows[0],j(k))),2),shown(np.median(values(r,j(k))),2)),entry[4:6],key)
                 if m==A:
                     vals[i,col],lo,hi,_=stats
                     if lo<=0<=hi:
                         cross.append((i,col))
-    verify(len(cross),3,"zero-containing intervals")
     fig,ax=plt.subplots(figsize=(5.7,4.15),layout="constrained")
     limit=np.ceil(np.abs(vals).max())
     im=ax.imshow(vals,cmap="gray_r",vmin=-limit,vmax=limit,aspect="auto")
@@ -250,6 +239,7 @@ def table2(final,coef,cr,final_text):
     result=[]
     for s in SWITCHES:
         reports={r[2]:r for r in md_rows(section(final_text,"### 騒音源切替の回復")) if len(r)==7 and r[:2]==(s,"全クラス")}
+        main_rows = {r[0]:r for r in md_rows(section(final_text,f"## {s}")) if len(r)==15}
         methods=(P,A,N)
         recoveries=[recovery(final[s,m]) for m in methods]
         cells=[shown(x*BLOCK_SECONDS) for x in recoveries]
@@ -260,18 +250,20 @@ def table2(final,coef,cr,final_text):
             verify(cells[idx],ref[4].split("（")[0],(s,m))
             v=paired(final[s,P],final[s,m],lambda r:r.get("rec_blocks"))
             ci_verify(v,ref[5],(s,m),BLOCK_SECONDS)
+            expected = ci_display(v,2,count=True).replace(" (","（").replace(")","）")
+            verify(expected,main_rows[m][14],(s,m,"recovery in blocks"))
             intervals.append(ci_text(v,BLOCK_SECONDS))
         result.append((SCEN[s],"Recovery (s)",*cells,*intervals))
         for k in KS:
             t=shown(k*BLOCK_SECONDS,2)
-            cells=[shown(np.median(values(coef[s,m],j(k)))) for m in methods]
+            cells=[shown(np.median(values(coef[s,m],j(k))),2) for m in methods]
             intervals=[]
             for idx,m in enumerate(methods[1:],1):
                 r=cr[s,"全クラス",t,m]
                 verify((cells[0],cells[idx]),r[4:6],(s,k,m))
                 v=paired(coef[s,P],coef[s,m],j(k))
-                ci_verify(v,r[6],(s,k,m))
-                intervals.append(ci_text(v))
+                verify(ci_display(v,2),r[6],(s,k,m))
+                intervals.append(ci_display(v,2,count=True))
             result.append((SCEN[s],f"Frozen-filter J at {t} s (dB)",*cells,*intervals))
     # Keep the customary paper table compact by separating levels and paired differences.
     output_table(2,"Reconvergence after a source switch",[
@@ -309,6 +301,12 @@ def table3(final, final_text, fast):
             false=sum(r["false_confirm"] for r in rows)
             verify((str(div),str(false)),(published[m][2],published[m][8]),(s,m))
             internal[m].append(f'{div}/{sum(r["n_confirm"] for r in rows)}/{false}')
+    differences = []
+    for s,m,key,title in l1_comparisons():
+        saved = final_l1_rows(final_text)[s,m,key]
+        v = paired(final[s,P],final[s,m],lambda row: row.get(key))
+        ci_verify(v,saved[5],(s,m,key))
+        differences.append((SCEN[s],NAMES[m],title,ci_text(v)))
     costs=[]
     for phase,label in (("late","Ordinary block"),("late+trial","Ordinary block with trial")):
         r=next(r for r in md_rows(fast) if r[0]==phase)
@@ -316,6 +314,8 @@ def table3(final, final_text, fast):
     output_table(3,"Cost of the restart mechanism",[
         ("Stationary path and error-side disturbances",
          ("Condition","Method","30 s L1","Last 10 s","Post-event 2 s","Transfers","Matches"),statements),
+        ("Paired L1 differences (Proposed minus baseline)",
+         ("Condition","Baseline","Window","Difference [95% CI]"),differences),
         ("Internal comparisons (200 runs per condition)",
          ("Method",*(SCEN[s] for s in (*QUIET,*SWITCHES))),
          [(NAMES[m],*counts) for m,counts in internal.items()]),
@@ -326,51 +326,190 @@ def table3(final, final_text, fast):
          "Ref. FFT counts real/complex transforms. Fast FFT counts 1024-/256-point transforms. The benchmark counts FIR and FFT multiplications."])
 
 
-def verify_coef_main(coef, text):
-    primary = section(text, "## 主表：変化から 0.13 秒後と 0.51 秒後の消音量（評価点は seed 100–119 の実行前に固定。2026-11-21）")
-    lines = [
-        "# Coefficient report cross-check", "",
-        "Figures and tables use the seed-bootstrap intervals in the findings section of RESULTS_coef2.md.",
-        "The entries below differ from its autogenerated main table at two-decimal precision.",
-        "The main table and findings use different bootstrap random seeds.", "",
-        "| Switch | Input | Time | Baseline | Autogenerated mean [95% CI] | Recomputed mean [95% CI] |",
-        "|---|---|---|---|---|---|",
+COEF_TITLE = "## 主表：変化から 0.13 秒後と 0.51 秒後の消音量（評価点は seed 100–119 の実行前に固定。2026-11-21）"
+REC_TITLE = "### 騒音源切替の回復"
+L1_TITLE = "### 変化なし・外乱の消音量"
+DIRECTIONS = ("提案", "比較", "0を含む", "欠測")
+
+
+def direction(v):
+    if v is None:
+        return "欠測"
+    return "提案" if v[2] < 0 else "比較" if v[1] > 0 else "0を含む"
+
+
+def ci_display(v, digits, scale=1, count=False):
+    if v is None:
+        return "—"
+    mean, lo, hi, n = v
+    result = f"{mean*scale:+.{digits}f} [{lo*scale:+.{digits}f}, {hi*scale:+.{digits}f}]"
+    return f"{result} ({n})" if count else result
+
+
+def coef_main_rows(text):
+    result = {}
+    for s, cls, time, *rest in md_rows(section(text,COEF_TITLE)):
+        if s in SWITCHES:
+            prop, apsipa, no_restart, da, dn = rest
+            time = time.split()[0]
+            for m, median, diff in ((A,apsipa,da),(N,no_restart,dn)):
+                key = (s,cls,time,m)
+                result[key] = (*key,prop,median,diff)
+    return result
+
+
+def final_l1_rows(text):
+    return {r[:3]:r for r in md_rows(section(text,L1_TITLE)) if r[0] in QUIET}
+
+
+def l1_comparisons():
+    return [
+        ("stat",A,"L1_whole","30 s"),
+        ("stat",A,"L1_last10","Last 10 s"),
+        *((s,m,"L1_ev","Post-event 2 s") for s in QUIET[1:] for m in (A,N)),
     ]
-    for switch, cls, time, *row in md_rows(primary):
-        if switch not in SWITCHES:
+
+
+def select(rows, cls):
+    return [r for r in rows if cls == "全クラス" or r["cls"] == cls]
+
+
+def refresh_reports(final, coef):
+    def replace_rows(text, title, update):
+        body = section(text,title)
+        lines = body.splitlines(keepends=True)
+        for i,line in enumerate(lines):
+            if line.startswith("|"):
+                row, = md_rows(line)
+                new = update(list(row))
+                if new is not None:
+                    lines[i] = "| " + " | ".join(new) + " |\n"
+        return text.replace(body,"".join(lines),1)
+
+    def contrast(groups, s, m, metric, cls="全クラス"):
+        return paired(select(groups[s,P],cls),select(groups[s,m],cls),metric)
+
+    def update_coef(row):
+        s, cls, time = row[:3]
+        if s in SWITCHES:
+            k = round(float(time.split()[0])/BLOCK_SECONDS)
+            row[6:8] = [ci_display(contrast(coef,s,m,j(k),cls),2) for m in (A,N)]
+            return row
+
+    def findings(row, metric, scale):
+        if row[0] in (*QUIET,*SWITCHES):
+            s, c, m = row[:3] if metric == "rec_blocks" else (row[0],"全クラス",row[1])
+            key = metric or row[2]
+            v = contrast(final,s,m,lambda r: r.get(key),c)
+            row[5] = ci_display(v,3,scale,count=True).replace(" (","（").replace(")","）")
+            row[6] = direction(v)
+            return row
+
+    def final_main(row, s):
+        m = row[0]
+        if m == P or (s,m) not in final:
+            return
+        for col,key in ((12,"L1_whole"),(13,"L1_ev"),(14,"rec_blocks")):
+            if (s,m,key) in paper_l1 or key == "rec_blocks":
+                v = contrast(final,s,m,lambda r: r.get(key))
+                row[col] = ci_display(v,2,count=True).replace(" (","（").replace(")","）")
+        return row
+
+    paper_l1 = {(s,m,key) for s,m,key,_ in l1_comparisons()}
+    cp, fp = (ROOT/name for name in ("RESULTS_coef2.md","RESULTS_final2.md"))
+    ct = replace_rows(cp.read_text(),COEF_TITLE,update_coef)
+    ct = ct.replace("### 0.13秒・0.51秒の比較\n\n",
+                    "### 0.13秒・0.51秒の比較\n\n以下は区間統一前の記録。論文では主表の再計算値を使用する。\n\n",1) if "以下は区間統一前の記録" not in ct else ct
+    ft = fp.read_text()
+    for s in (*SWITCHES,*QUIET):
+        ft = replace_rows(ft,f"## {s}",lambda row: final_main(row,s))
+    ft = replace_rows(ft,REC_TITLE,lambda row: findings(row,"rec_blocks",BLOCK_SECONDS))
+    ft = replace_rows(ft,L1_TITLE,lambda row: findings(row,None,1))
+    cp.write_text(ct)
+    fp.write_text(ft)
+    audit(final,coef)
+
+
+def audit(final,coef):
+    def previous(name):
+        return subprocess.check_output(
+            ["git","show",f"e1d9ddd:atsip/explore/{name}"],cwd=ROOT,text=True,
+        )
+
+    lines = [
+        "# 論文用 95% 区間の統一","",
+        "保存済み JSON の完走対を使用。回復時間は両手法で回復が観測された対を使用。",
+        "seed ごとの平均を 2,000 回再標本化し、2.5・97.5 パーセンタイルを計算した。",
+        "比較ごとに乱数生成器を初期値 20261121 で作り直した。",
+        "旧値は e1d9ddd の報告書の所見。判定には丸め前の端点を使う。差は提案法 − 比較手法。","",
+        "| 項目 | 条件 | 入力 | 指標 | 比較 | 旧値［95%］ | 新値［95%］ | 旧判定 | 新判定 |",
+        "|---|---|---|---|---|---|---|---|---|",
+    ]
+    counts = defaultdict(lambda: (Counter(),Counter()))
+    changes = []
+    def add(group, s, cls, metric, m, old, label, v, scale=1):
+        new = direction(v)
+        counts[group][0][label] += 1
+        counts[group][1][new] += 1
+        if label != new:
+            changes.append(f"- {group}) {s} / {cls} / {metric} / {NAMES[m]} — {label} → {new}。")
+        lines.append(f"| {group} | {s} | {cls} | {metric} | {NAMES[m]} | {old} | {ci_display(v,3,scale,count=True)} | {label} | {new} |")
+
+    for row in md_rows(section(previous("RESULTS_coef2.md"),"### 0.13秒・0.51秒の比較")):
+        if row[0] not in SWITCHES or row[3] != A:
             continue
-        k = round(float(time.split()[0]) / BLOCK_SECONDS)
-        left = [r for r in coef[switch,P] if cls in ("全クラス",r["cls"])]
-        for i, m in enumerate((A,N)):
-            right = [r for r in coef[switch,m] if cls in ("全クラス",r["cls"])]
-            x, lo, hi, _ = paired(left,right,j(k))
-            computed = f"{x:+.2f} [{lo:+.2f}, {hi:+.2f}]"
-            original = row[3+i]
-            numbers = lambda t: [float(n) for n in re.findall(r"[-+]?\d+\.\d+",t)]
-            if numbers(computed) != numbers(original):
-                label = "All inputs" if cls == "全クラス" else cls
-                lines.append(f"| {SCEN[switch]} | {label} | {time.split()[0]} s | {NAMES[m]} | {original} | {computed} |")
-    (PAPER/"tab"/"verification.md").write_text("\n".join(lines)+"\n")
-    return len(lines)-8
+        s,cls,time,m = row[:4]
+        k = round(float(time)/BLOCK_SECONDS)
+        v = paired(select(coef[s,P],cls),select(coef[s,m],cls),j(k))
+        add("b" if cls == "全クラス" else "a",s,cls,f"J {time} s (dB)",m,row[6],row[7],v)
+
+    old_final = previous("RESULTS_final2.md")
+    for row in md_rows(section(old_final,REC_TITLE)):
+        if row[0] not in SWITCHES or row[1] == "全クラス":
+            continue
+        s,cls,m = row[:3]
+        v = paired(select(final[s,P],cls),select(final[s,m],cls),lambda r:r.get("rec_blocks"))
+        add("c",s,cls,"回復 (s)",m,row[5],row[6],v,BLOCK_SECONDS)
+
+    old_l1 = final_l1_rows(old_final)
+    for s,m,key,_ in l1_comparisons():
+        v = paired(final[s,P],final[s,m],lambda r:r.get(key))
+        row = old_l1[s,m,key]
+        add("d" if s == "stat" else "e",s,"全クラス",key+" (dB)",m,row[5],row[6],v)
+
+    summary = ["## 判定の件数","",
+               "順序は「提案法が良い／比較手法が良い／0 を含む／欠測」。","",
+               "| 項目 | 旧 | 新 |","|---|---|---|"]
+    for group in "abcde":
+        old,new = ("/".join(str(c[d]) for d in DIRECTIONS) for c in counts[group])
+        summary.append(f"| {group} | {old} | {new} |")
+    (ROOT/"RESULTS_ci_unify.md").write_text(
+        "\n".join(lines[:6]+[""]+summary+["","## 判定が変わった比較",""]+
+                  (changes or ["なし。"])+["","## 新旧の値",""]+lines[7:])+"\n"
+    )
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--refresh-reports",action="store_true")
+    args = parser.parse_args()
     for path in ("fig","tab"):
         (PAPER/path).mkdir(exist_ok=True)
     plt.rcParams.update({"font.family":"DejaVu Sans","font.size":9,"pdf.fonttype":42,
                          "axes.spines.top":False,"axes.spines.right":False})
     final=load("final2_run",(*SWITCHES,*QUIET))
     coef=load("coef2_run",SWITCHES)
+    if args.refresh_reports:
+        refresh_reports(final,coef)
     text=(ROOT/"RESULTS_final2.md").read_text()
     ct=(ROOT/"RESULTS_coef2.md").read_text()
-    report={(*r[:4],):r for r in md_rows(section(ct,"### 0.13秒・0.51秒の比較")) if len(r)==8}
+    report=coef_main_rows(ct)
     figure3(coef,report)
     figure4(coef,report)
     table1()
     table2(final,coef,report,text)
     table3(final,text,(ROOT/"RESULTS_fast.md").read_text())
-    differences = verify_coef_main(coef,ct)
-    print(f"Verified published findings. {differences} interval rows differ from the autogenerated coefficient table. Fig. 3: FxNLMS fixed-filter data unavailable.")
+    print("Verified figure and table values against the regenerated reports.")
 
 
 if __name__=="__main__":

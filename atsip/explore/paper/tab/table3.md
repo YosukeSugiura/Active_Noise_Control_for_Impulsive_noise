@@ -14,6 +14,17 @@
 | Disturbance (-10 dB) | APSIPA 2026 [our prior work] | -8.77 | -8.81 | -7.65 | -- | -- |
 | Disturbance (-10 dB) | No restart | -8.78 | -8.63 | -7.45 | 0 | -- |
 
+## Paired L1 differences (Proposed minus baseline)
+
+| Condition | Baseline | Window | Difference [95% CI] |
+| --- | --- | --- | --- |
+| No change | APSIPA 2026 [our prior work] | 30 s | -0.053 [-0.081, -0.025] (200) |
+| No change | APSIPA 2026 [our prior work] | Last 10 s | +0.072 [+0.039, +0.106] (200) |
+| Disturbance (0 dB) | APSIPA 2026 [our prior work] | Post-event 2 s | +0.622 [+0.533, +0.715] (200) |
+| Disturbance (0 dB) | No restart | Post-event 2 s | -0.011 [-0.031, +0.000] (200) |
+| Disturbance (-10 dB) | APSIPA 2026 [our prior work] | Post-event 2 s | +0.198 [+0.144, +0.256] (200) |
+| Disturbance (-10 dB) | No restart | Post-event 2 s | -0.001 [-0.002, +0.000] (200) |
+
 ## Internal comparisons (200 runs per condition)
 
 | Method | No change | Disturbance (0 dB) | Disturbance (-10 dB) | Near | Far |
