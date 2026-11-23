@@ -8,7 +8,7 @@
 \raggedbottom
 \title{Fast Reconvergence in Active Impulsive Noise Control Using a Background Trial Filter}
 \author[1*]{Sugiura,Yosuke}
-\affil[1]{Department of Computer Science, School of Science and Technology, Meiji University, Kawasaki, Japan}
+\affil[1]{School of Science and Technology, Meiji University, Kawasaki, Japan}
 \addbibresource{refs.bib}
 \issuevolumeyear{2027}
 \issuevolumenumber{xx}
@@ -322,7 +322,7 @@ For the α-stable signal of Fig. 3, the setting selected for C-FXLMS had a step 
 \hypertarget{cost-of-the-trial-mechanism}{%
 \section{Cost of the trial mechanism}\label{cost-of-the-trial-mechanism}}
 
-This section examines the second and third requirements of Section 3.4 and the contribution of each element. Table 3 summarizes the results.
+This section examines the second and third requirements of Section 3.4 (Table 3), the contribution of each element (Table 4), and the computational cost (Table 5).
 
 \hypertarget{no-change-in-the-primary-path}{%
 \subsection{No change in the primary path}\label{no-change-in-the-primary-path}}
@@ -345,7 +345,9 @@ The comparison algorithms recovered better from the 0 dB disturbance. Over the 2
 \hypertarget{contribution-of-each-element}{%
 \subsection{Contribution of each element}\label{contribution-of-each-element}}
 
-We evaluated three variants of the proposed algorithm.
+\input{../tab/table4.tex}
+
+We evaluated three variants of the proposed algorithm (Table 4).
 
 Without the division by \(g_n\), seven to nine of the 200 runs diverged in each condition. The division by the relative frame power was therefore necessary for stability with the early-phase step size.
 
@@ -356,7 +358,9 @@ When a trial was started every \(n_2\) blocks without the detector, the median r
 \hypertarget{computational-cost-1}{%
 \subsection{Computational cost}\label{computational-cost-1}}
 
-Table 3 lists the number of real multiplications per block of 128 samples, including the sample-by-sample filtering for the control signal. A block in the late phase requires 118,016 multiplications, which is 0.60 times that of the time-domain FxNLMS algorithm with the same filter lengths (196,608). A block with a trial requires 241,920 multiplications (1.23 times). In the eight runs used for this count, a trial was active in 7\% of the blocks, and the average was 126,980 multiplications (0.65 times). The detector thus keeps the average cost below that of the FxNLMS algorithm, and the peak cost exceeds it during a trial.
+\input{../tab/table5.tex}
+
+Table 5 lists the number of real multiplications per block of 128 samples, including the sample-by-sample filtering for the control signal. A block in the late phase requires 118,016 multiplications, which is 0.60 times that of the time-domain FxNLMS algorithm with the same filter lengths (196,608). A block with a trial requires 241,920 multiplications (1.23 times). In the eight runs used for this count, a trial was active in 7\% of the blocks, and the average was 126,980 multiplications (0.65 times). The detector thus keeps the average cost below that of the FxNLMS algorithm, and the peak cost exceeds it during a trial.
 
 \hypertarget{conclusion}{%
 \section{Conclusion}\label{conclusion}}

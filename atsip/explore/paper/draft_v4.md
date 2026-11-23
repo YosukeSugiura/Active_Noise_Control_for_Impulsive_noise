@@ -302,7 +302,7 @@ For the α-stable signal of Fig. 3, the setting selected for C-FXLMS had a step 
 
 ## 7. Cost of the trial mechanism
 
-This section examines the second and third requirements of Section 3.4 and the contribution of each element. Table 3 summarizes the results.
+This section examines the second and third requirements of Section 3.4 (Table 3), the contribution of each element (Table 4), and the computational cost (Table 5).
 
 ### 7.1 No change in the primary path
 
@@ -320,7 +320,7 @@ The comparison algorithms recovered better from the 0 dB disturbance. Over the 2
 
 ### 7.3 Contribution of each element
 
-We evaluated three variants of the proposed algorithm.
+We evaluated three variants of the proposed algorithm (Table 4).
 
 Without the division by $g_n$, seven to nine of the 200 runs diverged in each condition. The division by the relative frame power was therefore necessary for stability with the early-phase step size.
 
@@ -330,7 +330,7 @@ When a trial was started every $n_2$ blocks without the detector, the median rec
 
 ### 7.4 Computational cost
 
-Table 3 lists the number of real multiplications per block of 128 samples, including the sample-by-sample filtering for the control signal. A block in the late phase requires 118,016 multiplications, which is 0.60 times that of the time-domain FxNLMS algorithm with the same filter lengths (196,608). A block with a trial requires 241,920 multiplications (1.23 times). In the eight runs used for this count, a trial was active in 7% of the blocks, and the average was 126,980 multiplications (0.65 times). The detector thus keeps the average cost below that of the FxNLMS algorithm, and the peak cost exceeds it during a trial.
+Table 5 lists the number of real multiplications per block of 128 samples, including the sample-by-sample filtering for the control signal. A block in the late phase requires 118,016 multiplications, which is 0.60 times that of the time-domain FxNLMS algorithm with the same filter lengths (196,608). A block with a trial requires 241,920 multiplications (1.23 times). In the eight runs used for this count, a trial was active in 7% of the blocks, and the average was 126,980 multiplications (0.65 times). The detector thus keeps the average cost below that of the FxNLMS algorithm, and the peak cost exceeds it during a trial.
 
 ## 8. Conclusion
 

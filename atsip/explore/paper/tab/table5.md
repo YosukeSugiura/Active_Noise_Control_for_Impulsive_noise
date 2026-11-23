@@ -1,0 +1,12 @@
+# Table 5. Real multiplications per block of 128 samples
+
+| State | Multiplications | Relative to FxNLMS | Blocks |
+| --- | --- | --- | --- |
+| Late phase | 118,016 | 0.60 | 27,727 |
+| Early phase | 174,336 | 0.89 | 188 |
+| Late phase with trial | 241,920 | 1.23 | 1,966 |
+| Early phase with trial | 241,920 | 1.23 | 119 |
+| Average over the measured blocks | 126,980 | 0.65 | 30,000 |
+| FxNLMS (time domain) | 196,608 | 1.00 | -- |
+
+Multiplications are the maximum over the blocks of each state and include the sample-by-sample filtering for the control signal. Blocks are those of the eight runs used for the count.

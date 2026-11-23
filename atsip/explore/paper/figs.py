@@ -202,8 +202,8 @@ def output_table(number, title, panels, notes):
     tex = [r"\begin{table*}[t]",r"\centering",r"\small",r"\setlength{\tabcolsep}{4pt}",r"\caption{"+esc(title)+"}",
            rf"\label{{tab:atsip-{number}}}"]
     for heading,header,rows in panels:
-        md.extend([f"## {heading}",""])
-        tex.extend([r"\par\medskip",r"\textbf{"+esc(heading)+r"}\par\smallskip",
+        md.extend([f"## {heading}",""] if heading else [])
+        tex.extend(([r"\par\medskip",r"\textbf{"+esc(heading)+r"}\par\smallskip"] if heading else [r"\par\smallskip"])+[
                     r"\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%",
                     r"\begin{tabular}{l"+("l"*(len(header)-1))+"}",r"\toprule",
                     " & ".join(map(esc,header))+r" \\",r"\midrule"])
@@ -337,19 +337,20 @@ def table3(final, final_text, fast, ccf):
         costs.append((label,f"{mult:,}",f"{mult/FXNLMS_MULT:.2f}",f"{n:,}"))
     costs.append(("Average over the measured blocks",f"{round(tot/blocks):,}",f"{tot/blocks/FXNLMS_MULT:.2f}",f"{blocks:,}"))
     costs.append(("FxNLMS (time domain)",f"{FXNLMS_MULT:,}","1.00","--"))
-    output_table(3,"Cost of the restart mechanism",[
-        ("Stationary path and error-side disturbances",
-         ("Condition","Method","30 s L1","Last 10 s","Post-event 2 s","Transfers","Matches"),statements),
-        ("Paired L1 differences (Proposed minus baseline)",
-         ("Condition","Baseline","Window","Difference [95% CI]"),differences),
-        ("Internal comparisons (200 runs per condition)",
+    output_table(3,"Noise reduction with a fixed primary path",[
+        ("Levels [dB]",
+         ("Condition","Method","30 s","Last 10 s","2 s after disturbance","Transfers","Identical runs"),statements),
+        ("Paired differences (proposed minus the other algorithm) [dB]",
+         ("Condition","Other algorithm","Window","Difference [95% CI]"),
+         [(c,m,{"30 s":"30 s","Last 10 s":"Last 10 s","Post-event 2 s":"2 s after disturbance"}.get(w,w),d) for c,m,w,d in differences])],
+        ["Transfers count events in 200 runs. Identical runs are those whose error and control signals equal those of the algorithm without the trials exactly."])
+    output_table(4,"Variants of the proposed algorithm (200 runs per condition)",[
+        ("Diverged runs / transfers / runs differing from the algorithm without the trials",
          ("Method",*(SCEN[s] for s in (*QUIET,*SWITCHES))),
-         [(NAMES[m],*counts) for m,counts in internal.items()]),
-        ("Real multiplications per block of 128 samples",
-         ("State","Multiplications","Relative to FxNLMS","Blocks"),costs)],
-        ["L1 values are in dB. Transfers count events. Output matches require exact numerical equality for both error and control output against No restart.",
-         "Internal comparisons show divergences / all transfers / unmatched transfers.",
-         "Multiplications are the maximum over the blocks of each state and include the sample-by-sample filtering for the control signal. Blocks are those of the eight runs used for the count."])
+         [(NAMES[m],*counts) for m,counts in internal.items()])],[])
+    output_table(5,"Real multiplications per block of 128 samples",[
+        ("",("State","Multiplications","Relative to FxNLMS","Blocks"),costs)],
+        ["Multiplications are the maximum over the blocks of each state and include the sample-by-sample filtering for the control signal. Blocks are those of the eight runs used for the count."])
 
 
 COEF_TITLE = "## 主表：変化から 0.13 秒後と 0.51 秒後の消音量（評価点は seed 100–119 の実行前に固定。2026-11-21）"
