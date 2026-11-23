@@ -1,11 +1,12 @@
 \begin{table*}[t]
 \centering
 \small
-\setlength{	abcolsep}{4pt}
+\setlength{\tabcolsep}{4pt}
 \caption{Evaluation settings and selected baseline steps}
 \label{tab:atsip-1}
 \par\medskip
 \textbf{Proposed method}\par\smallskip
+\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%
 \begin{tabular}{ll}
 \toprule
 Setting & Value \\
@@ -23,9 +24,10 @@ Guard after detection; EMA update & 64 blocks; frozen from detection until guard
 Trial abort ratio; earliest check & $>$4 or nonfinite; block 2 \\
 Early transfer / final transfer & ratio $<$= 0.25 from block 4 / $<$= 0.5 at block 16 \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \par\medskip
 \textbf{Comparison algorithms}\par\smallskip
+\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%
 \begin{tabular}{lll}
 \toprule
 Method & Selected step $\mu$ & Selected setting \\
@@ -40,7 +42,7 @@ FreqFxLMS & 0.0225 & -- \\
 CohVSS-FxNLMS & 0.09 & -- \\
 C-FXLMS & 0.0375 (fast), 0.009375 (slow) & Normalized component filters \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \par\medskip
 \begin{minipage}{0.98\textwidth}
 \footnotesize

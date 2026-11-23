@@ -199,18 +199,19 @@ def output_table(number, title, panels, notes):
         chars = {"&":r"\&","%":r"\%","_":r"\_","#":r"\#","−":"-", "μ":r"$\mu$", "<":r"$<$", ">":r"$>$"}
         return "".join(chars.get(x,x) for x in str(s))
     md = [f"# Table {number}. {title}",""]
-    tex = [r"\begin{table*}[t]",r"\centering",r"\small",r"\setlength{	abcolsep}{4pt}",r"\caption{"+esc(title)+"}",
+    tex = [r"\begin{table*}[t]",r"\centering",r"\small",r"\setlength{\tabcolsep}{4pt}",r"\caption{"+esc(title)+"}",
            rf"\label{{tab:atsip-{number}}}"]
     for heading,header,rows in panels:
         md.extend([f"## {heading}",""])
         tex.extend([r"\par\medskip",r"\textbf{"+esc(heading)+r"}\par\smallskip",
+                    r"\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%",
                     r"\begin{tabular}{l"+("l"*(len(header)-1))+"}",r"\toprule",
                     " & ".join(map(esc,header))+r" \\",r"\midrule"])
         for row in (header,["---"]*len(header),*rows):
             md.append("| "+" | ".join(map(str,row))+" |")
         md.append("")
         tex.extend(" & ".join(map(esc,row))+r" \\" for row in rows)
-        tex.extend([r"\bottomrule",r"\end{tabular}"])
+        tex.extend([r"\bottomrule",r"\end{tabular}}"])
     md.extend(notes)
     tex.extend([r"\par\medskip",r"\begin{minipage}{0.98\textwidth}",r"\footnotesize",
                 *[esc(note)+r"\par" for note in notes],r"\end{minipage}",r"\end{table*}"])

@@ -1,11 +1,12 @@
 \begin{table*}[t]
 \centering
 \small
-\setlength{	abcolsep}{4pt}
+\setlength{\tabcolsep}{4pt}
 \caption{Cost of the restart mechanism}
 \label{tab:atsip-3}
 \par\medskip
 \textbf{Stationary path and error-side disturbances}\par\smallskip
+\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%
 \begin{tabular}{lllllll}
 \toprule
 Condition & Method & 30 s L1 & Last 10 s & Post-event 2 s & Transfers & Matches \\
@@ -23,9 +24,10 @@ Disturbance (-10 dB) & CohVSS-FxNLMS & -8.77 & -8.81 & -7.65 & -- & -- \\
 Disturbance (-10 dB) & C-FXLMS & -7.89 & -8.23 & -7.18 & -- & -- \\
 Disturbance (-10 dB) & No restart & -8.78 & -8.63 & -7.45 & 0 & -- \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \par\medskip
 \textbf{Paired L1 differences (Proposed minus baseline)}\par\smallskip
+\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%
 \begin{tabular}{llll}
 \toprule
 Condition & Baseline & Window & Difference [95\% CI] \\
@@ -41,9 +43,10 @@ Disturbance (-10 dB) & CohVSS-FxNLMS & Post-event 2 s & +0.198 [+0.144, +0.256] 
 Disturbance (-10 dB) & C-FXLMS & Post-event 2 s & -0.274 [-0.358, -0.177] (200) \\
 Disturbance (-10 dB) & No restart & Post-event 2 s & -0.001 [-0.002, +0.000] (200) \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \par\medskip
 \textbf{Internal comparisons (200 runs per condition)}\par\smallskip
+\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%
 \begin{tabular}{llllll}
 \toprule
 Method & No change & Disturbance (0 dB) & Disturbance (-10 dB) & Near & Far \\
@@ -56,9 +59,10 @@ Always-on background trial & 0/96/96 & 0/248/248 & 0/148/148 & 0/324/243 & 0/354
 Always reconstructed error & 0/0/0 & 0/0/0 & 0/0/0 & 0/0/0 & 0/0/0 \\
 Fixed-step SF & 0/0/0 & 0/0/0 & 0/0/0 & 0/0/0 & 0/0/0 \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \par\medskip
 \textbf{Real multiplications per block of 128 samples}\par\smallskip
+\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%
 \begin{tabular}{llll}
 \toprule
 State & Multiplications & Relative to FxNLMS & Blocks \\
@@ -70,7 +74,7 @@ Early phase with trial & 241,920 & 1.23 & 119 \\
 Average over the measured blocks & 126,980 & 0.65 & 30,000 \\
 FxNLMS (time domain) & 196,608 & 1.00 & -- \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \par\medskip
 \begin{minipage}{0.98\textwidth}
 \footnotesize

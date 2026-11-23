@@ -1,11 +1,12 @@
 \begin{table*}[t]
 \centering
 \small
-\setlength{	abcolsep}{4pt}
+\setlength{\tabcolsep}{4pt}
 \caption{Reconvergence after a source switch}
 \label{tab:atsip-2}
 \par\medskip
 \textbf{Median levels}\par\smallskip
+\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%
 \begin{tabular}{llllll}
 \toprule
 Switch & Metric & Proposed & CohVSS-FxNLMS & C-FXLMS & No restart \\
@@ -17,9 +18,10 @@ Far & Recovery (s) & 0.400 & 1.256 & 2.784 & 1.128 \\
 Far & Noise reduction with frozen coefficients at 0.13 s (dB) & -6.75 & -0.88 & 0.03 & 0.22 \\
 Far & Noise reduction with frozen coefficients at 0.51 s (dB) & -10.87 & -6.84 & -3.17 & -4.47 \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \par\medskip
 \textbf{Paired differences}\par\smallskip
+\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%
 \begin{tabular}{lllll}
 \toprule
 Switch & Metric & Proposed - CohVSS-FxNLMS & Proposed - C-FXLMS & Proposed - No restart \\
@@ -31,7 +33,7 @@ Far & Recovery (s) & -0.500 [-0.600, -0.384] (172) & -1.765 [-1.997, -1.537] (17
 Far & Noise reduction with frozen coefficients at 0.13 s (dB) & -4.99 [-5.48, -4.46] (200) & -5.92 [-6.61, -5.29] (200) & -6.25 [-6.92, -5.62] (200) \\
 Far & Noise reduction with frozen coefficients at 0.51 s (dB) & -3.81 [-4.29, -3.22] (200) & -6.93 [-7.48, -6.28] (200) & -6.07 [-6.56, -5.50] (200) \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \par\medskip
 \begin{minipage}{0.98\textwidth}
 \footnotesize
