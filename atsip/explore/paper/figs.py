@@ -155,9 +155,9 @@ def figure3(coef, report):
         ax.xaxis.set_major_locator(FixedLocator([0,.128,.512,2,8,15]))
         ax.xaxis.set_major_formatter(FixedFormatter(["0","0.13","0.51","2","8","15"]))
         subtitle = f"({'ab'[SWITCHES.index(s)]}) {SWITCH_TITLE[s]}"
-        ax.set_xlabel(f"Time after switch (s)\n{subtitle}", linespacing=1.6)
+        ax.set_xlabel(f"Time after switch [s]\n{subtitle}", linespacing=1.6)
         ax.grid(axis="y",color=".9",lw=.6)
-    axes[0].set_ylabel("Noise reduction with\nfrozen coefficients (dB)")
+    axes[0].set_ylabel("Noise reduction with\nfrozen coefficients [dB]")
     axes[1].legend(loc="upper right",fontsize=7,framealpha=.92)
     save(fig,"fig3")
 
@@ -190,7 +190,7 @@ def figure4(coef, report):
     ax.xaxis.tick_top()
     ax.tick_params(length=0)
     ax.axvline(1.5,color="white",lw=2)
-    fig.colorbar(im,ax=ax,label=f"Proposed − {NAMES[A]} (dB)")
+    fig.colorbar(im,ax=ax,label=f"Proposed − {NAMES[A]} [dB]")
     save(fig,"fig4")
 
 

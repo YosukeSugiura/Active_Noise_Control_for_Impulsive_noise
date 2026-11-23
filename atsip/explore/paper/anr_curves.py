@@ -1,10 +1,11 @@
 """Time course of the noise reduction (ANR) for the paper: one synthetic noise type, source switch at 15 s.
 
-  python paper/anr_curves.py            -> paper/fig/fig_anr.{pdf,png}, out/anr_curves.npz
+  python paper/anr_curves.py [--common]  -> paper/fig/fig_anr_class.{pdf,png} (or fig_anr_common), out/anr_curves_*.npz
 
 ANR(k) = 10 log10(Pe(k) / Pd(k)), Pe(k) = lam Pe(k-1) + (1 - lam) e(k)^2 (same for d), lam = 0.9995; the curves are the
-median in dB over the evaluation seeds 100-119.  Settings are those of the final evaluation (final2.configure,
-TUNE.json, TUNE_cc.json).  Only synthetic inputs are generated here (the recordings are not stored in the repository).
+median in dB over the evaluation seeds 100-119.  The proposed algorithm uses its common setting.  The comparison algorithms use the setting that is best for this noise
+type (TUNE.json "per_class"; for C-FXLMS the same selection is made here on the design seeds 10-14 and stored in
+out/anr_cc_class.json): fewest diverged runs, then the largest noise reduction over 30 s, on no change and far switch.  Only synthetic inputs are generated here (the recordings are not stored in the repository).
 """
 import json
 import sys
@@ -29,10 +30,34 @@ def smooth(v):
     return lfilter([1 - LAM], [1, -LAM], v * v)
 
 
-def job(a):
-    scen, seed = a
+def cc_point(a):
+    key, mu, par = a
     final2.configure(); cc.install(F)
-    tune = dict(json.loads((ROOT / "TUNE.json").read_text())["chosen"], **json.loads((ROOT / "TUNE_cc.json").read_text())["chosen"])
+    div, l1 = 0, []
+    for scen in F.TUNE_SCEN:
+        for seed in F.TUNE_SEEDS:
+            dd = F.build(CLS, scen, seed, F.LS_FINAL)[0]
+            sim = F.run_baseline(cc.NAME, mu, par, dd)
+            div += int(sim["div"])
+            if not sim["div"]:
+                l1.append(F.measures(sim, dd)["L1_whole"])
+    return dict(key=key, mu=mu, params=par, div=div, L1_whole=float(np.mean(l1)) if l1 else None)
+
+
+def class_settings(pool):
+    tune = {m: v[CLS] for m, v in json.loads((ROOT / "TUNE.json").read_text())["per_class"].items()}
+    f = ROOT / "out" / "anr_cc_class.json"
+    if not f.exists():
+        rows = pool.map(cc_point, cc.tune_grid(F))
+        best = min((r for r in rows if r["L1_whole"] is not None), key=lambda r: (r["div"], r["L1_whole"]))
+        f.write_text(json.dumps(dict(cls=CLS, chosen=best, grid=rows), indent=1))
+    tune[cc.NAME] = json.loads(f.read_text())["chosen"]
+    return tune
+
+
+def job(a):
+    scen, seed, tune = a
+    final2.configure(); cc.install(F)
     dd, Rall, st = F.build(CLS, scen, seed, F.LS_FINAL, final=True)
     X4 = F.p.parse(["c5", "--preset", "final"]).X4
     out = {}
@@ -46,10 +71,16 @@ def job(a):
 
 
 def main():
-    f = ROOT / "out" / "anr_curves.npz"
+    common = "--common" in sys.argv          # comparison algorithms with the common settings of the tables
+    tag = "_common" if common else "_class"
+    f = ROOT / "out" / f"anr_curves{tag}.npz"
     if not f.exists():
         with Pool() as pool:
-            res = pool.map(job, [(s, k) for s in SCENS for k in SEEDS])
+            tune = class_settings(pool)
+            if common:
+                tune = dict(json.loads((ROOT / "TUNE.json").read_text())["chosen"], **json.loads((ROOT / "TUNE_cc.json").read_text())["chosen"])
+            print({m: (tune[m]["key"], tune[m]["mu"]) for m in METHODS[1:]})
+            res = pool.map(job, [(s, k, tune) for s in SCENS for k in SEEDS])
         acc = {}
         for scen, out in res:
             for m, v in out.items():
@@ -78,13 +109,13 @@ def main():
                 ax.plot(t[k], np.median(10 * np.log10(z[f"{scen}|{m}"][:, k] / z[f"{scen}|d"][:, k]), axis=0), color=c, ls=ls, lw=lw, label=label[m])
             ax.axvline(15, color="0.7", lw=0.6, ls=":", zorder=0); ax.set_xlim(a, b); ax.grid(axis="y", color=".9", lw=.6)
             sub = "nearby" if scen == "RS-near" else "distant"
-            ax.set_xlabel(f"Time (s)\n({'abcd'[2 * row + col]}) Switch to a {sub} source" + (", around the switch" if col else ""), linespacing=1.6)
-        axes[row, 0].set_ylabel("ANR (dB)")
+            ax.set_xlabel(f"Time [s]\n({'abcd'[2 * row + col]}) Switch to a {sub} source" + (", around the switch" if col else ""), linespacing=1.6)
+        axes[row, 0].set_ylabel("ANR [dB]")
     axes[0, 0].set_ylim(-17, 3)
     h, l = axes[0, 0].get_legend_handles_labels()
     fig.legend(h[::-1], l[::-1], loc="outside upper center", ncol=4, fontsize=7.5, frameon=False)
     for ext in ("pdf", "png"):
-        fig.savefig(PAPER / "fig" / f"fig_anr.{ext}", **({"dpi": 300} if ext == "png" else {"metadata": {"CreationDate": None, "ModDate": None}}))
+        fig.savefig(PAPER / "fig" / f"fig_anr{tag}.{ext}", **({"dpi": 300} if ext == "png" else {"metadata": {"CreationDate": None, "ModDate": None}}))
 
 
 if __name__ == "__main__":
