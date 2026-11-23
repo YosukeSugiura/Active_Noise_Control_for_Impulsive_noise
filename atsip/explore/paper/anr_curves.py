@@ -108,7 +108,7 @@ def main():
                 c, ls, lw = style[m]
                 ax.plot(t[k], np.median(10 * np.log10(z[f"{scen}|{m}"][:, k] / z[f"{scen}|d"][:, k]), axis=0), color=c, ls=ls, lw=lw, label=label[m])
             ax.axvline(15, color="0.7", lw=0.6, ls=":", zorder=0); ax.set_xlim(a, b); ax.grid(axis="y", color=".9", lw=.6)
-            sub = "nearby" if scen == "RS-near" else "distant"
+            sub = "close" if scen == "RS-near" else "far"
             ax.set_xlabel(f"Time [s]\n({'abcd'[2 * row + col]}) Switch to a {sub} source" + (", around the switch" if col else ""), linespacing=1.6)
         axes[row, 0].set_ylabel("ANR [dB]")
     axes[0, 0].set_ylim(-17, 3)

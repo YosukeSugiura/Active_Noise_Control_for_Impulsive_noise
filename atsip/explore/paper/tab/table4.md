@@ -2,7 +2,7 @@
 
 ## Diverged runs / transfers / runs differing from the algorithm without the trials
 
-| Method | No change | Disturbance (0 dB) | Disturbance (-10 dB) | Near | Far |
+| Method | No change | Disturbance (0 dB) | Disturbance (-10 dB) | Close | Far |
 | --- | --- | --- | --- | --- | --- |
 | Proposed | 0/0/0 | 0/13/13 | 0/2/2 | 0/140/0 | 0/181/1 |
 | No restart | 0/0/0 | 0/0/0 | 0/0/0 | 0/0/0 | 0/0/0 |

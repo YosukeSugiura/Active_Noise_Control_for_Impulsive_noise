@@ -37,8 +37,8 @@ QUIET = ("stat", "EN0", "ENm10")
 CLASS_NAMES = {"G": "Gaussian", "II300": "Isolated impulses", "a145": "α-stable (α = 1.45)", "a120": "α-stable (α = 1.20)",
                "machinegun": "Machine gun", "factory1": "Factory", "destroyerengine": "Destroyer engine",
                "volvo": "Car interior", "valve": "Valve", "jackhammer": "Jackhammer"}
-SWITCH_TITLE = {"RS-near": "Switch to a nearby source", "RS-far": "Switch to a distant source"}
-SCEN = {"RS-near": "Near", "RS-far": "Far", "stat": "No change",
+SWITCH_TITLE = {"RS-near": "Switch to a close source", "RS-far": "Switch to a far source"}
+SCEN = {"RS-near": "Close", "RS-far": "Far", "stat": "No change",
         "EN0": "Disturbance (0 dB)", "ENm10": "Disturbance (-10 dB)"}
 BLOCK_SECONDS = 128 / 16000
 KS = (16, 64)
