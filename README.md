@@ -115,17 +115,19 @@ BlockFxNLMS       ANR_mean[dB]= -23.266  update_mean=   6.595 µs
 
 ## References
 
-[1] S. M. Kuo, S. Mitra, and W. H. Horner,  
-"Block implementation of the filtered-x LMS algorithm for active noise control systems,"  
-*Journal of Sound and Vibration*, vol. 284, no. 3–5, pp. 681–704, 2005.
+[1] D. P. Das, G. Panda, and S. M. Kuo,  
+"New block filtered-X LMS algorithms for active noise control systems,"  
+*IET Signal Processing*, vol. 1, no. 2, pp. 73–81, 2007.  
+doi:[10.1049/iet-spr:20060220](https://doi.org/10.1049/iet-spr:20060220)
 
-[2] T. Thanigai, S. M. Kuo, and R. Yenduri,  
-"Nonlinear active noise control for infant incubators in neonatal intensive care units,"  
+[2] P. Thanigai, S. M. Kuo, and R. Yenduri,  
+"Nonlinear active noise control for infant incubators in neo-natal intensive care units,"  
 in *Proc. ICASSP*, 2007, pp. 109–112.
 
 [3] M. T. Akhtar and W. Mitsuhashi,  
 "Improved adaptive algorithm for active noise control of impulsive noise,"  
-in *Proc. 51st Midwest Symposium on Circuits and Systems (MWSCAS)*, IEEE, pp. 330–333, 2008.
+in *Proc. 9th International Conference on Signal Processing (ICSP)*, 2008, pp. 2669–2672.  
+doi:[10.1109/ICOSP.2008.4697698](https://doi.org/10.1109/ICOSP.2008.4697698)
 
 [4] L. Wu, H. He, and X. Qiu,  
 "An active impulsive noise control algorithm with logarithmic transformation,"  
@@ -166,8 +168,8 @@ doi:[10.1016/j.apacoust.2020.107853](https://doi.org/10.1016/j.apacoust.2020.107
 doi:[10.1007/s00034-023-02374-7](https://doi.org/10.1007/s00034-023-02374-7)
 
 [13] Y. Cheng, C. Li, S. Chen, and Z. Zhou,  
-"Enhanced variable step-size filtered-x erf LMS for active impulsive noise control,"  
-*Circuits, Systems, and Signal Processing*, 2023.  
+"An enhanced impulse noise control algorithm using a novel nonlinear function,"  
+*Circuits, Systems, and Signal Processing*, vol. 42, no. 11, pp. 6524–6543, 2023.  
 doi:[10.1007/s00034-023-02421-3](https://doi.org/10.1007/s00034-023-02421-3)
 
 [14] P. Feng, Z.-y. Wang, and H. C. So,  
