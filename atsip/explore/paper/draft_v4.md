@@ -49,7 +49,7 @@ The contributions of this paper are as follows.
 
 1. We propose a trial with a background filter for the reconvergence of ANC, and we show that a discarded trial leaves the control signal unchanged (Proposition 3).
 2. We combine three elements in the update used for the trial, and we show that the update caused by an isolated impulse does not depend on the amplitude of the impulse (Proposition 2).
-3. We compare the proposed algorithm with nine algorithms for ten noise types. The evaluation includes the cases in which the trial did not start and the case in which comparison algorithms recovered better from a disturbance.
+3. We compare the proposed algorithm with nine algorithms for ten noise types. The evaluation includes the cases in which no transfer occurred and the case in which comparison algorithms recovered better from a disturbance.
 
 Section 2 reviews related work in more detail, and Section 3 formulates the problem. Section 4 describes the proposed algorithm. Section 5 describes the evaluation framework, Section 6 reports the reconvergence after a change in the primary path, and Section 7 reports the cost of the trial mechanism when the path stays the same. Section 8 concludes the paper.
 
@@ -248,7 +248,7 @@ The frozen coefficients show the same result on a common scale (Fig. 4). With th
 
 ### 6.2 Results for each noise type
 
-Fig. 5 shows the difference for each noise type. The proposed algorithm was better in 31 of the 40 comparisons, CohVSS-FxNLMS was better in six, and the interval included zero in three. The six exceptions were machine gun noise and car interior noise with the close source. These two noise types accounted for 37 of the 60 runs without a trial after the change with the close source and for 13 of the 20 such runs with the far source. In such a run, the proposed algorithm operates as the algorithm without the trials (Proposition 3).
+Fig. 5 shows the difference for each noise type. The proposed algorithm was better in 31 of the 40 comparisons, CohVSS-FxNLMS was better in six, and the interval included zero in three. The six exceptions were machine gun noise and car interior noise with the close source. These two noise types accounted for 37 of the 60 runs without a transfer after the change with the close source and for 13 of the 20 such runs with the far source. In such a run, either no trial started or every trial was discarded, and the proposed algorithm operates as the algorithm without the trials (Proposition 3).
 
 The missed detections alone do not explain the result for machine gun noise. In the variant that runs a trial in every block without the detector (Section 7.3), the coefficients were transferred after the change in 19 and 20 of the 20 runs. Its median recovery time (1.01 s and 0.94 s) was nevertheless close to that of the proposed algorithm (1.00 s and 1.16 s) and longer than that of CohVSS-FxNLMS (0.91 s and 0.89 s). Over the 2 s after the change, this variant reduced the noise by 0.4 dB and 0.9 dB more than the proposed algorithm, and both intervals excluded zero. For this noise, the trials thus reduced the error after the change without shortening the recovery time. Machine gun noise consists of intermittent bursts, and its noise reduction before the change was only about −5 dB, compared with −8 dB to −13 dB for the other noise types.
 
@@ -282,7 +282,7 @@ For the signal of Fig. 3, the setting of C-FXLMS had an eight times larger step 
 
 ## 7. Cost of the trial mechanism
 
-This section examines the second and third requirements of Section 3.4, the contribution of each element, and the computational cost.
+This section examines the second and third requirements of Section 3.4, the contribution of each element, the computational cost, and the sensitivity to the parameters.
 
 ### 7.1 No change in the primary path
 
@@ -302,11 +302,17 @@ Table 4 lists three variants. Without the division by $g_n$, seven to nine of th
 
 Per block of 128 samples (Table 5), the late phase requires 0.60 times the real multiplications of the time-domain FxNLMS algorithm, and a block with a trial requires 1.23 times. A trial was active in 7% of the blocks, and the average was 0.65 times. A real-time implementation must provide for the peak during a trial.
 
+### 7.5 Sensitivity to the parameters
+
+We varied four parameters of the proposed algorithm one at a time in the no-change, 0 dB disturbance, and two source-switch conditions. Table 6 shows the result for the threshold $\gamma$ in (10). A smaller $\gamma$ started a trial after more changes and also led to more transfers without a path change. With $\gamma = 2$, the number of runs without a trial within 1 s after the change fell from 41 to 3 with the close source, and ten transfers occurred in the no-change condition. For $\gamma$ between 2 and 4, the median recovery time stayed within 0.04 s of the default. With $\gamma = 8$, it was about twice as long as the default.
+
+The other three parameters had smaller effects. For the transfer thresholds $(\rho_1, \rho_2)$ of $(0.18, 0.35)$ and $(0.35, 0.7)$ and for the final decision at 8 or 32 blocks, the median recovery time stayed within 0.05 s of the default, and the noise reduction over the whole run stayed within 0.04 dB. The looser thresholds $(0.35, 0.7)$ increased the transfers without a path change from 0 to 18 in the no-change condition and from 13 to 32 with the disturbance. For the early-phase step size, $\sigma_{\mathrm E} = 0.5$ gave median recovery times of 0.42 s and 0.37 s without divergence, and $\sigma_{\mathrm E} = 1.5$ caused divergence in three of the 200 runs in each condition. This value corresponds to $a \le 0.68$, which is above the stable range found in Section 4.4.
+
 ## 8. Conclusion
 
 We proposed a frequency-domain filtered-x algorithm for impulsive noise that adapts a background filter with a larger step size and transfers its coefficients to the foreground filter only when they reduce the reconstructed error. A discarded trial leaves the control signal identical to that obtained without it. In simulations with ten noise types, the trials shortened the median recovery time after a switch of the noise source by about two thirds compared with the fastest of nine comparison algorithms. With a fixed primary path, the control signal was identical to that obtained without the trials.
 
-For machine gun noise, which consists of intermittent bursts, the trials did not shorten the recovery time, and the trial did not start for a small change in the primary path. After a disturbance at the error microphone, two comparison algorithms reduced the noise by 0.3 dB to 0.6 dB more. The evaluation was limited to simulations with paths from one room, a fixed secondary path, and no acoustic feedback. Future work includes the evaluation in other rooms and a real-time implementation.
+For machine gun noise, which consists of intermittent bursts, the trials did not shorten the recovery time, and no transfer occurred for a small change in the primary path. After a disturbance at the error microphone, two comparison algorithms reduced the noise by 0.3 dB to 0.6 dB more. The evaluation was limited to simulations with paths from one room, a fixed secondary path, and no acoustic feedback. Future work includes the evaluation in other rooms and a real-time implementation.
 
 [7–8 章のメモ]
 - 7.1 節：変化なしの 2494 回の試行の内訳は、打ち切り（ρ > 4）188、判定で破棄 2297、実行の終わりで未了 9。
