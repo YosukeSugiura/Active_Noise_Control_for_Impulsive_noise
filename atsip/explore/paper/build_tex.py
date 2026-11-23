@@ -2,7 +2,7 @@
 
   python paper/build_tex.py      -> paper/tex/main.tex, paper/tex/main.pdf
 
-The class is the standard article class for now; the journal class replaces it once its style files are added.
+The class is now-journal (option sip) of Now Publishers; its files are in paper/tex.  Bibliography: biblatex with biber.
 """
 import re
 import subprocess
@@ -10,7 +10,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 TEX = HERE / "tex"
-TITLE = "Trial Adaptation with a Background Filter for Fast Reconvergence in Active Control of Impulsive Noise"
+TITLE = "Fast Reconvergence in Active Impulsive Noise Control Using a Background Trial Filter"
 CITE = {"Shao and Nikias 1993": "shao1993", "Kuo and Morgan 1996": "kuo1996", "Sun 2006": "sun2006", "Akhtar 2008": "akhtar2008",
         "Akhtar 2009": "akhtar2009", "Wu 2011": "wu2011", "Thanigai 2007": "thanigai2007", "Wu and Qiu 2013": "wu2013",
         "Sun et al. 2015": "sun2015", "Feng et al. 2024": "feng2024", "Cheng 2023": "cheng2023", "APSIPA 2026": "sugiura2026",
@@ -64,29 +64,39 @@ def main():
     body = re.sub(r"^## ", "# ", body, flags=re.M).replace("\n### ", "\n## ")
     conv = lambda t: subprocess.run(["pandoc", "-f", "markdown+raw_attribute", "-t", "latex", "--wrap=none"], input=t, text=True,
                                     capture_output=True, check=True).stdout
-    tex = r"""\documentclass[11pt]{article}
-\usepackage[a4paper,margin=25mm]{geometry}
-\usepackage{amsmath,amssymb,amsthm,graphicx,booktabs,newunicodechar}
-\usepackage[hidelinks]{hyperref}
+    tex = r"""\documentclass[sip,biber]{now-journal}
+\usepackage[utf8]{inputenc}
+\usepackage{amssymb,newunicodechar}
+\usepackage{float}
 \newunicodechar{α}{\ensuremath{\alpha}}\newunicodechar{−}{\ensuremath{-}}\newunicodechar{≤}{\ensuremath{\le}}\newunicodechar{≥}{\ensuremath{\ge}}
 \newunicodechar{μ}{\ensuremath{\mu}}
 \providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\raggedbottom
 \title{""" + TITLE + r"""}
-\author{Yosuke Sugiura\\Meiji University, Japan}
-\date{}
+\author[1*]{Sugiura,Yosuke}
+\affil[1]{Department of Computer Science, School of Science and Technology, Meiji University, Kawasaki, Japan}
+\addbibresource{refs.bib}
+\issuevolumeyear{2027}
+\issuevolumenumber{xx}
+\issueelocation{e}
+\articletype{Original Paper}
+\articledatabox{Received xx xxxxx 2026; Revised xx xxxxx 2027\\[2pt]
+ISSN 2048-7703; DOI 10.1561/116.xxxxxxxx\\
+\copyright\ 2027 Y. Sugiura}
+\OAstatement{This is an Open Access article, distributed under the terms of the Creative Commons Attribution licence (\url{http://creativecommons.org/licenses/by-nc/4.0/}), which permits unrestricted re-use, distribution, and reproduction in any medium, for non-commercial use, provided the original work is properly cited.}
+\keywords{Active noise control, impulsive noise, filtered-x algorithm, frequency-domain adaptive filter, primary path change}
+\creditline*{Corresponding author: Yosuke Sugiura, ysugiura@meiji.ac.jp.}
 \begin{document}
-\maketitle
 \begin{abstract}
 """ + conv(abstract) + r"""\end{abstract}
 """ + conv(body) + r"""
-\bibliographystyle{ieeetr}
-\bibliography{refs}
+\printbibliography
 \end{document}
 """
     tex = tex.replace(r"$\blacksquare$", r"\hfill$\blacksquare$")
     TEX.mkdir(exist_ok=True)
     (TEX / "main.tex").write_text(tex)
-    for cmd in (["pdflatex", "-interaction=nonstopmode", "-halt-on-error", "main"], ["bibtex", "main"],
+    for cmd in (["pdflatex", "-interaction=nonstopmode", "-halt-on-error", "main"], ["biber", "main"],
                 ["pdflatex", "-interaction=nonstopmode", "main"], ["pdflatex", "-interaction=nonstopmode", "main"]):
         r = subprocess.run(cmd, cwd=TEX, capture_output=True, text=True)
         if r.returncode and cmd[0] == "pdflatex":

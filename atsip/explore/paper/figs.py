@@ -266,7 +266,7 @@ def table2(final,coef,cr,final_text,ccf,ccc):
             expected = ci_display(v,2,count=True).replace(" (","（").replace(")","）")
             verify(expected,main_rows[m][14],(s,m,"recovery in blocks"))
             intervals.append(ci_text(v,BLOCK_SECONDS))
-        result.append((SCEN[s],"Recovery (s)",*cells,*intervals))
+        result.append((SCEN[s],"Recovery time [s]",*cells,*intervals))
         v=paired(final[s,P],ccf[s,C],lambda r:r.get("rec_blocks"))
         extra.append((shown(recovery(ccf[s,C])*BLOCK_SECONDS),ci_text(v,BLOCK_SECONDS)))
         for k in KS:
@@ -279,7 +279,7 @@ def table2(final,coef,cr,final_text,ccf,ccc):
                 v=paired(coef[s,P],coef[s,m],j(k))
                 verify(ci_display(v,2),r[6],(s,k,m))
                 intervals.append(ci_display(v,2,count=True))
-            result.append((SCEN[s],f"Noise reduction with frozen coefficients at {t} s (dB)",*cells,*intervals))
+            result.append((SCEN[s],f"NR at {t} s [dB]",*cells,*intervals))
             extra.append((shown(np.median(values(ccc[s,C],j(k))),2),ci_display(paired(coef[s,P],ccc[s,C],j(k)),2,count=True)))
     # Keep the customary paper table compact by separating levels and paired differences.
     output_table(2,"Reconvergence after a source switch",[
@@ -288,7 +288,7 @@ def table2(final,coef,cr,final_text,ccf,ccc):
         ("Paired differences",("Switch","Metric",f"Proposed - {NAMES[A]}",f"Proposed - {EXTERNAL_NAMES[C]}","Proposed - No restart"),
          [(*r[:2],r[5],x[1],r[6]) for r,x in zip(result,extra)])],
         ["Recovery uses each method's post-change reference level +3 dB and a Kaplan-Meier median.",
-         "The noise reduction with frozen coefficients is the residual-to-primary power ratio with the first 256 ms excluded.",
+         "NR at 0.13 s and 0.51 s is the noise reduction with the coefficients frozen at that time after the switch (residual-to-primary power ratio, first 256 ms excluded).",
          "Differences are paired means with seed-bootstrap 95% intervals and pair counts in parentheses. Recovery differences use pairs with recovery observed in both runs."])
 
 

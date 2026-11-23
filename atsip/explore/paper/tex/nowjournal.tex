@@ -1,0 +1,219 @@
+% !Mode:: "TeX:DE:UTF-8:Main"
+%
+%
+%JOURNAL CODE  SEE DOCUMENTATION
+
+\documentclass[example,biber]{now-journal} % Replace example with the journal code.
+
+\usepackage[utf8]{inputenc}
+\usepackage{amssymb}
+
+% a few definitions that are *not* needed in general:
+\newcommand{\ie}{\emph{i.e.}}
+\newcommand{\eg}{\emph{e.g.}}
+\newcommand{\etc}{\emph{etc}}
+\newcommand{\now}{\textsc{now}}
+
+%ARTICLE TITLE
+\title{Using the now publishers \LaTeX Class}
+
+%AUTHORS AND AFFILIATIONS
+\author[1*]{Gupta,Anahita}
+\author[1]{Casey,Mike}
+
+\affil[1]{now publishers, Inc.}
+
+%BIBLIOGRAPHY FILE
+\addbibresource{sample-now.bib}
+
+%ISSUE DATA
+\issuevolumeyear{2024}
+\issuevolumenumber{xx}
+%\issueelocation{e} % This is only required for sip articles
+%\articletype{Original/Overview Paper} % This is only required for sip articles
+
+\articledatabox{Received xx xxxxx 2024; Revised xx xxxxx 2024\\[2pt]
+ISSN xxxx-xxxx; DOI 10.1561/xxx.xxxxxxxx\\
+\copyright\ 2024 A. Gupta and M. Casey}
+
+%OPEN ACCESS STATEMENT % This is only required for sip articles
+%\OAstatement{This is an Open Access article, distributed under the terms of the Creative Commons Attribution licence (\url{http://creativecommons.org/licenses/by-nc/4.0/}), which permits unrestricted re-use, distribution, and reproduction in any medium, for non-commercial use, provided the original work is properly cited.}
+
+%KEYWORDS
+\keywords{Comma-separated keywords go here}
+\keywords[JEL]{Comma-separated JEL codes go here}
+
+%CORRESPONDING AUTHOR
+\creditline*{Corresponding author: anahita.gupta@nowpublishers.com.}
+
+\disclaimer{Your disclaimer goes here.}
+
+\begin{document}
+
+\begin{abstract}
+This document explains to authors how to install and use the \LaTeX\ style files for research journal articles from Now Publishers.
+\end{abstract}
+
+\section{Distribution and Installation}
+\label{s-distribution}
+
+\subsection{The Distribution}
+The distribution contains two folders: \texttt{Example}  and \texttt{nowauthortexmf}. The contents of the \texttt{Example} folder is described below. The other folder and files are only needed for installation which will be explained below.
+
+\subsubsection{Folder \texttt{Example}}
+This folder contains the source files that compile this PDF (nowjournal.pdf):
+
+\begin{itemize}[noitemsep]
+\item nowjournal.tex
+\item now-biblatex.sty
+\item now-cfr.sty
+\item now-jmb.sty
+\item now-jmb-biblatex.sty
+\item now-journal.cls
+\item now-jws.sty
+\item now-sip-biblatex.sty
+\end{itemize}
+
+\noindent It also contains a folder titled \texttt{journaldata}, which contains two files for each journal.
+
+<jrnlcode>-editorialboard.tex
+
+<jrnlcode>-journaldata.tex
+
+\noindent <jrnlcode> is the code given in Appendix~\ref{s-journalcodes}. You will need these three files to compile your article.
+
+\subsubsection{Folder \texttt{nowfnttexmf}}
+This folder contains all the files required in a texmf structure for easy installation.
+
+\subsection{Installation}
+These instructions assume that you have a working \LaTeX\ installation version. In principle, the installation process only requires you to copy the files to a place in your \LaTeX\ environment and make your environment aware that they exist. Copy the \texttt{nowauthortexmf} folder to your local directory and make this to your \TeX installation through your console. If you do not already have biber installed, you can get it from \url{http://biblatex-biber.sourceforge.net/}
+
+\section{Creating the Article Source} 
+\label{s-source}
+The now-journal.cls is based on the standard \LaTeX\ article class file so you can use any commands you normally would.
+
+\textbf{NOTE: Do not modify any class or style files included in our distribution. If you do so, we will reject your files.}
+
+\subsection{The Document Class}
+Authors are requested to create a generic version of their manuscript for use until the paper has been accepted. At the start of your file use:
+
+\begin{verbatim}
+\documentclass[example,biber]{now-journal}
+\end{verbatim}
+
+\texttt{example} will need to be replaced by the journal code of the journal for which you are submitting the article.
+
+\subsection{Authors and Affiliations}
+Author names and affiliations are inserted using the \texttt{\textbackslash author} and \texttt{\textbackslash affil} commands. Author names need to be formatted as \texttt{\{surname, first name\}}. If an author shares an affiliation with another author, the affiliation number can be used to associate that author with the same affiliation. 
+
+\subsection{Bibliography Files}
+You can add your .bib files using the \texttt{\textbackslash addbibresource} command. Consult the sample-now.bib file for an example
+of different reference types. Add \texttt{\textbackslash printbibliography} at the end of the article for all journals, except for \textit{The Journal of Web Science}.
+
+\subsection{Issue Data}
+The issue data will be added during the production process by the typesetters.
+
+\subsection{The Article Data Box}
+The article data box command is used to enter the dates of receipt and review, the ISSN number of the journal, the DOI of the article, and the copyright statement.
+
+\subsection{Open Access Statement}
+For open access journals, a statement will need to be added indicating this. It can be commented out otherwise.
+
+\subsection{Keywords}
+Article keywords and JEL codes can be added as follows.
+\begin{verbatim}
+\keywords{keyword1, keyword2, keyword3}
+\keywords[JEL]{JELcode1, JELcode2, JELcode3}
+\end{verbatim}
+
+\subsection{Corresponding Author}
+The corresponding author's name and e-mail added in the \texttt{\textbackslash creditline} command.
+
+\subsection{Abstract}
+Ensure that the paper’s abstract is defined in the \texttt{abstract} environment.
+
+\subsection{Acknowledgements}
+Acknowledgements can be added after the corresponding author in the \texttt{\textbackslash creditline} command.
+
+\subsection{Disclaimer}
+To add a disclaimer, use the \texttt{\textbackslash disclaimer} command in the preamble.
+
+\subsection{Exceptions for Critical Finance Review}
+The Critical Finance Review requests that authors use the following commands for figure and table captions, and they should be used in the following order:
+
+\begin{itemize}
+\item \texttt{\textbackslash Note\{\}} This command is optional and is used to assign a note to a figure or table.
+\item \texttt{\textbackslash Source\{\}} This command is optional and is used to indicate the source of the (data in a) figure or table.
+\item \texttt{\textbackslash caption\{\}} The caption contains the figure title.
+\item \texttt{\textbackslash Description\{\}} This contains a description of the figure or table.
+\item \texttt{\textbackslash Interpretation\{\}} This contains the interpretation of the figure or table. A Description, Interpretation, or both must be present under the figure or table caption. See CFR-Example.tex for an example of the input and CFRExample. pdf in CFR-Example folder for an example of the output.
+\end{itemize}
+
+\subsection{Compilation}
+\begin{sloppypar}
+To compile, copy <jrnlcode>-editorialboard.tex and <jrnlcode>-journaldata.tex for your journal to the main folder of the source files. Run pdfLaTeX, Biber, and then pdfLaTeX again.
+\end{sloppypar}
+
+\appendix
+\section{Journal Codes}
+\label{s-journalcodes}
+
+Table \ref{tab:codes} shows a list of journals and their corresponding journal code. The journal code needs to replace \texttt{example} in
+\begin{verbatim}
+\documentclass[example,biber]{now-journal}
+\end{verbatim}
+
+\begin{table}[ht!]
+\caption{Journals and their corresponding codes.}
+\label{tab:codes}
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tabular}{l|c|c|c}
+\textbf{Journal} & \textbf{Code} & \textbf{ISSN} & \textbf{DOI} \\ \hline
+APSIPA Transactions on Signal and Information Processing & sip & 2048-7703 & 116 \\
+Critical Finance Review & cfr & 2164-5744 & 104 \\
+Data Envelopment Analysis Journal & dea & 2161-1823 & 103 \\
+International Review of Environmental and Resource Economics & irere & 1932-1465 & 101 \\
+Journal of Forest Economics & jfe & 1104-6899 & 112 \\
+Journal of Historical Political Economy & hpe & 2693-9290 & 115 \\
+Journal of Law, Finance, and Accounting & jlfa & 2380-5005 & 108 \\
+Journal of Political Institutions and Political Economy & pip & 2689-4823 & 113 \\
+The Journal of Web Science & jws & 2332-4031 & 106 \\
+Quarterly Journal of Political Science & qjps & 1554-0626 & 100 \\
+Review of Behavioral Economics & rbe & 2326-6198 & 105 \\
+Review of Corporate Finance & rcf & 2693-9312 & 114 \\
+Strategic Behavior and the Environment & sbe & 1944-012X & 102 \\
+Strategic Management Review & smr & 2688-2612 & 111 \\
+\end{tabular}}
+\end{table}
+
+Table \ref{tab:fields} shows summarises which fields are required and allowed for each journal code.
+
+\begin{table}[ht!]
+\caption{Required fields are marked by a \checkmark and allowed fields are marked by a $\circ$.}
+\label{tab:fields}
+\centering
+\small
+\begin{tabular}{l|lllllll}
+\textbf{Journal} & \rotatebox{90}{\textbf{Receipt/Review Dates}} & \rotatebox{90}{\textbf{Open Access Statement}} & \rotatebox{90}{\textbf{Keywords}} & \rotatebox{90}{\textbf{JEL Codes}} & \rotatebox{90}{\textbf{Corresponding Author}} & \rotatebox{90}{\textbf{Acknowledgements}} & \rotatebox{90}{\textbf{Disclaimer}} \\ \hline
+CFR          &            &            & \checkmark & \checkmark & $\circ$    & $\circ$    & $\circ$    \\
+DEA          &            &            & \checkmark &            & $\circ$    & $\circ$    & $\circ$    \\
+HPE          &            &            & \checkmark &            & $\circ$    & $\circ$    & $\circ$    \\
+IRERE        &            &            & \checkmark & \checkmark & $\circ$    & $\circ$    & $\circ$    \\
+JFE          &            &            & \checkmark &            & \checkmark & $\circ$    & $\circ$    \\
+JLFA         &            &            & \checkmark & \checkmark & $\circ$    & $\circ$    & $\circ$    \\
+JWS          &            &            & \checkmark &            & $\circ$    & $\circ$    & $\circ$    \\
+PIP          &            &            & \checkmark &            & $\circ$    & $\circ$    & $\circ$    \\
+QJPS         &            &            & \checkmark &            & $\circ$    & $\circ$    & $\circ$    \\
+RBE          &            &            & \checkmark & \checkmark & $\circ$    & $\circ$    & $\circ$    \\
+RCF          &            &            & \checkmark & \checkmark & $\circ$    & $\circ$    & $\circ$    \\
+SBE          &            &            & \checkmark & \checkmark & \checkmark & $\circ$    & $\circ$    \\
+SIP          & \checkmark & \checkmark & \checkmark &            & \checkmark & $\circ$    & $\circ$    \\
+SMR          &            &            & \checkmark &            & $\circ$    & $\circ$    & $\circ$    \\
+\end{tabular}
+\end{table}
+
+%BACKMATTER SEE DOCUMENTATION
+\printbibliography
+
+\end{document}

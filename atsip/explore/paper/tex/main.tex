@@ -1,15 +1,26 @@
-\documentclass[11pt]{article}
-\usepackage[a4paper,margin=25mm]{geometry}
-\usepackage{amsmath,amssymb,amsthm,graphicx,booktabs,newunicodechar}
-\usepackage[hidelinks]{hyperref}
+\documentclass[sip,biber]{now-journal}
+\usepackage[utf8]{inputenc}
+\usepackage{amssymb,newunicodechar}
+\usepackage{float}
 \newunicodechar{α}{\ensuremath{\alpha}}\newunicodechar{−}{\ensuremath{-}}\newunicodechar{≤}{\ensuremath{\le}}\newunicodechar{≥}{\ensuremath{\ge}}
 \newunicodechar{μ}{\ensuremath{\mu}}
 \providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
-\title{Trial Adaptation with a Background Filter for Fast Reconvergence in Active Control of Impulsive Noise}
-\author{Yosuke Sugiura\\Meiji University, Japan}
-\date{}
+\raggedbottom
+\title{Fast Reconvergence in Active Impulsive Noise Control Using a Background Trial Filter}
+\author[1*]{Sugiura,Yosuke}
+\affil[1]{Department of Computer Science, School of Science and Technology, Meiji University, Kawasaki, Japan}
+\addbibresource{refs.bib}
+\issuevolumeyear{2027}
+\issuevolumenumber{xx}
+\issueelocation{e}
+\articletype{Original Paper}
+\articledatabox{Received xx xxxxx 2026; Revised xx xxxxx 2027\\[2pt]
+ISSN 2048-7703; DOI 10.1561/116.xxxxxxxx\\
+\copyright\ 2027 Y. Sugiura}
+\OAstatement{This is an Open Access article, distributed under the terms of the Creative Commons Attribution licence (\url{http://creativecommons.org/licenses/by-nc/4.0/}), which permits unrestricted re-use, distribution, and reproduction in any medium, for non-commercial use, provided the original work is properly cited.}
+\keywords{Active noise control, impulsive noise, filtered-x algorithm, frequency-domain adaptive filter, primary path change}
+\creditline*{Corresponding author: Yosuke Sugiura, ysugiura@meiji.ac.jp.}
 \begin{document}
-\maketitle
 \begin{abstract}
 Adaptive algorithms for active control of impulsive noise prevent divergence by limiting the influence of large samples in the reference and error signals or by using a small step size. These algorithms apply the same update rule to a large error whether it is caused by an impulse or by a sudden change in the primary path. The settings that prevent divergence therefore also slow the reconvergence after the change. This paper proposes a frequency-domain filtered-x algorithm that tests a larger step size on a background filter before the result is used for control. During the test, the foreground filter generates the control signal with its normal step size. When the ratio of the error power to the filtered-reference power rises above a multiple of its running average, the background filter is initialized with the foreground coefficients and adapted with the larger step size. Its coefficients are transferred to the foreground filter only when they give a sufficiently smaller error on the same data. Otherwise, they are discarded, and the control signal is identical to that obtained without the test under the same initial state and input. In simulations with measured room impulse responses and ten noise types, the proposed algorithm reduced the median recovery time after a switch of the noise source by 63\% and 68\% compared with the fastest of nine comparison algorithms. The two values are for new sources close to and far from the original source. For machine gun noise, which consists of intermittent bursts, and for car interior noise with the close source, the trial rarely started, and the comparison algorithm recovered faster. With a fixed primary path, the noise reduction of the two algorithms differed by less than 0.1 dB.
 \end{abstract}
@@ -354,6 +365,5 @@ This paper proposed a frequency-domain filtered-x algorithm for active control o
 
 The proposed algorithm has three limitations. First, the trial did not start after the change in 60 and 20 of the 200 runs of the two source-switch conditions, mainly for machine gun noise, which consists of intermittent bursts, and for car interior noise with a small change in the primary path. In these runs, the proposed algorithm operated as the algorithm without the trials, and the comparison algorithm had the shorter recovery time. Second, after a disturbance at the error microphone, two comparison algorithms had a larger noise reduction by 0.3 dB to 0.6 dB. Third, the evaluation was limited to simulations with paths from one room, a fixed secondary path, and a reference signal without acoustic feedback. Future work includes a detector for noise with intermittent bursts, the evaluation with paths from other rooms, and a real-time implementation.
 
-\bibliographystyle{ieeetr}
-\bibliography{refs}
+\printbibliography
 \end{document}
