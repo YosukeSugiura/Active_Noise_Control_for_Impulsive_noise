@@ -5,24 +5,24 @@
 | Condition | Method | 30 s L1 | Last 10 s | Post-event 2 s | Transfers | Matches |
 | --- | --- | --- | --- | --- | --- | --- |
 | No change | Proposed | -9.03 | -9.11 | -- | 0 | 200/200 |
-| No change | APSIPA 2026 [our prior work] | -8.98 | -9.18 | -- | -- | -- |
+| No change | CohVSS-FxNLMS | -8.98 | -9.18 | -- | -- | -- |
 | No change | No restart | -9.03 | -9.11 | -- | 0 | -- |
 | Disturbance (0 dB) | Proposed | -8.49 | -8.15 | -5.60 | 13 | 187/200 |
-| Disturbance (0 dB) | APSIPA 2026 [our prior work] | -8.54 | -8.40 | -6.22 | -- | -- |
+| Disturbance (0 dB) | CohVSS-FxNLMS | -8.54 | -8.40 | -6.22 | -- | -- |
 | Disturbance (0 dB) | No restart | -8.46 | -8.07 | -5.59 | 0 | -- |
 | Disturbance (-10 dB) | Proposed | -8.78 | -8.63 | -7.45 | 2 | 198/200 |
-| Disturbance (-10 dB) | APSIPA 2026 [our prior work] | -8.77 | -8.81 | -7.65 | -- | -- |
+| Disturbance (-10 dB) | CohVSS-FxNLMS | -8.77 | -8.81 | -7.65 | -- | -- |
 | Disturbance (-10 dB) | No restart | -8.78 | -8.63 | -7.45 | 0 | -- |
 
 ## Paired L1 differences (Proposed minus baseline)
 
 | Condition | Baseline | Window | Difference [95% CI] |
 | --- | --- | --- | --- |
-| No change | APSIPA 2026 [our prior work] | 30 s | -0.053 [-0.081, -0.025] (200) |
-| No change | APSIPA 2026 [our prior work] | Last 10 s | +0.072 [+0.039, +0.106] (200) |
-| Disturbance (0 dB) | APSIPA 2026 [our prior work] | Post-event 2 s | +0.622 [+0.533, +0.715] (200) |
+| No change | CohVSS-FxNLMS | 30 s | -0.053 [-0.081, -0.025] (200) |
+| No change | CohVSS-FxNLMS | Last 10 s | +0.072 [+0.039, +0.106] (200) |
+| Disturbance (0 dB) | CohVSS-FxNLMS | Post-event 2 s | +0.622 [+0.533, +0.715] (200) |
 | Disturbance (0 dB) | No restart | Post-event 2 s | -0.011 [-0.031, +0.000] (200) |
-| Disturbance (-10 dB) | APSIPA 2026 [our prior work] | Post-event 2 s | +0.198 [+0.144, +0.256] (200) |
+| Disturbance (-10 dB) | CohVSS-FxNLMS | Post-event 2 s | +0.198 [+0.144, +0.256] (200) |
 | Disturbance (-10 dB) | No restart | Post-event 2 s | -0.001 [-0.002, +0.000] (200) |
 
 ## Internal comparisons (200 runs per condition)

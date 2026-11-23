@@ -1,4 +1,4 @@
-# Draft v4 (abstract, Sections 1–2)
+# Draft v4 (abstract, Sections 1–3)
 
 v3 を査読者の目で見直して直した版。[..] は著者用のメモ。
 
@@ -72,6 +72,54 @@ Ochiai et al. [Ochiai et al. 1977] used two filters in a different way. Their ec
 Kuo et al. [Kuo 2005] implemented the FxLMS algorithm in blocks to reduce its computational load. Elliott and Rafaely [Elliott and Rafaely 1997, Elliott and Rafaely 2000] showed that the bin-normalized frequency-domain LMS algorithm can converge to a biased solution when the filter is constrained to be causal. They applied the spectral factors of the reference power spectrum before and after the causality constraint, and the resulting algorithm converged to the optimal causal filter. For feedforward control, the factorization also includes the minimum-phase part of the plant response. The proposed algorithm follows this construction and factorizes the regularized power spectrum of the filtered reference signal.
 
 Bjarnason [Bjarnason 1992] proposed the modified FxLMS algorithm. This algorithm estimates the primary noise at the error microphone by subtracting the filtered control signal from the measured error. It then computes the error that the current coefficients would produce. This modification removes the delay of the secondary path from the adaptation loop [Yang 2018 review]. The proposed algorithm uses this reconstruction for two purposes. The first is the update with the larger step size during start-up, during a trial, and after a transfer. The second is the comparison between the foreground and background filters.
+
+## 3. Problem formulation
+
+### 3.1 Signal model
+
+Fig. 1 shows the single-channel feedforward ANC system considered in this paper. The reference microphone observes the noise $x(k)$ at sample $k$. The noise reaches the error microphone through the primary path $p(k)$ and produces the primary noise $d(k) = p(k) * x(k)$, where $*$ denotes convolution. The control filter has $M$ coefficients $\mathbf{w}(k) = [w_0(k), \ldots, w_{M-1}(k)]^{\mathsf T}$ and generates the control signal
+
+$$y(k) = \mathbf{w}^{\mathsf T}(k)\,\mathbf{x}(k), \qquad \mathbf{x}(k) = [x(k), \ldots, x(k-M+1)]^{\mathsf T}.$$
+
+The control signal reaches the error microphone through the secondary path $s(k)$. The error signal is
+
+$$e(k) = d(k) + s(k) * y(k) + v(k), \tag{1}$$
+
+where $v(k)$ is a disturbance at the error microphone that is uncorrelated with $x(k)$. A model $\hat{s}(k)$ of the secondary path with $L_s$ coefficients is identified in advance and is fixed during control. The filtered reference signal is $r(k) = \hat{s}(k) * x(k)$.
+
+### 3.2 Block frequency-domain adaptation
+
+The control signal is computed for every sample in the time domain, so that the control path has no block delay. The coefficients are updated once every $B$ samples in the frequency domain with the FFT length $N = 2M$. In block $n$, $\mathbf{R}_n$ denotes the FFT of the latest $N$ samples of $r(k)$, and $\mathbf{E}_n$ denotes the FFT of the latest $M$ samples of $e(k)$ preceded by $N - M$ zeros. The frequency-domain FxNLMS algorithm updates the coefficients as
+
+$$\mathbf{w}_{n+1} = \mathbf{w}_n - \mu\, \mathcal{P}_M\, \mathcal{F}^{-1}\!\left\{ \frac{\mathbf{R}_n^{*} \odot \mathbf{E}_n}{\hat{\mathbf{S}}_{rr,n} + \epsilon} \right\}, \tag{2}$$
+
+where $\mu$ is the step size, $\hat{\mathbf{S}}_{rr,n}$ is the estimated power spectrum of $r(k)$, $\epsilon$ is a regularization constant, $\odot$ and the division are element-wise, $\mathcal{F}^{-1}$ is the inverse FFT, and $\mathcal{P}_M$ keeps the first $M$ samples. The projection $\mathcal{P}_M$ constrains the filter to be causal with $M$ coefficients. The proposed algorithm replaces the direction and the step size in (2), as described in Section 4.
+
+### 3.3 Impulsive noise and primary path change
+
+The noise $x(k)$ is impulsive. Its samples occasionally have amplitudes much larger than the background level, and the same impulses appear in $d(k)$ and, after imperfect cancellation, in $e(k)$. We place no assumption on the distribution of $x(k)$ in the algorithm. The evaluation uses a Gaussian signal, a Gaussian signal with isolated impulses, symmetric α-stable signals, and recorded noise (Section 5).
+
+The primary path changes at an unknown sample $k_c$:
+
+$$p(k) = \begin{cases} p_1(k), & k < k_c, \\ p_2(k), & k \ge k_c. \end{cases} \tag{3}$$
+
+Such a change occurs when the dominant noise source switches to a source at another position. The optimal control filter then changes from the solution for $p_1$ to the solution for $p_2$, and the error increases until the control filter reconverges. The secondary path $s(k)$ and its model $\hat{s}(k)$ stay the same before and after $k_c$. A change in the secondary path requires the model $\hat{s}(k)$ to be identified again, and this paper focuses only on the change in the primary path.
+
+### 3.4 Requirements
+
+We require the following three properties of the adaptive algorithm under impulsive noise.
+
+1. Reconvergence: after the change in (3), the error power returns to its converged level in a short time. Section 5 defines the recovery time that measures this property.
+2. Steady state: when the primary path stays the same, the noise reduction is maintained at the level obtained without any mechanism for fast reconvergence.
+3. Disturbance: when the error increases because of $v(k)$ in (1) and the primary path stays the same, the control filter is not degraded.
+
+The first requirement calls for a large update after $k_c$, and the second and third requirements call for a small update at all other times. The algorithm observes only $x(k)$ and $e(k)$, and $k_c$ is unknown. Section 4 describes how the proposed algorithm satisfies the first requirement and limits the cost with respect to the other two.
+
+[3 章のメモ]
+- Fig. 1：系の構成図（x、p、w、s、ŝ、e、v、前景と背景は Fig. 2）。作図が必要。
+- 式 (2) の誤差フレームと参照フレームの取り方は Table 1（誤差窓 512、FFT 1024）と THEORY_frozen.md §1 に合わせた。Ŝ_rr の推定法（指数平均の係数）は 4 章で書く。
+- 3.3 節「分布に仮定を置かない」：1/g の解析（定理 C）は孤立インパルスを仮定するので、4 章でその仮定を明記する。
+- 要件 2 の「再収束を速める仕組みがない場合の水準」は、再始動なし（nors-cap）との比較（差 0.01 dB 以下、区間は 0 を含む）に対応。要件 3 は EN0／ENm10 に対応し、結果は「APSIPA 2026 版と C-FXLMS が 0.2〜0.6 dB 良い」なので、4 章末と 7 章で「限界」として書く。
 
 [2 章のメモ]
 - APSIPA 2026 版の説明（周波数ごとのステップをコヒーレンスで伸縮、倍率は 0.6–1.6 の範囲）は algorithms/algorithms.py の Freq_FxNLMS_CohVSS から読んだもの。論文の記述と合っているか確認してください。

@@ -24,7 +24,7 @@ ROOT = PAPER.parent
 sys.path.insert(0, str(ROOT))
 from paired_ci import paired
 P, A, N = "P5-early-cap", "Freq_FxNLMS_CohVSS", "nors-cap"
-NAMES = {P: "Proposed", A: "APSIPA 2026 [our prior work]", N: "No restart",
+NAMES = {P: "Proposed", A: "CohVSS-FxNLMS", N: "No restart",
          "P5-early-noG": "Proposed without 1/g", "P4-cap": "Immediate restart",
          "TP-always-cap": "Always-on background trial", "ND-always-cap": "Always reconstructed error",
          "SF-fix": "Fixed-step SF"}
@@ -32,6 +32,10 @@ CLASSES = ("G", "II300", "a145", "a120", "machinegun", "factory1",
            "destroyerengine", "volvo", "valve", "jackhammer")
 SWITCHES = ("RS-near", "RS-far")
 QUIET = ("stat", "EN0", "ENm10")
+CLASS_NAMES = {"G": "Gaussian", "II300": "Isolated impulses", "a145": "α-stable (α = 1.45)", "a120": "α-stable (α = 1.20)",
+               "machinegun": "Machine gun", "factory1": "Factory", "destroyerengine": "Destroyer engine",
+               "volvo": "Car interior", "valve": "Valve", "jackhammer": "Jackhammer"}
+SWITCH_TITLE = {"RS-near": "Switch to a nearby source", "RS-far": "Switch to a distant source"}
 SCEN = {"RS-near": "Near", "RS-far": "Far", "stat": "No change",
         "EN0": "Disturbance (0 dB)", "ENm10": "Disturbance (-10 dB)"}
 BLOCK_SECONDS = 128 / 16000
@@ -136,7 +140,10 @@ def figure3(coef, report):
                     key = (s,"全クラス",shown(k*BLOCK_SECONDS,2), A if m==P else m)
                     verify(shown(series[blocks.index(k),1],2), report[key][4 if m==P else 5], key)
             time = np.array(blocks)*BLOCK_SECONDS
-            ax.fill_between(time,series[:,0],series[:,2],color=color,alpha=.12,linewidth=0)
+            if m != N:
+                ax.fill_between(time,series[:,0],series[:,2],color=color,alpha=.12,linewidth=0)
+                for q in (0,2):
+                    ax.plot(time,series[:,q],color=color,linestyle=ls,linewidth=.5)
             ax.plot(time,series[:,1],color=color,linestyle=ls,linewidth=1.65,marker=mark,
                     markersize=3.1,markevery=3,label=NAMES.get(m,m))
         for k in KS:
@@ -145,12 +152,11 @@ def figure3(coef, report):
         ax.set_xlim(0,15)
         ax.xaxis.set_major_locator(FixedLocator([0,.128,.512,2,8,15]))
         ax.xaxis.set_major_formatter(FixedFormatter(["0","0.13","0.51","2","8","15"]))
-        subtitle = f"({'ab'[SWITCHES.index(s)]}) {SCEN[s]} source switch"
+        subtitle = f"({'ab'[SWITCHES.index(s)]}) {SWITCH_TITLE[s]}"
         ax.set_xlabel(f"Time after switch (s)\n{subtitle}", linespacing=1.6)
         ax.grid(axis="y",color=".9",lw=.6)
-    axes[0].set_ylabel("Frozen-filter residual / primary (dB)")
+    axes[0].set_ylabel("Noise reduction with\nfrozen coefficients (dB)")
     axes[1].legend(loc="upper right",fontsize=7,framealpha=.92)
-    fig.supxlabel("Bands: interquartile range. Time axis: linear to 0.55 s, logarithmic thereafter.",fontsize=8)
     save(fig,"fig3")
 
 
@@ -177,13 +183,12 @@ def figure4(coef, report):
     for (i,k),v in np.ndenumerate(vals):
         color="white" if im.norm(v)>.72 else "black"
         ax.text(k,i,f"{v:+.2f}"+(" †" if (i,k) in cross else ""),ha="center",va="center",color=color,fontsize=9)
-    ax.set_yticks(range(len(CLASSES)),CLASSES)
+    ax.set_yticks(range(len(CLASSES)),[CLASS_NAMES[c] for c in CLASSES])
     ax.set_xticks(range(4),[f"{SCEN[s]}\n{k*BLOCK_SECONDS:.2f} s" for s,k in columns])
     ax.xaxis.tick_top()
     ax.tick_params(length=0)
     ax.axvline(1.5,color="white",lw=2)
-    fig.colorbar(im,ax=ax,label="Proposed − APSIPA 2026 [our prior work] (dB)")
-    ax.set_xlabel("Negative favors Proposed.  †  95% interval includes zero.",labelpad=10)
+    fig.colorbar(im,ax=ax,label=f"Proposed − {NAMES[A]} (dB)")
     save(fig,"fig4")
 
 

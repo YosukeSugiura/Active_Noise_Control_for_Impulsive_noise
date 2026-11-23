@@ -28,6 +28,6 @@
 | FxNFLOC | 0.1 | -- |
 | EVSS_FxeLMS | 0.003125 | -- |
 | FreqFxLMS | 0.0225 | -- |
-| APSIPA 2026 [our prior work] | 0.09 | -- |
+| CohVSS-FxNLMS | 0.09 | -- |
 
 The external methods use the common settings selected on design data (TUNE.json).
