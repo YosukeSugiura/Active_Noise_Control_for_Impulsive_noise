@@ -54,6 +54,32 @@ def cites(md):
     return re.sub(r"\[([^\[\]]+)\]", one, md)
 
 
+FIG = {"1": "fig:system", "2": "fig:structure", "3": "fig:anr", "4": "fig:frozen", "5": "fig:classes"}
+
+
+def xref(tex, stats):
+    """Replace hand-typed cross references in the prose by \\ref / \\eqref and number the equations."""
+    def eq(m):
+        stats["eq-def"] += 1
+        return "\\begin{equation}\\label{eq:" + m.group(2) + "}" + m.group(1).rstrip() + "\\end{equation}"
+    tex = re.sub(r"\\\[((?:(?!\\\]).)*?)\\tag\{(\d+)\}\s*\\\]", eq, tex, flags=re.S)
+    out = []
+    for line in tex.split("\n"):
+        if line.startswith(("\\begin{figure}", "\\input", "\\begin{equation}")) or "\\caption" in line:
+            out.append(line); continue
+        def sec(m):
+            stats["sec"] += 1
+            r = lambda x: "\\ref{sec:" + x + "}"
+            s = m.group(1) + "~" + r(m.group(2))
+            return s + (" " + m.group(3) + "~" + r(m.group(4)) if m.group(3) else "")
+        line = re.sub(r"(Sections?) (\d+(?:\.\d+)?)(?: (to|and) (\d+(?:\.\d+)?))?", sec, line)
+        line = re.sub(r"Fig\. (\d)", lambda m: stats.update(fig=stats["fig"] + 1) or "Fig.~\\ref{" + FIG[m.group(1)] + "}", line)
+        line = re.sub(r"Table (\d)", lambda m: stats.update(tab=stats["tab"] + 1) or "Table~\\ref{tab:atsip-" + m.group(1) + "}", line)
+        line = re.sub(r"(?<![\w\\{])\((\d{1,2})\)", lambda m: stats.update(eq=stats["eq"] + 1) or "\\eqref{eq:" + m.group(1) + "}", line)
+        out.append(line)
+    return "\n".join(out)
+
+
 def main():
     md = cites(clean((HERE / "draft_v4.md").read_text()))
     abstract, body = md.split("## 1. Introduction", 1)
@@ -62,18 +88,18 @@ def main():
     for key, tex in FLOATS.items():                              # floats as raw LaTeX after the heading
         body, n = re.subn(rf"(^### {re.escape(key)}.*$)", lambda m: m.group(1) + "\n\n```{=latex}\n" + tex + "\n```\n", body, flags=re.M)
         assert n == 1, key
-    body = re.sub(r"^(#+) \d+(\.\d+)*\.? ", r"\1 ", body, flags=re.M)      # numbers come from LaTeX
+    body = re.sub(r"^(#+) (\d+(?:\.\d+)*)\.? (.*)$", r"\1 \3 {#sec:\2}", body, flags=re.M)   # numbers come from LaTeX; label keeps the typed number
     body = re.sub(r"^## ", "# ", body, flags=re.M).replace("\n### ", "\n## ")
     conv = lambda t: subprocess.run(["pandoc", "-f", "markdown+raw_attribute", "-t", "latex", "--wrap=none"], input=t, text=True,
                                     capture_output=True, check=True).stdout
     tex = r"""\documentclass[sip,biber]{now-journal}
 \usepackage[utf8]{inputenc}
-\usepackage{amssymb,newunicodechar}
+\usepackage{amssymb,amsmath,newunicodechar}
 \usepackage{float}
 \newunicodechar{α}{\ensuremath{\alpha}}\newunicodechar{−}{\ensuremath{-}}\newunicodechar{≤}{\ensuremath{\le}}\newunicodechar{≥}{\ensuremath{\ge}}
 \newunicodechar{μ}{\ensuremath{\mu}}
 \providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
-\raggedbottom
+\raggedbottom\emergencystretch=2em
 \title{""" + TITLE + r"""}
 \author[1*]{Sugiura,Yosuke}
 \affil[1]{School of Science and Technology, Meiji University, Kawasaki, Japan}
@@ -95,6 +121,9 @@ ISSN 2048-7703; DOI 10.1561/116.xxxxxxxx\\
 \printbibliography
 \end{document}
 """
+    stats = {"sec": 0, "fig": 0, "tab": 0, "eq": 0, "eq-def": 0}
+    tex = xref(tex, stats)
+    print("converted:", stats)
     tex = tex.replace(r"$\blacksquare$", r"\hfill$\blacksquare$")
     TEX.mkdir(exist_ok=True)
     (TEX / "main.tex").write_text(tex)
