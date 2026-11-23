@@ -1,4 +1,4 @@
-# Draft v4 (abstract, Sections 1–4)
+# Draft v4 (abstract, Sections 1–6)
 
 v3 を査読者の目で見直して直した版。[..] は著者用のメモ。
 
@@ -145,7 +145,7 @@ $$\mathrm{E}[\boldsymbol{\delta}_n] = \frac{M_e}{N}\left(\mathbf{w} - [\mathbf{w
 
 where $M_e$ is the length of the error window ($M_e = M$ in this paper), $\mathbf{w}_\infty$ is the causal Wiener filter of infinite length, and $[\cdot]_M$ keeps its first $M$ coefficients.
 
-The proof is given in Appendix A. Under these assumptions, the mean update acts as a scalar on the coefficient error, so that all modes of the coefficient error converge at the same rate regardless of the spectrum of $r(k)$. For the finite length $N = 2M$ and $\epsilon = 10^{-2}$ used in this paper, we evaluated the deviation from this scalar action numerically. The eigenvalues of the mean action, normalized by $M_e/N$, lay between 0.13 and 1.0, and this spread was caused mainly by the regularization.
+This result follows from the analysis of Elliott and Rafaely [Elliott and Rafaely 2000]. With fixed coefficients, the expectation of $\mathbf{R}_n^{*} \odot \mathbf{E}_n$ is proportional to $S_{rr}W + S_{rd}$, where $W$ is the frequency response of $\mathbf{w}$ and $S_{rd}$ is the cross spectrum of $r(k)$ and $d(k)$. The division by $F^{*}$ gives $FW + S_{rd}/F^{*}$. The first term is causal and passes $\mathcal{P}_{N/2}$ unchanged, and the causal part of the second term is $-FW_\infty$ by the Wiener–Hopf solution. The division by $F$ then gives $W - W_\infty$, and $\mathcal{P}_M$ keeps its first $M$ coefficients. The factor $M_e/N$ is the fraction of the frame occupied by the error window. Under these assumptions, the mean update acts as a scalar on the coefficient error, so that all modes of the coefficient error converge at the same rate regardless of the spectrum of $r(k)$. For the finite length $N = 2M$ and $\epsilon = 10^{-2}$ used in this paper, we evaluated the deviation from this scalar action numerically. The eigenvalues of the mean action, normalized by $M_e/N$, lay between 0.13 and 1.0, and this spread was caused mainly by the regularization.
 
 ### 4.3 Step size normalized by the relative frame power
 
@@ -155,7 +155,7 @@ $$g_n = \frac{\frac{1}{N/2+1}\sum_{f} |R_n(f)|^2}{\bar{P}_n}. \tag{6}$$
 
 **Proposition 2.** Assume that the coefficients, $\mathbf{F}_n$, and $\bar{P}_n$ are fixed, that $v(k) = 0$, and that $x(k) = c(k) * [\varsigma(k)\xi(k)]$, where $c(k)$ is a fixed filter, $\xi(k)$ is a unit-variance white sequence, and $\varsigma(k)$ is a deterministic scale. Then each element of $\boldsymbol{\delta}_n$ is a quadratic form of the samples $z(k) = \varsigma(k)\xi(k)$ in the frame. If only one sample $z(k_0)$ in the frame is nonzero, then $\boldsymbol{\delta}_n = z^2(k_0)\,\mathbf{k}(k_0)$ and $g_n = z^2(k_0)\,\kappa(k_0)$ with a vector $\mathbf{k}(k_0)$ and a scalar $\kappa(k_0)$ that are independent of $z(k_0)$. The update $\boldsymbol{\delta}_n / g_n$ is therefore independent of the amplitude of the impulse.
 
-The proof is given in Appendix B. Proposition 2 concerns an isolated impulse, and it shows that the update caused by such an impulse is bounded without a threshold. The algorithm therefore keeps the impulsive samples in the update. For frames that contain both an impulse and background noise, the ratio $\boldsymbol{\delta}_n/g_n$ depends on the position of the impulse in the frame, because $g_n$ measures the power of the whole frame and $\boldsymbol{\delta}_n$ depends on the part of the response inside the error window. We rely on the simulations for these cases. The lower bound $g_{\min}$ in (4) limits the step size for frames with low power.
+This result follows directly from (5) and (6). With fixed coefficients and $v(k) = 0$, both $\mathbf{R}_n$ and $\mathbf{E}_n$ are linear in the samples $z(k)$, so that $\boldsymbol{\delta}_n$ and $g_n$ are quadratic in them. Proposition 2 concerns an isolated impulse, and it shows that the update caused by such an impulse is bounded without a threshold. The algorithm therefore keeps the impulsive samples in the update. For frames that contain both an impulse and background noise, the ratio $\boldsymbol{\delta}_n/g_n$ depends on the position of the impulse in the frame, because $g_n$ measures the power of the whole frame and $\boldsymbol{\delta}_n$ depends on the part of the response inside the error window. We rely on the simulations for these cases. The lower bound $g_{\min}$ in (4) limits the step size for frames with low power.
 
 ### 4.4 Early phase with recomputed error frames
 
@@ -169,27 +169,23 @@ $$\tilde{e}_n(k) = \hat{d}(k) + \hat{s}(k) * \left[\mathbf{w}_n^{\mathsf T}\math
 
 for the $M_e$ samples in the window. $\mathbf{E}_n$ in (5) is then the FFT of $\tilde{e}_n(k)$.
 
-**Proposition 3.** Assume $\hat{s} = s$, ideal whitening ($\boldsymbol{\Lambda}_n = \mathbf{S}_{rr}$, $N \to \infty$), and $g_n = 1$. Let $\mathbf{v}_n = \mathbf{w}_n - \mathbf{w}_o$ be the coefficient error with respect to a reference filter $\mathbf{w}_o$, and let $a = \sigma_{\mathrm E}\,(2B/M)(M_e/N)$. With the recomputed error frame,
+The recomputed frame changes the form of the update. Assume $\hat{s} = s$, ideal whitening ($\boldsymbol{\Lambda}_n = \mathbf{S}_{rr}$, $N \to \infty$), and $g_n = 1$. Let $\mathbf{v}_n = \mathbf{w}_n - \mathbf{w}_o$ be the coefficient error with respect to a reference filter $\mathbf{w}_o$, and let $a = \sigma_{\mathrm E}\,(2B/M)(M_e/N)$. Under these assumptions, (8) gives $\tilde{\mathbf{e}}_n = \mathbf{X}^r_n \mathbf{v}_n + \mathbf{e}_o$, where $\mathbf{e}_o$ is the error of $\mathbf{w}_o$, and the substitution into (5) and (4) gives
 
 $$\mathbf{v}_{n+1} = (\mathbf{I} - a\,\mathbf{G}_n)\,\mathbf{v}_n + \mathbf{b}_n, \qquad \mathbf{G}_n = \mathbf{F}_M^{-1}\,\mathbf{U}_n^{\mathsf T}\mathbf{X}^{r}_n / M_e, \tag{9}$$
 
 where $\mathbf{U}_n$ and $\mathbf{X}^r_n$ are the $M_e \times M$ regression matrices of the whitened filtered reference and of the filtered reference in the window, $\mathbf{F}_M$ is the $M \times M$ convolution matrix of the spectral factor, and $\mathbf{b}_n$ is the contribution of the residual error of $\mathbf{w}_o$.
 
-The proof is given in Appendix C. Equation (9) contains only the current coefficient error. The matrices $\mathbf{G}_n$ of consecutive blocks share samples, and we have no closed-form bound on $a$ for the stability of (9). We therefore examined (9) numerically for white Gaussian input over 64 blocks. The coefficient error decayed for $a \le 0.55$ and grew for $a \ge 0.625$, and the decay after 32 blocks was fastest near $a = 0.375$. Based on this result, we set $\sigma_{\mathrm E} = 1$ ($a = 0.25$ for $g_n = 1$) and $g_{\min} = 0.55$ in the early phase, so that $a/\max(g_n, g_{\min}) \le 0.455$.
+Equation (9) contains only the current coefficient error. The matrices $\mathbf{G}_n$ of consecutive blocks share samples, and we have no closed-form bound on $a$ for the stability of (9). We therefore examined (9) numerically for white Gaussian input over 64 blocks. The coefficient error decayed for $a \le 0.55$ and grew for $a \ge 0.625$, and the decay after 32 blocks was fastest near $a = 0.375$. Based on this result, we set $\sigma_{\mathrm E} = 1$ ($a = 0.25$ for $g_n = 1$) and $g_{\min} = 0.55$ in the early phase, so that $a/\max(g_n, g_{\min}) \le 0.455$.
 
 ### 4.5 Late phase
 
-In the late phase, the measured error frame is used, and the step size is small. From a second-order recursion for small step sizes (Appendix D), the ratio of the excess error to the minimum error in the steady state is approximately
-
-$$\delta \approx \frac{a\,\tau}{2 - a\,(2M/B)}, \qquad \tau = M_e/B, \quad a = \sigma_{\mathrm L}\,(2B/M)(M_e/N). \tag{10}$$
-
-We solve (10) for $\sigma_{\mathrm L}$ with a design value of $\delta$. For $\delta = 0.03$, $\sigma_{\mathrm L} = 0.0566$. The lower bound of $g_n$ in the late phase is $g_{\min} = 0.25$.
+In the late phase, the measured error frame is used, and the step size is small. We set $\sigma_{\mathrm L} = 0.0566$ and $g_{\min} = 0.25$. In preliminary simulations, the noise reduction over the whole run was the same for $\sigma_{\mathrm L}$ between 0.02 and 0.09.
 
 ### 4.6 Trial with the background filter
 
 **Start of a trial.** For each block, the algorithm computes the ratio
 
-$$z_n = \frac{\sum_{k \in \mathcal{W}_M(n)} e^2(k)}{\sum_{k \in \mathcal{W}_{2M}(n)} r^2(k)}, \tag{11}$$
+$$z_n = \frac{\sum_{k \in \mathcal{W}_M(n)} e^2(k)}{\sum_{k \in \mathcal{W}_{2M}(n)} r^2(k)}, \tag{10}$$
 
 where $\mathcal{W}_L(n)$ denotes the latest $L$ samples at block $n$. The division by the power of $r(k)$ removes the common scale of the input from the ratio. Let $\bar{z}_n$ be the exponential average of $z_n$. A trial starts at block $n_0$ when $z_n > \gamma\,\bar{z}_{n-1}$ holds for two consecutive blocks. After a trial starts, the next trial can start only after $n_{\mathrm G}$ blocks, and $\bar{z}_n$ is held constant during this interval.
 
@@ -197,9 +193,9 @@ where $\mathcal{W}_L(n)$ denotes the latest $L$ samples at block $n$. The divisi
 
 **Decision.** For each block $n \ge n_0 + 2$, the algorithm recomputes the errors of both filters by (8) for the latest $B$ samples and forms the ratio
 
-$$\rho_n = \frac{\sum_{k \in \mathcal{W}_B(n)} \tilde{e}_{\mathrm b}^2(k)}{\sum_{k \in \mathcal{W}_B(n)} \tilde{e}_{\mathrm f}^2(k)}. \tag{12}$$
+$$\rho_n = \frac{\sum_{k \in \mathcal{W}_B(n)} \tilde{e}_{\mathrm b}^2(k)}{\sum_{k \in \mathcal{W}_B(n)} \tilde{e}_{\mathrm f}^2(k)}. \tag{11}$$
 
-Both errors in (12) use the same $\hat{d}(k)$, so that a common scale of the signals cancels in the ratio. The trial ends by one of the following rules.
+Both errors in (11) use the same $\hat{d}(k)$, so that a common scale of the signals cancels in the ratio. The trial ends by one of the following rules.
 
 1. Discard: if $\rho_n > \rho_{\mathrm{abort}}$ or $\rho_n$ is not finite, $\mathbf{w}_{\mathrm b}$ is discarded.
 2. Early transfer: if $n \ge n_0 + n_1$ and $\rho_n \le \rho_1$, the coefficients are transferred, $\mathbf{w}_{\mathrm f} \leftarrow \mathbf{w}_{\mathrm b}$.
@@ -207,23 +203,81 @@ Both errors in (12) use the same $\hat{d}(k)$, so that a common scale of the sig
 
 After a transfer, the foreground filter continues in the early phase for the remaining $n_{\mathrm E} - (n - n_0)$ blocks. We use $\rho_{\mathrm{abort}} = 4$, $(n_1, \rho_1) = (4, 0.25)$, and $(n_2, \rho_2) = (16, 0.5)$.
 
-**Proposition 4.** Consider two runs of the algorithm with the same initial state and the same input signals. In the first run, the trials are disabled. In the second run, every trial up to block $n$ is discarded. Then the control signal $y(k)$ and the foreground coefficients of the two runs are identical up to block $n$.
+**Proposition 3.** Consider two runs of the algorithm with the same initial state and the same input signals. In the first run, the trials are disabled. In the second run, every trial up to block $n$ is discarded. Then the control signal $y(k)$ and the foreground coefficients of the two runs are identical up to block $n$.
 
 *Proof.* The control signal and the update of $\mathbf{w}_{\mathrm f}$ depend on $x(k)$, $e(k)$, and $\mathbf{w}_{\mathrm f}$. The background filter and the quantities $z_n$, $\bar{z}_n$, and $\rho_n$ are computed from these signals and affect $\mathbf{w}_{\mathrm f}$ only through a transfer. Without a transfer, the recursions of $\mathbf{w}_{\mathrm f}$ and $y(k)$ in the two runs are the same, and their initial states are the same. $\blacksquare$
 
-Proposition 4 requires no assumption on the signals or on the accuracy of $\hat{s}(k)$. It limits the effect of a trial without a path change to the computation during at most $n_2$ blocks, provided that the trial is discarded. A transfer without a path change is outside the scope of Proposition 4, and it replaces the foreground coefficients. The thresholds in (12) determine how often such a transfer occurs, and we report its frequency in Section 7. Conversely, a path change produces no speed-up if the ratio in (11) stays below its threshold or if the trial is discarded. We report these cases in Section 6.
+Proposition 3 requires no assumption on the signals or on the accuracy of $\hat{s}(k)$. It limits the effect of a trial without a path change to the computation during at most $n_2$ blocks, provided that the trial is discarded. A transfer without a path change is outside the scope of Proposition 3, and it replaces the foreground coefficients. The thresholds in (11) determine how often such a transfer occurs, and we report its frequency in Section 7. Conversely, a path change produces no speed-up if the ratio in (10) stays below its threshold or if the trial is discarded. We report these cases in Section 6.
 
 ### 4.7 Computational cost
 
 A block in the late phase without a trial requires 118,016 real multiplications, and a block with a trial requires 241,920. For comparison, the time-domain FxNLMS algorithm with the same filter lengths requires 196,608 multiplications for $B$ samples. These numbers include the sample-by-sample filtering for the control signal. Section 7 gives the details.
 
 [4 章のメモ]
-- 命題 1 = THEORY 定理 A、命題 2 = 定理 C（系 C2）、命題 3 = 補題 F、命題 4 = 命題 H。本文は「命題」に統一した。
-- 命題 1 の数値（固有値 0.13〜1.0）は THEORY §2。命題 3 の数値は theory/v4/mp.py と tail.py（白色ガウス、3 系列、64 ブロック）。
-- 式 (10) は THEORY の μ_L(δ) = 2δ/(h(τ + (2M/B)δ)) を a = σ_L h で書き直したもの。δ = 0.03 で 0.0566 を確認。
+- 命題 1 = THEORY 定理 A、命題 2 = 定理 C（系 C2）、命題 3 = 命題 H。補題 F は本文の導出（式 (9)）にした。付録は置かない。
+- 後半のステップは設計値として書いた（設計式は削除）。「0.02〜0.09 で差なし」は E3（δ = 0.01〜0.05 に相当）。
+- 命題 1 の数値（固有値 0.13〜1.0）は THEORY §2。式 (9) の数値は theory/v4/mp.py と tail.py（白色ガウス、3 系列、64 ブロック）。
 - 検出の指数平均の係数 0.05、γ = 4、n_G = 64、n_E = 32 は Table 1。
-- 4.7 節：118,016／241,920／196,608 は RESULTS_fast.md と一致。Table 3 の "Ref." 列（284,672 など）は効率化前の実装の値で、本文の基準と違う。Table 3 を「提案法（効率的な実装）と FxNLMS」の比較に直す必要がある。
-- 付録 A〜D（証明）は未執筆。
+- 4.7 節：118,016／241,920／196,608 は RESULTS_fast.md と一致。Table 3 の演算量の欄は、この基準に直す必要がある。
+
+## 5. Evaluation framework
+
+### 5.1 Acoustic paths and signals
+
+We evaluated the algorithms in closed-loop simulations at a sampling rate of 16 kHz. The acoustic paths were taken from the MeshRIR dataset [MeshRIR], which contains room impulse responses measured in one room from 32 loudspeaker positions to 441 microphone positions. We selected eight combinations of a noise source, a secondary source, and an error microphone. For each combination, the response from the noise source to the microphone was used as the primary path (4096 coefficients), and the response from the secondary source was used as the secondary path (2048 coefficients). The model $\hat{s}(k)$ was the first 512 coefficients of the secondary path. The reference signal was the source signal itself, so that the reference path and the acoustic feedback were excluded from the evaluation.
+
+The noise signals were of ten types. Four were synthetic: a Gaussian signal, a Gaussian signal with isolated impulses, and symmetric α-stable signals with $\alpha = 1.45$ and $\alpha = 1.20$. Six were recordings: machine gun, factory, destroyer engine, and car interior noise from NOISEX-92 [NOISEX], valve noise from MIMII [MIMII], and jackhammer noise from SONYC-UST [SONYC]. All signals were high-pass filtered at 100 Hz. Each run lasted 30 s. For each noise type and each condition, we performed 20 runs with different seeds. The seed determined the combination of paths, the random sequence of the synthetic signals, and the starting position in the recordings.
+
+### 5.2 Conditions
+
+We used five conditions. In the two source-switch conditions, the primary path changed at 15 s to the response from another loudspeaker to the same microphone. The new loudspeaker was the candidate closest to the original noise source in one condition (close source) and the candidate farthest from it in the other (far source). In the no-change condition, the paths were fixed for 30 s. In the two disturbance conditions, the paths were fixed, and white Gaussian noise was added to the error signal for 0.5 s at 10 s and at 20 s. Its power was 0 dB or −10 dB relative to the power of the primary noise. The secondary path and its model were the same in all conditions.
+
+### 5.3 Algorithms
+
+Table 1 lists the settings. The proposed algorithm used $M = 512$, $N = 1024$, and $B = 128$, and the same parameter values in all runs. We also evaluated the proposed algorithm with the trials disabled, which we refer to as "no restart."
+
+The nine comparison algorithms were FxNLMS, the threshold-based algorithm of Akhtar and Mitsuhashi (Th-FxNLMS) [Akhtar 2008], FxlogNLMS [Wu 2011], MFxLMM [Sun et al. 2015], FxNFLOC [Feng et al. 2024], EVSS-FxeLMS [Cheng 2023], the block frequency-domain FxLMS algorithm (FreqFxLMS) [Kuo 2005], our previous algorithm (CohVSS-FxNLMS) [APSIPA 2026], and the convex combination algorithm (C-FXLMS) [Ferrer 2013]. All of them used control filters with 512 coefficients. For each comparison algorithm, we selected the step size from seven values between 1/32 and 2 times the published value. For Th-FxNLMS, we also selected the threshold from four values. For C-FXLMS, we also selected the ratio of the two step sizes from two values and the component filters from the LMS filters of the original paper and their normalized versions. The selection used five seeds that were separate from the 20 seeds of the evaluation. The criterion was the smallest number of diverged runs, followed by the largest noise reduction over 30 s. One setting per algorithm was then used for all noise types and conditions.
+
+### 5.4 Metrics
+
+The noise reduction is the ratio of the error power to the primary-noise power in decibels. A negative value indicates a reduction. We computed it over the whole run, over the last 10 s, and over the 2 s after each disturbance. For each seed, the values were averaged over the noise types.
+
+The recovery time is defined for each run of the source-switch conditions. The reference level is the short-time error power that the same algorithm reaches after the change. The recovery time is the time from the change until the short-time error power stays within 3 dB of this level for 1 s. A run without recovery by the end is treated as censored, and medians are computed by the Kaplan–Meier method.
+
+The reference level of the recovery time depends on the algorithm. An algorithm that reaches a small noise reduction can therefore have a short recovery time. To compare the algorithms on a common scale, we also measured the noise reduction with frozen coefficients. The coefficients at 0.13 s and 0.51 s after the change were frozen, and the noise reduction of these fixed coefficients was computed over the signal after the change. Its first 256 ms was excluded.
+
+Differences between two algorithms were computed for pairs of runs with the same noise signal and paths. The 95% confidence interval was obtained by resampling the 20 seeds 2000 times. We call one algorithm better than the other only when this interval excludes zero.
+
+## 6. Reconvergence after a primary path change
+
+### 6.1 Overall results
+
+No run of the proposed algorithm diverged in the 1000 runs of the five conditions. Table 2 summarizes the two source-switch conditions. The median recovery time of the proposed algorithm was 0.36 s for the close source and 0.40 s for the far source. Among the nine comparison algorithms, CohVSS-FxNLMS had the shortest median recovery times, 0.98 s and 1.26 s. The medians of the other eight algorithms were between 2.3 s and 4.8 s for the close source and between 1.5 s and 5.3 s for the far source. The convex combination did not shorten the recovery: the median of C-FXLMS was 2.54 s and 2.78 s. In C-FXLMS, the mixing parameter stayed above 0.96 before and after the change, so that the fast filter dominated the control signal at all times. The step size of this fast filter had been selected to avoid divergence, and it determined the recovery time.
+
+Fig. 3 shows the noise reduction with frozen coefficients. At 0.13 s after the change, its median was −2.6 dB for the proposed algorithm and −0.0 dB for CohVSS-FxNLMS with the close source, and −6.7 dB and −0.9 dB with the far source. At 0.51 s, the medians were −7.9 dB and −5.0 dB with the close source and −10.9 dB and −6.8 dB with the far source. The paired differences were between −2.7 dB and −5.0 dB, and all four intervals excluded zero (Table 2). After about 2 s, the curves of the two algorithms overlapped.
+
+The proposed algorithm without the trials had median recovery times of 1.05 s and 1.13 s, which are close to those of CohVSS-FxNLMS. The reduction of the recovery time was therefore obtained by the trials.
+
+In the runs with a transfer, the trial started within 2 blocks (median) after the change, and the coefficients were transferred 10 blocks (0.08 s) after the change with the close source and 9 blocks (0.07 s) with the far source.
+
+### 6.2 Results for each noise type
+
+Fig. 4 shows the paired difference of the noise reduction with frozen coefficients between the proposed algorithm and CohVSS-FxNLMS for each noise type. Of the 40 comparisons (ten noise types, two conditions, and two times), the proposed algorithm was better in 31, CohVSS-FxNLMS was better in six, and the interval included zero in three. CohVSS-FxNLMS was better for machine gun noise in all four comparisons and for car interior noise with the close source in two comparisons.
+
+These exceptions correspond to the runs in which no trial started after the change. The ratio in (10) did not exceed its threshold in 60 of the 200 runs with the close source and in 20 of the 200 runs with the far source. With the close source, these runs were 20 of the 20 runs for car interior noise, 17 for machine gun noise, eight for valve noise, six for jackhammer noise, five for the isolated impulses, and four for the α-stable signal with $\alpha = 1.20$. With the far source, they were 11 runs for machine gun noise and nine runs for four other noise types. In such a run, the proposed algorithm operates as the algorithm without the trials. Machine gun noise consists of bursts separated by intervals of low power, and the error power already varies widely between blocks before the change. For car interior noise, the change to the close source increased the error only slightly. We regard the detection for these two noise types as a limitation of the proposed algorithm.
+
+The recovery time separated the algorithms for five noise types. For the Gaussian signal, the two α-stable signals, factory noise, and destroyer engine noise, the median recovery time of the proposed algorithm was between 0.18 s and 0.35 s, and that of CohVSS-FxNLMS was between 0.74 s and 1.63 s. For valve and jackhammer noise, the recovery times of the two algorithms were the same, although the noise reduction with frozen coefficients was larger for the proposed algorithm by 1.8 dB to 8.2 dB (Fig. 4). The power of these recordings varies over several seconds, and the 3 dB criterion of the recovery time was dominated by this variation. For the isolated impulses, no algorithm met the criterion in any run, and the recovery time could not be evaluated.
+
+[5–6 章のメモ]
+- MeshRIR、NOISEX-92、MIMII、SONYC-UST の書誌は未記入。「32 音源・441 点」は S32-M441 の名称から。要照合。
+- 5.2 節の外乱：白色ガウス雑音。レベルは最初の 10 秒の一次騒音のパワーに対する値（prop2.error_noise で確認）。
+- 5.3 節：調整に使った入力は 9 種（a120 を除く）、条件は変化なしと far。本文では省いた。必要なら 1 文足す。
+- 6.1 節「他の 8 手法の中央値」：near は 288〜604 ブロック（2.3〜4.8 秒）、far は 185〜662 ブロック（1.5〜5.3 秒）。FxlogNLMS は打ち切りが 80〜90 件あり、far の 185 ブロックはこの手法の値。
+- 6.1 節の移行の時刻：確定した試行（near 140、far 180）について、変化から試行の開始まで中央値 1.5／1 ブロック、移行まで 10／9 ブロック（四分位 8〜15）。
+- 6.2 節の見逃しの内訳（near）：volvo 20、machinegun 17、valve 8、jackhammer 6、II300 5、a120 4。far：machinegun 11、II300 4、a120 2、volvo 2、valve 1。
+- 6.2 節「machine gun と car interior の理由」（バーストの間隔、誤差の増加が小さい）は説明の仮説で、数値の裏づけをまだ取っていない。"We hypothesize" に弱めるか、検出量 z_n の分布の図（設計用 seed のログ det.py）で裏づける。
+- 6.2 節の回復時間（クラス別）：提案法 22〜44 ブロック、CohVSS-FxNLMS 93〜204 ブロック（G、a145、a120、factory1、destroyerengine）。valve は両者 538、jackhammer は 148。
+- 変化なしの条件では 2494 回の試行が始まり、移行は 0 回（7 章で使う）。
 
 [2 章のメモ]
 - APSIPA 2026 版の説明（周波数ごとのステップをコヒーレンスで伸縮、倍率は 0.6–1.6 の範囲）は algorithms/algorithms.py の Freq_FxNLMS_CohVSS から読んだもの。論文の記述と合っているか確認してください。
