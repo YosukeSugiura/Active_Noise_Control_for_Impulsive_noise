@@ -28,6 +28,7 @@ FLOATS = {  # inserted after the heading that starts with the key
     "7.3 ": r"\input{../tab/table4.tex}",
     "7.4 ": r"\input{../tab/table5.tex}",
     "7.5 ": r"\input{../tab/table6.tex}",
+    "7.6 ": r"\input{../tab/table7.tex}",
 }
 
 
