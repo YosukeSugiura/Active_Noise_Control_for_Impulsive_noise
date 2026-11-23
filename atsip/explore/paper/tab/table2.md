@@ -2,7 +2,7 @@
 
 ## Median levels
 
-| Switch | Metric | Proposed | CohVSS-FxNLMS | C-FXLMS | No restart |
+| Switch | Metric | Proposed | CohVSS-FxNLMS | C-FXLMS | Without trials |
 | --- | --- | --- | --- | --- | --- |
 | Close | Recovery time [s] | 0.360 | 0.976 | 2.536 | 1.048 |
 | Close | NR at 0.13 s [dB] | -2.59 | -0.03 | 1.24 | 1.14 |
@@ -13,7 +13,7 @@
 
 ## Paired differences
 
-| Switch | Metric | Proposed - CohVSS-FxNLMS | Proposed - C-FXLMS | Proposed - No restart |
+| Switch | Metric | Proposed - CohVSS-FxNLMS | Proposed - C-FXLMS | Proposed - Without trials |
 | --- | --- | --- | --- | --- |
 | Close | Recovery time [s] | -0.397 [-0.523, -0.282] (172) | -1.409 [-1.688, -1.155] (171) | -0.459 [-0.564, -0.367] (172) |
 | Close | NR at 0.13 s [dB] | -3.50 [-4.08, -2.88] (200) | -4.64 [-5.37, -3.91] (200) | -4.58 [-5.26, -3.90] (200) |
@@ -22,6 +22,6 @@
 | Far | NR at 0.13 s [dB] | -4.99 [-5.48, -4.46] (200) | -5.92 [-6.61, -5.29] (200) | -6.25 [-6.92, -5.62] (200) |
 | Far | NR at 0.51 s [dB] | -3.81 [-4.29, -3.22] (200) | -6.93 [-7.48, -6.28] (200) | -6.07 [-6.56, -5.50] (200) |
 
-Recovery uses each method's post-change reference level +3 dB and a Kaplan-Meier median.
+Recovery uses each method's post-change reference level +3 dB and a Kaplan-Meier median. Runs without recovery, including all runs with the isolated impulses, are censored.
 NR at 0.13 s and 0.51 s is the noise reduction with the coefficients frozen at that time after the switch (residual-to-primary power ratio, first 256 ms excluded).
 Differences are paired means with seed-bootstrap 95% intervals and pair counts in parentheses. Recovery differences use pairs with recovery observed in both runs.

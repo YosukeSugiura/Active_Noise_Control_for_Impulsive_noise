@@ -26,7 +26,7 @@ from paired_ci import paired
 P, A, N = "P5-early-cap", "Freq_FxNLMS_CohVSS", "nors-cap"
 C = "C_FXLMS"                                   # convex combination (Ferrer et al. 2013), results in out/cc_run and out/cc_coef
 EXTERNAL_NAMES = {"Th_FxNLMS": "Th-FxNLMS", "EVSS_FxeLMS": "EVSS-FxeLMS", C: "C-FXLMS"}
-NAMES = {P: "Proposed", A: "CohVSS-FxNLMS", N: "No restart",
+NAMES = {P: "Proposed", A: "CohVSS-FxNLMS", N: "Without trials",
          "P5-early-noG": "Proposed without 1/g", "P4-cap": "Immediate restart",
          "TP-always-cap": "Always-on background trial", "ND-always-cap": "Always reconstructed error",
          "SF-fix": "Fixed-step SF"}
@@ -198,19 +198,21 @@ def output_table(number, title, panels, notes):
     def esc(s):
         chars = {"&":r"\&","%":r"\%","_":r"\_","#":r"\#","−":"-", "μ":r"$\mu$", "<":r"$<$", ">":r"$>$"}
         return "".join(chars.get(x,x) for x in str(s))
+    def esc_tex(s):
+        return re.sub(r"(?<![\w.])-(?=\d)|(?<= )-(?= )", "$-$", esc(s))
     md = [f"# Table {number}. {title}",""]
     tex = [r"\begin{table*}[t]",r"\centering",r"\small",r"\setlength{\tabcolsep}{4pt}",r"\caption{"+esc(title)+"}",
            rf"\label{{tab:atsip-{number}}}"]
     for heading,header,rows in panels:
         md.extend([f"## {heading}",""] if heading else [])
-        tex.extend(([r"\par\medskip",r"\textbf{"+esc(heading)+r"}\par\smallskip"] if heading else [r"\par\smallskip"])+[
+        tex.extend(([r"\par\medskip",r"\textbf{"+esc_tex(heading)+r"}\par\smallskip"] if heading else [r"\par\smallskip"])+[
                     r"\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%",
                     r"\begin{tabular}{l"+("l"*(len(header)-1))+"}",r"\toprule",
-                    " & ".join(map(esc,header))+r" \\",r"\midrule"])
+                    " & ".join(map(esc_tex,header))+r" \\",r"\midrule"])
         for row in (header,["---"]*len(header),*rows):
             md.append("| "+" | ".join(map(str,row))+" |")
         md.append("")
-        tex.extend(" & ".join(map(esc,row))+r" \\" for row in rows)
+        tex.extend(" & ".join(map(esc_tex,row))+r" \\" for row in rows)
         tex.extend([r"\bottomrule",r"\end{tabular}}"])
     md.extend(notes)
     tex.extend([r"\par\medskip",r"\begin{minipage}{0.98\textwidth}",r"\footnotesize",
@@ -285,9 +287,9 @@ def table2(final,coef,cr,final_text,ccf,ccc):
     output_table(2,"Reconvergence after a source switch",[
         ("Median levels",("Switch","Metric",NAMES[P],NAMES[A],EXTERNAL_NAMES[C],NAMES[N]),
          [(*r[:4],x[0],r[4]) for r,x in zip(result,extra)]),
-        ("Paired differences",("Switch","Metric",f"Proposed - {NAMES[A]}",f"Proposed - {EXTERNAL_NAMES[C]}","Proposed - No restart"),
+        ("Paired differences",("Switch","Metric",f"Proposed - {NAMES[A]}",f"Proposed - {EXTERNAL_NAMES[C]}",f"Proposed - {NAMES[N]}"),
          [(*r[:2],r[5],x[1],r[6]) for r,x in zip(result,extra)])],
-        ["Recovery uses each method's post-change reference level +3 dB and a Kaplan-Meier median.",
+        ["Recovery uses each method's post-change reference level +3 dB and a Kaplan-Meier median. Runs without recovery, including all runs with the isolated impulses, are censored.",
          "NR at 0.13 s and 0.51 s is the noise reduction with the coefficients frozen at that time after the switch (residual-to-primary power ratio, first 256 ms excluded).",
          "Differences are paired means with seed-bootstrap 95% intervals and pair counts in parentheses. Recovery differences use pairs with recovery observed in both runs."])
 
@@ -345,9 +347,9 @@ def table3(final, final_text, fast, ccf):
          [(c,m,{"30 s":"30 s","Last 10 s":"Last 10 s","Post-event 2 s":"2 s after disturbance"}.get(w,w),d) for c,m,w,d in differences])],
         ["Transfers count events in 200 runs. Identical runs are those whose error and control signals equal those of the algorithm without the trials exactly."])
     output_table(4,"Variants of the proposed algorithm (200 runs per condition)",[
-        ("Diverged runs / transfers / runs differing from the algorithm without the trials",
-         ("Method",*(SCEN[s] for s in (*QUIET,*SWITCHES))),
-         [(NAMES[m],*counts) for m,counts in internal.items() if m not in ("ND-always-cap","SF-fix")])],[])
+        (title4,("Method",*(SCEN[s] for s in (*QUIET,*SWITCHES))),
+         [(NAMES[m],*(c.split("/")[i] for c in counts)) for m,counts in internal.items() if m not in ("ND-always-cap","SF-fix")])
+        for i,title4 in enumerate(("Diverged runs","Transfers","Runs with a control signal different from that without the trials"))],[])
     output_table(5,"Real multiplications per block of 128 samples",[
         ("",("State","Multiplications","Relative to FxNLMS","Blocks"),costs)],
         ["Multiplications are the maximum over the blocks of each state and include the sample-by-sample filtering for the control signal. Blocks are those of the eight runs used for the count."])

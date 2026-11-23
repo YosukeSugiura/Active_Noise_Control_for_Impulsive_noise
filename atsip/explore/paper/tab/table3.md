@@ -7,15 +7,15 @@
 | No change | Proposed | -9.03 | -9.11 | -- | 0 | 200/200 |
 | No change | CohVSS-FxNLMS | -8.98 | -9.18 | -- | -- | -- |
 | No change | C-FXLMS | -8.05 | -8.49 | -- | -- | -- |
-| No change | No restart | -9.03 | -9.11 | -- | 0 | -- |
+| No change | Without trials | -9.03 | -9.11 | -- | 0 | -- |
 | Disturbance (0 dB) | Proposed | -8.49 | -8.15 | -5.60 | 13 | 187/200 |
 | Disturbance (0 dB) | CohVSS-FxNLMS | -8.54 | -8.40 | -6.22 | -- | -- |
 | Disturbance (0 dB) | C-FXLMS | -7.67 | -7.87 | -5.87 | -- | -- |
-| Disturbance (0 dB) | No restart | -8.46 | -8.07 | -5.59 | 0 | -- |
+| Disturbance (0 dB) | Without trials | -8.46 | -8.07 | -5.59 | 0 | -- |
 | Disturbance (-10 dB) | Proposed | -8.78 | -8.63 | -7.45 | 2 | 198/200 |
 | Disturbance (-10 dB) | CohVSS-FxNLMS | -8.77 | -8.81 | -7.65 | -- | -- |
 | Disturbance (-10 dB) | C-FXLMS | -7.89 | -8.23 | -7.18 | -- | -- |
-| Disturbance (-10 dB) | No restart | -8.78 | -8.63 | -7.45 | 0 | -- |
+| Disturbance (-10 dB) | Without trials | -8.78 | -8.63 | -7.45 | 0 | -- |
 
 ## Paired differences (proposed minus the other algorithm) [dB]
 
@@ -27,9 +27,9 @@
 | No change | C-FXLMS | Last 10 s | -0.619 [-0.665, -0.567] (200) |
 | Disturbance (0 dB) | CohVSS-FxNLMS | 2 s after disturbance | +0.622 [+0.533, +0.715] (200) |
 | Disturbance (0 dB) | C-FXLMS | 2 s after disturbance | +0.265 [+0.141, +0.395] (200) |
-| Disturbance (0 dB) | No restart | 2 s after disturbance | -0.011 [-0.031, +0.000] (200) |
+| Disturbance (0 dB) | Without trials | 2 s after disturbance | -0.011 [-0.031, +0.000] (200) |
 | Disturbance (-10 dB) | CohVSS-FxNLMS | 2 s after disturbance | +0.198 [+0.144, +0.256] (200) |
 | Disturbance (-10 dB) | C-FXLMS | 2 s after disturbance | -0.274 [-0.358, -0.177] (200) |
-| Disturbance (-10 dB) | No restart | 2 s after disturbance | -0.001 [-0.002, +0.000] (200) |
+| Disturbance (-10 dB) | Without trials | 2 s after disturbance | -0.001 [-0.002, +0.000] (200) |
 
 Transfers count events in 200 runs. Identical runs are those whose error and control signals equal those of the algorithm without the trials exactly.
