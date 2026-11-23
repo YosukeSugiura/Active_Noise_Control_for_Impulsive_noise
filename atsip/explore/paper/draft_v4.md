@@ -1,4 +1,4 @@
-# Draft v4 (abstract, Sections 1–3)
+# Draft v4 (abstract, Sections 1–4)
 
 v3 を査読者の目で見直して直した版。[..] は著者用のメモ。
 
@@ -41,7 +41,7 @@ A larger step size would speed up the reconvergence if it were applied only afte
 
 The proposed algorithm uses two filters with the same structure. The foreground filter generates the control signal, and the background filter is used only for the trial. When the ratio stays above a multiple of its running average for consecutive blocks, the background filter is initialized with the foreground coefficients and is updated with the larger step size. The foreground filter keeps its normal step size during the trial. The background coefficients are transferred to the foreground filter only after the error computed with them becomes sufficiently smaller than the error computed with the foreground coefficients. Both errors are computed from the measured reference and error signals by using the model of the secondary path. The trial is discarded if this condition is not met within a fixed number of blocks. Because the background filter does not contribute to the control signal, a discarded trial leaves the control signal identical to that obtained without the trial, given the same initial state and input. In contrast, a transfer can also be confirmed when the primary path stays the same. Such a transfer replaces the foreground coefficients and thus affects the control signal. We report how often such transfers occurred.
 
-The trial is useful only if the background filter reduces the error within the trial. For this purpose, the update combines two elements, and we analyze them for finite block lengths. First, the update direction is based on the spectral factor of the filtered-reference power spectrum [Elliott and Rafaely 2000], and the step size is divided by the power of each reference block relative to its running average. We show that, with the coefficients held fixed, the update caused by an isolated impulse in the reference signal does not depend on the amplitude of the impulse. The algorithm therefore uses impulsive samples without clipping them. Second, whenever the larger step size is used, the error frame is recomputed with the current coefficients, as in the modified FxLMS algorithm [Bjarnason 1992]. This recomputation applies to start-up, to the trial, and to a fixed number of blocks after a transfer. We derive the form of this update and select its step size below the boundary between decay and growth that we observed in numerical experiments. Our previous algorithm [APSIPA 2026] had a single filter and used neither element. Ochiai et al. [Ochiai et al. 1977] proposed the structure with foreground and background filters for echo cancellation. We apply this structure to the reconvergence of ANC under impulsive noise, and we analyze and evaluate the combined algorithm.
+The trial is useful only if the background filter reduces the error within the trial. For this purpose, the update combines two elements, and we analyze them for finite block lengths. First, the update direction is based on the spectral factor of the filtered-reference power spectrum [Elliott and Rafaely 2000], and the step size is divided by the power of each filtered-reference frame relative to its running average. We show that, with the coefficients held fixed, the update caused by an isolated impulse in the reference signal does not depend on the amplitude of the impulse. The algorithm therefore uses impulsive samples without clipping them. Second, whenever the larger step size is used, the error frame is recomputed with the current coefficients, as in the modified FxLMS algorithm [Bjarnason 1992]. This recomputation applies to start-up, to the trial, and to a fixed number of blocks after a transfer. We derive the form of this update and select its step size below the boundary between decay and growth that we observed in numerical experiments. Our previous algorithm [APSIPA 2026] had a single filter and used neither element. Ochiai et al. [Ochiai et al. 1977] proposed the structure with foreground and background filters for echo cancellation. We apply this structure to the reconvergence of ANC under impulsive noise, and we analyze and evaluate the combined algorithm.
 
 We evaluated the proposed algorithm in closed-loop simulations with room impulse responses measured in one room [MeshRIR] and with ten noise types (four synthetic signals and six recordings). The recovery time is the time until the short-time error power stays within 3 dB of the level that the same algorithm reaches after the change. Compared with the fastest of the nine comparison algorithms, the proposed algorithm reduced the median recovery time after a switch of the noise source from 0.98 s to 0.36 s for a new source close to the original source and from 1.26 s to 0.40 s for a new source far from it. For machinegun noise in both conditions and for car interior noise with the close source, the comparison algorithm recovered faster. Because the reference level of the recovery time depends on the algorithm, we also measured the noise reduction with the coefficients frozen 0.51 s after the switch. Its median was 7.9 dB for the proposed algorithm and 5.0 dB for the comparison algorithm with the close source, and 10.9 dB and 6.8 dB with the far source. With a fixed primary path and no disturbance at the error microphone, the mean noise reduction of the two algorithms differed by less than 0.1 dB over the full 30 s and over the final 10 s.
 
@@ -89,11 +89,11 @@ where $v(k)$ is a disturbance at the error microphone that is uncorrelated with 
 
 ### 3.2 Block frequency-domain adaptation
 
-The control signal is computed for every sample in the time domain, so that the control path has no block delay. The coefficients are updated once every $B$ samples in the frequency domain with the FFT length $N = 2M$. In block $n$, $\mathbf{R}_n$ denotes the FFT of the latest $N$ samples of $r(k)$, and $\mathbf{E}_n$ denotes the FFT of the latest $M$ samples of $e(k)$ preceded by $N - M$ zeros. The frequency-domain FxNLMS algorithm updates the coefficients as
+The control signal is computed for every sample in the time domain, so that the control path has no block delay. The coefficients are updated once every $B$ samples in the frequency domain with the FFT length $N = 2M$. In block $n$, $\mathbf{R}_n = \hat{\mathbf{S}} \odot \mathbf{X}_n$ denotes the spectrum of the filtered reference frame, where $\mathbf{X}_n$ is the FFT of the latest $N$ samples of $x(k)$ and $\hat{\mathbf{S}}$ is the FFT of $\hat{s}(k)$. Similarly, $\mathbf{E}_n$ denotes the FFT of the latest $M$ samples of $e(k)$ preceded by $N - M$ zeros. The frequency-domain FxNLMS algorithm updates the coefficients as
 
 $$\mathbf{w}_{n+1} = \mathbf{w}_n - \mu\, \mathcal{P}_M\, \mathcal{F}^{-1}\!\left\{ \frac{\mathbf{R}_n^{*} \odot \mathbf{E}_n}{\hat{\mathbf{S}}_{rr,n} + \epsilon} \right\}, \tag{2}$$
 
-where $\mu$ is the step size, $\hat{\mathbf{S}}_{rr,n}$ is the estimated power spectrum of $r(k)$, $\epsilon$ is a regularization constant, $\odot$ and the division are element-wise, $\mathcal{F}^{-1}$ is the inverse FFT, and $\mathcal{P}_M$ keeps the first $M$ samples. The projection $\mathcal{P}_M$ constrains the filter to be causal with $M$ coefficients. The proposed algorithm replaces the direction and the step size in (2), as described in Section 4.
+where $\mu$ is the step size, $\hat{\mathbf{S}}_{rr,n}$ is the exponential average of $|\mathbf{R}_n|^2$, $\epsilon$ is a regularization constant, $\odot$ and the division are element-wise, ${}^{*}$ denotes complex conjugation, $\mathcal{F}^{-1}$ is the inverse FFT, and $\mathcal{P}_M$ keeps the first $M$ samples. The projection $\mathcal{P}_M$ constrains the filter to be causal with $M$ coefficients. The proposed algorithm replaces the direction and the step size in (2), as described in Section 4.
 
 ### 3.3 Impulsive noise and primary path change
 
@@ -110,16 +110,120 @@ Such a change occurs when the dominant noise source switches to a source at anot
 We require the following three properties of the adaptive algorithm under impulsive noise.
 
 1. Reconvergence: after the change in (3), the error power returns to its converged level in a short time. Section 5 defines the recovery time that measures this property.
-2. Steady state: when the primary path stays the same, the noise reduction is maintained at the level obtained without any mechanism for fast reconvergence.
-3. Disturbance: when the error increases because of $v(k)$ in (1) and the primary path stays the same, the control filter is not degraded.
+2. Steady state: when the primary path stays the same, the mechanism for fast reconvergence leaves the noise reduction at the level obtained without it.
+3. Disturbance: when the error increases because of $v(k)$ in (1) and the primary path stays the same, the mechanism likewise leaves the noise reduction at the level obtained without it.
 
-The first requirement calls for a large update after $k_c$, and the second and third requirements call for a small update at all other times. The algorithm observes only $x(k)$ and $e(k)$, and $k_c$ is unknown. Section 4 describes how the proposed algorithm satisfies the first requirement and limits the cost with respect to the other two.
+The first requirement calls for a large update after $k_c$, and the second and third requirements call for the normal update at all other times. The algorithm observes only $x(k)$ and $e(k)$, and $k_c$ is unknown. Section 4 describes the mechanism, and Section 7 measures the second and third requirements against the same algorithm with the mechanism disabled.
 
 [3 章のメモ]
 - Fig. 1：系の構成図（x、p、w、s、ŝ、e、v、前景と背景は Fig. 2）。作図が必要。
 - 式 (2) の誤差フレームと参照フレームの取り方は Table 1（誤差窓 512、FFT 1024）と THEORY_frozen.md §1 に合わせた。Ŝ_rr の推定法（指数平均の係数）は 4 章で書く。
 - 3.3 節「分布に仮定を置かない」：1/g の解析（定理 C）は孤立インパルスを仮定するので、4 章でその仮定を明記する。
-- 要件 2 の「再収束を速める仕組みがない場合の水準」は、再始動なし（nors-cap）との比較（差 0.01 dB 以下、区間は 0 を含む）に対応。要件 3 は EN0／ENm10 に対応し、結果は「APSIPA 2026 版と C-FXLMS が 0.2〜0.6 dB 良い」なので、4 章末と 7 章で「限界」として書く。
+- 要件 2 と 3 は「仕組みを外した同じ手法（再始動なし）と同じ水準」と定義した。結果は差 0.01 dB 以下で区間は 0 を含む（変化なし、EN0、ENm10）。比較手法との差（外乱の直後 2 秒は CohVSS-FxNLMS が 0.62 dB、C-FXLMS が 0.27 dB 良い）は、要件とは別に 7 章で書く。
+
+## 4. Proposed algorithm
+
+### 4.1 Overview
+
+Fig. 2 shows the structure of the proposed algorithm. The foreground filter $\mathbf{w}_{\mathrm f}$ generates the control signal, and the background filter $\mathbf{w}_{\mathrm b}$ exists only during a trial. Both filters use the update
+
+$$\mathbf{w}_{n+1} = \mathbf{w}_n - \frac{\sigma_n}{\max(g_n, g_{\min})}\,\frac{2B}{M}\,\boldsymbol{\delta}_n, \tag{4}$$
+
+where $\boldsymbol{\delta}_n$ is the update direction (Section 4.2), $g_n$ is the relative power of the filtered-reference frame (Section 4.3), $g_{\min}$ is its lower bound, and $\sigma_n$ is the step size. The update has two phases. In the early phase, $\sigma_n = \sigma_{\mathrm E}$ is large, and the error frame is recomputed with the current coefficients (Section 4.4). In the late phase, $\sigma_n = \sigma_{\mathrm L}$ is small, and the measured error frame is used (Section 4.5). The foreground filter is in the early phase for the first $n_{\mathrm E}$ blocks after start-up and after each transfer, and it is in the late phase at all other times. The background filter is always in the early phase. Section 4.6 describes when a trial starts and how it ends. Table 1 lists the parameter values.
+
+### 4.2 Update direction
+
+The direction in (2) normalizes each frequency bin by the power spectrum before the causality constraint. Elliott and Rafaely [Elliott and Rafaely 2000] showed that this order biases the solution, and they split the normalization into two spectral factors. We follow this construction. Let $\boldsymbol{\Lambda}_n = \hat{\mathbf{S}}_{rr,n} + \epsilon \bar{P}_n$, where $\bar{P}_n$ is the mean of $\hat{\mathbf{S}}_{rr,n}$ over the frequency bins, and let $\mathbf{F}_n$ be the minimum-phase factor with $|\mathbf{F}_n|^2 = \boldsymbol{\Lambda}_n$. We compute $\mathbf{F}_n$ from the real cepstrum of $\boldsymbol{\Lambda}_n$. The direction is
+
+$$\boldsymbol{\delta}_n = \mathcal{P}_M\, \mathcal{F}^{-1}\!\left\{ \frac{1}{\mathbf{F}_n} \odot \mathcal{F}\, \mathcal{P}_{N/2}\, \mathcal{F}^{-1}\!\left\{ \frac{\mathbf{R}_n^{*} \odot \mathbf{E}_n}{\mathbf{F}_n^{*}} \right\} \right\}, \tag{5}$$
+
+where $\mathcal{P}_{N/2}$ keeps the first $N/2$ samples and sets the others to zero. The division by $\mathbf{F}_n^{*}$ whitens the cross-correlation, $\mathcal{P}_{N/2}$ removes its noncausal part, and the division by $\mathbf{F}_n$ maps the result back to the coefficient domain.
+
+**Proposition 1.** Assume fixed coefficients $\mathbf{w}$, a stationary $x(k)$, $\epsilon = 0$, and $N \to \infty$. Then
+
+$$\mathrm{E}[\boldsymbol{\delta}_n] = \frac{M_e}{N}\left(\mathbf{w} - [\mathbf{w}_\infty]_M\right),$$
+
+where $M_e$ is the length of the error window ($M_e = M$ in this paper), $\mathbf{w}_\infty$ is the causal Wiener filter of infinite length, and $[\cdot]_M$ keeps its first $M$ coefficients.
+
+The proof is given in Appendix A. Under these assumptions, the mean update acts as a scalar on the coefficient error, so that all modes of the coefficient error converge at the same rate regardless of the spectrum of $r(k)$. For the finite length $N = 2M$ and $\epsilon = 10^{-2}$ used in this paper, we evaluated the deviation from this scalar action numerically. The eigenvalues of the mean action, normalized by $M_e/N$, lay between 0.13 and 1.0, and this spread was caused mainly by the regularization.
+
+### 4.3 Step size normalized by the relative frame power
+
+The factor $\mathbf{F}_n$ follows the exponential average $\hat{\mathbf{S}}_{rr,n}$, which changes slowly. When a frame contains an impulse, its power is much larger than the average, and $\boldsymbol{\delta}_n$ grows with the square of the impulse amplitude. We therefore divide the step size by the relative frame power
+
+$$g_n = \frac{\frac{1}{N/2+1}\sum_{f} |R_n(f)|^2}{\bar{P}_n}. \tag{6}$$
+
+**Proposition 2.** Assume that the coefficients, $\mathbf{F}_n$, and $\bar{P}_n$ are fixed, that $v(k) = 0$, and that $x(k) = c(k) * [\varsigma(k)\xi(k)]$, where $c(k)$ is a fixed filter, $\xi(k)$ is a unit-variance white sequence, and $\varsigma(k)$ is a deterministic scale. Then each element of $\boldsymbol{\delta}_n$ is a quadratic form of the samples $z(k) = \varsigma(k)\xi(k)$ in the frame. If only one sample $z(k_0)$ in the frame is nonzero, then $\boldsymbol{\delta}_n = z^2(k_0)\,\mathbf{k}(k_0)$ and $g_n = z^2(k_0)\,\kappa(k_0)$ with a vector $\mathbf{k}(k_0)$ and a scalar $\kappa(k_0)$ that are independent of $z(k_0)$. The update $\boldsymbol{\delta}_n / g_n$ is therefore independent of the amplitude of the impulse.
+
+The proof is given in Appendix B. Proposition 2 concerns an isolated impulse, and it shows that the update caused by such an impulse is bounded without a threshold. The algorithm therefore keeps the impulsive samples in the update. For frames that contain both an impulse and background noise, the ratio $\boldsymbol{\delta}_n/g_n$ depends on the position of the impulse in the frame, because $g_n$ measures the power of the whole frame and $\boldsymbol{\delta}_n$ depends on the part of the response inside the error window. We rely on the simulations for these cases. The lower bound $g_{\min}$ in (4) limits the step size for frames with low power.
+
+### 4.4 Early phase with recomputed error frames
+
+The error window of block $n$ contains $M_e$ samples, and these samples were produced by the coefficients of the last $M_e/B$ blocks. The measured error frame therefore responds to an update with a delay, and this delay limits the step size. In the early phase, we remove this dependence on past coefficients. As in the modified FxLMS algorithm [Bjarnason 1992], the primary noise is estimated as
+
+$$\hat{d}(k) = e(k) - \hat{s}(k) * y(k), \tag{7}$$
+
+and the error frame is recomputed with the coefficients $\mathbf{w}_n$ to be updated:
+
+$$\tilde{e}_n(k) = \hat{d}(k) + \hat{s}(k) * \left[\mathbf{w}_n^{\mathsf T}\mathbf{x}(k)\right] \tag{8}$$
+
+for the $M_e$ samples in the window. $\mathbf{E}_n$ in (5) is then the FFT of $\tilde{e}_n(k)$.
+
+**Proposition 3.** Assume $\hat{s} = s$, ideal whitening ($\boldsymbol{\Lambda}_n = \mathbf{S}_{rr}$, $N \to \infty$), and $g_n = 1$. Let $\mathbf{v}_n = \mathbf{w}_n - \mathbf{w}_o$ be the coefficient error with respect to a reference filter $\mathbf{w}_o$, and let $a = \sigma_{\mathrm E}\,(2B/M)(M_e/N)$. With the recomputed error frame,
+
+$$\mathbf{v}_{n+1} = (\mathbf{I} - a\,\mathbf{G}_n)\,\mathbf{v}_n + \mathbf{b}_n, \qquad \mathbf{G}_n = \mathbf{F}_M^{-1}\,\mathbf{U}_n^{\mathsf T}\mathbf{X}^{r}_n / M_e, \tag{9}$$
+
+where $\mathbf{U}_n$ and $\mathbf{X}^r_n$ are the $M_e \times M$ regression matrices of the whitened filtered reference and of the filtered reference in the window, $\mathbf{F}_M$ is the $M \times M$ convolution matrix of the spectral factor, and $\mathbf{b}_n$ is the contribution of the residual error of $\mathbf{w}_o$.
+
+The proof is given in Appendix C. Equation (9) contains only the current coefficient error. The matrices $\mathbf{G}_n$ of consecutive blocks share samples, and we have no closed-form bound on $a$ for the stability of (9). We therefore examined (9) numerically for white Gaussian input over 64 blocks. The coefficient error decayed for $a \le 0.55$ and grew for $a \ge 0.625$, and the decay after 32 blocks was fastest near $a = 0.375$. Based on this result, we set $\sigma_{\mathrm E} = 1$ ($a = 0.25$ for $g_n = 1$) and $g_{\min} = 0.55$ in the early phase, so that $a/\max(g_n, g_{\min}) \le 0.455$.
+
+### 4.5 Late phase
+
+In the late phase, the measured error frame is used, and the step size is small. From a second-order recursion for small step sizes (Appendix D), the ratio of the excess error to the minimum error in the steady state is approximately
+
+$$\delta \approx \frac{a\,\tau}{2 - a\,(2M/B)}, \qquad \tau = M_e/B, \quad a = \sigma_{\mathrm L}\,(2B/M)(M_e/N). \tag{10}$$
+
+We solve (10) for $\sigma_{\mathrm L}$ with a design value of $\delta$. For $\delta = 0.03$, $\sigma_{\mathrm L} = 0.0566$. The lower bound of $g_n$ in the late phase is $g_{\min} = 0.25$.
+
+### 4.6 Trial with the background filter
+
+**Start of a trial.** For each block, the algorithm computes the ratio
+
+$$z_n = \frac{\sum_{k \in \mathcal{W}_M(n)} e^2(k)}{\sum_{k \in \mathcal{W}_{2M}(n)} r^2(k)}, \tag{11}$$
+
+where $\mathcal{W}_L(n)$ denotes the latest $L$ samples at block $n$. The division by the power of $r(k)$ removes the common scale of the input from the ratio. Let $\bar{z}_n$ be the exponential average of $z_n$. A trial starts at block $n_0$ when $z_n > \gamma\,\bar{z}_{n-1}$ holds for two consecutive blocks. After a trial starts, the next trial can start only after $n_{\mathrm G}$ blocks, and $\bar{z}_n$ is held constant during this interval.
+
+**Adaptation.** At block $n_0$, the background filter is set to $\mathbf{w}_{\mathrm b} = \mathbf{w}_{{\mathrm f}, n_0}$. From block $n_0 + 1$, it is updated by (4) in the early phase, with the error frame recomputed by (8) with $\mathbf{w}_{\mathrm b}$. The foreground filter continues its update in its current phase, and the control signal is generated by $\mathbf{w}_{\mathrm f}$ only.
+
+**Decision.** For each block $n \ge n_0 + 2$, the algorithm recomputes the errors of both filters by (8) for the latest $B$ samples and forms the ratio
+
+$$\rho_n = \frac{\sum_{k \in \mathcal{W}_B(n)} \tilde{e}_{\mathrm b}^2(k)}{\sum_{k \in \mathcal{W}_B(n)} \tilde{e}_{\mathrm f}^2(k)}. \tag{12}$$
+
+Both errors in (12) use the same $\hat{d}(k)$, so that a common scale of the signals cancels in the ratio. The trial ends by one of the following rules.
+
+1. Discard: if $\rho_n > \rho_{\mathrm{abort}}$ or $\rho_n$ is not finite, $\mathbf{w}_{\mathrm b}$ is discarded.
+2. Early transfer: if $n \ge n_0 + n_1$ and $\rho_n \le \rho_1$, the coefficients are transferred, $\mathbf{w}_{\mathrm f} \leftarrow \mathbf{w}_{\mathrm b}$.
+3. Final decision: at $n = n_0 + n_2$, the coefficients are transferred if $\rho_n \le \rho_2$, and $\mathbf{w}_{\mathrm b}$ is discarded otherwise.
+
+After a transfer, the foreground filter continues in the early phase for the remaining $n_{\mathrm E} - (n - n_0)$ blocks. We use $\rho_{\mathrm{abort}} = 4$, $(n_1, \rho_1) = (4, 0.25)$, and $(n_2, \rho_2) = (16, 0.5)$.
+
+**Proposition 4.** Consider two runs of the algorithm with the same initial state and the same input signals. In the first run, the trials are disabled. In the second run, every trial up to block $n$ is discarded. Then the control signal $y(k)$ and the foreground coefficients of the two runs are identical up to block $n$.
+
+*Proof.* The control signal and the update of $\mathbf{w}_{\mathrm f}$ depend on $x(k)$, $e(k)$, and $\mathbf{w}_{\mathrm f}$. The background filter and the quantities $z_n$, $\bar{z}_n$, and $\rho_n$ are computed from these signals and affect $\mathbf{w}_{\mathrm f}$ only through a transfer. Without a transfer, the recursions of $\mathbf{w}_{\mathrm f}$ and $y(k)$ in the two runs are the same, and their initial states are the same. $\blacksquare$
+
+Proposition 4 requires no assumption on the signals or on the accuracy of $\hat{s}(k)$. It limits the effect of a trial without a path change to the computation during at most $n_2$ blocks, provided that the trial is discarded. A transfer without a path change is outside the scope of Proposition 4, and it replaces the foreground coefficients. The thresholds in (12) determine how often such a transfer occurs, and we report its frequency in Section 7. Conversely, a path change produces no speed-up if the ratio in (11) stays below its threshold or if the trial is discarded. We report these cases in Section 6.
+
+### 4.7 Computational cost
+
+A block in the late phase without a trial requires 118,016 real multiplications, and a block with a trial requires 241,920. For comparison, the time-domain FxNLMS algorithm with the same filter lengths requires 196,608 multiplications for $B$ samples. These numbers include the sample-by-sample filtering for the control signal. Section 7 gives the details.
+
+[4 章のメモ]
+- 命題 1 = THEORY 定理 A、命題 2 = 定理 C（系 C2）、命題 3 = 補題 F、命題 4 = 命題 H。本文は「命題」に統一した。
+- 命題 1 の数値（固有値 0.13〜1.0）は THEORY §2。命題 3 の数値は theory/v4/mp.py と tail.py（白色ガウス、3 系列、64 ブロック）。
+- 式 (10) は THEORY の μ_L(δ) = 2δ/(h(τ + (2M/B)δ)) を a = σ_L h で書き直したもの。δ = 0.03 で 0.0566 を確認。
+- 検出の指数平均の係数 0.05、γ = 4、n_G = 64、n_E = 32 は Table 1。
+- 4.7 節：118,016／241,920／196,608 は RESULTS_fast.md と一致。Table 3 の "Ref." 列（284,672 など）は効率化前の実装の値で、本文の基準と違う。Table 3 を「提案法（効率的な実装）と FxNLMS」の比較に直す必要がある。
+- 付録 A〜D（証明）は未執筆。
 
 [2 章のメモ]
 - APSIPA 2026 版の説明（周波数ごとのステップをコヒーレンスで伸縮、倍率は 0.6–1.6 の範囲）は algorithms/algorithms.py の Freq_FxNLMS_CohVSS から読んだもの。論文の記述と合っているか確認してください。
