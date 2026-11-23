@@ -7,7 +7,7 @@
 | Sampling rate; high-pass cutoff of the input | 16 kHz; 100 Hz |
 | @@Filter length $M$; FFT length $N$; block shift $B$ | 512; 1024; 128 samples (8 ms) |
 | @@Length of $\hat{s}(k)$, $L_s$; error window $M_e$ | 512; 512 samples |
-| @@Weight of the exponential average $\hat{\mathbf{S}}_{rr,n}$; regularization $\epsilon$ | 0.05; 0.01 |
+| @@Weight $\beta$ of $\hat{\mathbf{S}}_{rr,n}$; regularization $\epsilon$ | 0.05; 0.01 |
 | @@Step sizes $\sigma_{\mathrm E}$; $\sigma_{\mathrm L}$ | 1; 0.0566 |
 | @@Lower bound $g_{\min}$ in the early phase; in the late phase | 0.55; 0.25 |
 | @@Length of the early phase $n_{\mathrm E}$ | 32 blocks, counted from the start of the trial after a transfer |
