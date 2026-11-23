@@ -4,7 +4,7 @@ Run with single-threaded BLAS, e.g. OPENBLAS_NUM_THREADS=1 python smodel.py run 
 The run verifies all nominal cases against the published archives before applying noise.
 """
 import argparse
-from collections import defaultdict
+from collections import Counter, defaultdict
 import json
 import math
 from multiprocessing import Pool
@@ -24,7 +24,7 @@ OUT = HERE / "out" / "smodel_run"
 SCENARIOS = ("stat", "RS-near", "RS-far")
 PROPOSED, NO_TRIAL, COHVSS = "P5-early-cap", "nors-cap", "Freq_FxNLMS_CohVSS"
 METHODS = (PROPOSED, NO_TRIAL, COHVSS, cc.NAME)
-LEVELS = (None, -20, -10)
+LEVELS = (None, -40, -30, -20, -10)
 VERSION = 1
 CASES = tuple((cls, scen, seed) for cls in F.FINAL_CLASSES
               for scen in SCENARIOS for seed in F.FINAL_SEEDS)
@@ -199,6 +199,71 @@ def run(procs):
                 print(f"Nominal verified: {len(CASES) * len(METHODS)} method runs", flush=True)
 
 
+def display_level(level):
+    return "誤差なし" if level is None else f"{level:g} dB"
+
+
+def divergence_tables(groups, levels):
+    def rows_for(level, method):
+        return [r for scen in SCENARIOS for r in groups[level, scen, method]]
+
+    lines = ["## 発散の内訳", "",
+             "各水準の全 3 条件を集計。経路の組番号は評価本体と同じ seed % 8 + 1。", ""]
+    for title, columns, key in (
+        ("手法 × 騒音", F.FINAL_CLASSES, lambda r: r["cls"]),
+        ("手法 × 経路の組", tuple(range(1,9)), lambda r: r["seed"] % 8 + 1),
+    ):
+        lines += [f"### {title}", "",
+                  "| 水準 | 手法 | " + " | ".join(map(str,columns)) + " |",
+                  "|---|---|" + "---:|" * len(columns)]
+        for level in levels:
+            for method in METHODS:
+                counts = Counter(key(r) for r in rows_for(level,method) if r["div"])
+                lines.append(f"| {display_level(level)} | {method} | " +
+                             " | ".join(str(counts[c]) for c in columns) + " |")
+        lines.append("")
+
+    lines += ["### 発散を検出した時刻", "",
+              "failure.sample / 16000 秒。中央値と範囲は全条件の発散例。切替前後は RS-near・RS-far のみ、15 秒ちょうどは切替後。stat は切替なし。",
+              "", "| 水準 | 手法 | 発散時刻の中央値 [秒] | 範囲 [秒] | 切替前 | 切替後 | stat |",
+              "|---|---|---:|---:|---:|---:|---:|"]
+    cut = F.CB * F.B
+    for level in levels:
+        for method in METHODS:
+            failed = [r for r in rows_for(level,method) if r["div"]]
+            samples = [r["failure"]["sample"] for r in failed]
+            before = sum(r["scen"] != "stat" and r["failure"]["sample"] < cut for r in failed)
+            after = sum(r["scen"] != "stat" and r["failure"]["sample"] >= cut for r in failed)
+            stat = sum(r["scen"] == "stat" for r in failed)
+            median = f"{np.median(samples)/F.FS:.3f}" if samples else "—"
+            span = f"{min(samples)/F.FS:.3f}–{max(samples)/F.FS:.3f}" if samples else "—"
+            lines.append(f"| {display_level(level)} | {method} | {median} | {span} | {before} | {after} | {stat} |")
+
+    lines += ["", "### 提案法と試行なしで発散の有無が異なった実行", "",
+              "移行時刻は確定ブロックの末尾。発散検出より前の 2 秒以内（ちょうど 2 秒前を含む）の移行を数える。",
+              "", "| 水準 | 発散した手法 | 騒音 | 条件 | seed | 発散時刻 [秒] | 直前 2 秒の移行 |",
+              "|---|---|---|---|---:|---:|---|"]
+    for level in levels:
+        baseline = {(r["cls"],r["scen"],r["seed"]): r for r in rows_for(level,NO_TRIAL)}
+        proposed = {(r["cls"],r["scen"],r["seed"]): r for r in rows_for(level,PROPOSED)}
+        mismatches = 0
+        for cls,scen,seed in sorted(baseline.keys() & proposed.keys()):
+            ref, prop = baseline[cls,scen,seed], proposed[cls,scen,seed]
+            if ref["div"] == prop["div"]:
+                continue
+            mismatches += 1
+            failed = prop if prop["div"] else ref
+            sample = failed["failure"]["sample"]
+            recent = "—"
+            if prop["div"]:
+                transfers = [(t["decide"]+1)*F.B-1 for t in prop["trials"] if t["status"] == "confirmed"]
+                recent = "あり" if any(0 < sample-t <= 2*F.FS for t in transfers) else "なし"
+            lines.append(f"| {display_level(level)} | {failed['method']} | {cls} | {scen} | {seed} | {sample/F.FS:.3f} | {recent} |")
+        if not mismatches:
+            lines.append(f"| {display_level(level)} | 該当なし | — | — | — | — | — |")
+    return lines + [""]
+
+
 def report():
     groups = defaultdict(list)
     seen = set()
@@ -221,10 +286,19 @@ def report():
              f"保存済みの実行数は {len(seen):,} 件。消音量は完走例の seed 内クラス平均を seed 間で平均した L1（負値ほど消音量が大きい）。",
              "回復中央値は参照が得られた実行の右打ち切りを含む。対応差は提案法−比較手法で、消音量と観測できた回復時間の完走対を seed 単位で 2,000 回再標本化した。",
              ""]
+    lines += ["## 水準別の発散数", "",
+              "| 水準 | 全手法の発散数 / 実行数 | 提案法の発散数 / 実行数 |",
+              "|---|---:|---:|"]
+    for level in levels:
+        rows = [r for scen in SCENARIOS for method in METHODS for r in groups[level,scen,method]]
+        proposed = [r for r in rows if r["method"] == PROPOSED]
+        lines.append(f"| {display_level(level)} | {sum(r['div'] for r in rows)} / {len(rows)} | "
+                     f"{sum(r['div'] for r in proposed)} / {len(proposed)} |")
+    lines.append("")
     metrics = ("L1_whole", "L1_last10", "rec_blocks")
     seconds = F.B / F.FS
     for level in levels:
-        label = "誤差なし" if level is None else f"{level:g} dB"
+        label = display_level(level)
         lines += [f"## {label}", "",
                   "| 条件 | 手法 | 実行数 | 発散 | 回復中央値 [秒] | 全体 L1 [dB] | 最後 10 秒 L1 [dB] | 移行 | 試行なしと完全一致 |",
                   "|---|---|---:|---:|---:|---:|---:|---:|---:|"]
@@ -258,6 +332,7 @@ def report():
                 comparisons.append(f"| {scen} | {method} | {' | '.join(cells)} |")
         lines += ["", "| 条件 | 比較手法 | 全体 L1 差 [dB] | 最後 10 秒 L1 差 [dB] | 回復時間差 [秒] |",
                   "|---|---|---:|---:|---:|", *comparisons, ""]
+    lines.extend(divergence_tables(groups,levels))
     F.ab.atomic_write(HERE / "RESULTS_smodel.md", lambda stream: stream.write("\n".join(lines)))
 
 
