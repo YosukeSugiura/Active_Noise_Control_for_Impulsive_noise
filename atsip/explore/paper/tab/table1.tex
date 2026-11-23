@@ -25,24 +25,25 @@ Early transfer / final transfer & ratio $<$= 0.25 from block 4 / $<$= 0.5 at blo
 \bottomrule
 \end{tabular}
 \par\medskip
-\textbf{External baselines}\par\smallskip
+\textbf{Comparison algorithms}\par\smallskip
 \begin{tabular}{lll}
 \toprule
-Method & Selected step $\mu$ & Selected clipping \\
+Method & Selected step $\mu$ & Selected setting \\
 \midrule
 FxNLMS & 0.01875 & -- \\
-Th\_FxNLMS & 0.01875 & Error clipping to [-200, 200] \\
+Th-FxNLMS & 0.01875 & Error clipping to [-200, 200] \\
 FxlogNLMS & 0.015625 & -- \\
 MFxLMM & 0.000125 & -- \\
 FxNFLOC & 0.1 & -- \\
-EVSS\_FxeLMS & 0.003125 & -- \\
+EVSS-FxeLMS & 0.003125 & -- \\
 FreqFxLMS & 0.0225 & -- \\
 CohVSS-FxNLMS & 0.09 & -- \\
+C-FXLMS & 0.0375 (fast), 0.009375 (slow) & Normalized component filters \\
 \bottomrule
 \end{tabular}
 \par\medskip
 \begin{minipage}{0.98\textwidth}
 \footnotesize
-The external methods use the common settings selected on design data (TUNE.json).\par
+The comparison algorithms use the common settings selected on design data (TUNE.json, TUNE\_cc.json).\par
 \end{minipage}
 \end{table*}

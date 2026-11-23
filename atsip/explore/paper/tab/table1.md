@@ -17,17 +17,18 @@
 | Trial abort ratio; earliest check | >4 or nonfinite; block 2 |
 | Early transfer / final transfer | ratio <= 0.25 from block 4 / <= 0.5 at block 16 |
 
-## External baselines
+## Comparison algorithms
 
-| Method | Selected step μ | Selected clipping |
+| Method | Selected step μ | Selected setting |
 | --- | --- | --- |
 | FxNLMS | 0.01875 | -- |
-| Th_FxNLMS | 0.01875 | Error clipping to [-200, 200] |
+| Th-FxNLMS | 0.01875 | Error clipping to [-200, 200] |
 | FxlogNLMS | 0.015625 | -- |
 | MFxLMM | 0.000125 | -- |
 | FxNFLOC | 0.1 | -- |
-| EVSS_FxeLMS | 0.003125 | -- |
+| EVSS-FxeLMS | 0.003125 | -- |
 | FreqFxLMS | 0.0225 | -- |
 | CohVSS-FxNLMS | 0.09 | -- |
+| C-FXLMS | 0.0375 (fast), 0.009375 (slow) | Normalized component filters |
 
-The external methods use the common settings selected on design data (TUNE.json).
+The comparison algorithms use the common settings selected on design data (TUNE.json, TUNE_cc.json).
