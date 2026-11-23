@@ -197,6 +197,7 @@ def figure4(coef, report):
 def output_table(number, title, panels, notes):
     def esc(s):
         chars = {"&":r"\&","%":r"\%","_":r"\_","#":r"\#","−":"-", "μ":r"$\mu$", "<":r"$<$", ">":r"$>$"}
+        if str(s).startswith("@@"): return str(s)[2:]
         return "".join(chars.get(x,x) for x in str(s))
     def esc_tex(s):
         return re.sub(r"(?<![\w.])-(?=\d)|(?<= )-(?= )", "$-$", esc(s))
@@ -223,19 +224,20 @@ def output_table(number, title, panels, notes):
 
 def table1():
     tune=json.loads((ROOT/"TUNE.json").read_text())
+    R=lambda t:"@@"+t
     settings=[
-        ("Sampling rate; input high-pass cutoff","16 kHz; 100 Hz"),
-        ("Control filter M; FFT N; hop B","512; 1024; 128 samples (8 ms per block)"),
-        ("Secondary-path model; error window","512 taps; 512 samples"),
-        ("SF regularization; late-stage design target","0.01; 0.03"),
-        ("Early / late step before gain normalization","1.0 / 0.0566"),
-        ("Gain floor, early and background / late","0.55 / 0.25"),
-        ("Cold-start phase; restart phase budget","32 blocks each; restart budget includes the trial"),
-        ("Detection error / reference windows","512 / 1024 samples"),
-        ("Detector EMA weight; ratio; consecutive blocks","0.05; 4; 2"),
-        ("Guard after detection; EMA update","64 blocks; frozen from detection until guard release"),
-        ("Trial abort ratio; earliest check",">4 or nonfinite; block 2"),
-        ("Early transfer / final transfer","ratio <= 0.25 from block 4 / <= 0.5 at block 16"),
+        ("Sampling rate; high-pass cutoff of the input","16 kHz; 100 Hz"),
+        (R(r"Filter length $M$; FFT length $N$; block shift $B$"),"512; 1024; 128 samples (8 ms)"),
+        (R(r"Length of $\hat{s}(k)$, $L_s$; error window $M_e$"),"512; 512 samples"),
+        (R(r"Weight of the exponential average $\hat{\mathbf{S}}_{rr,n}$; regularization $\epsilon$"),"0.05; 0.01"),
+        (R(r"Step sizes $\sigma_{\mathrm E}$; $\sigma_{\mathrm L}$"),"1; 0.0566"),
+        (R(r"Lower bound $g_{\min}$ in the early phase; in the late phase"),"0.55; 0.25"),
+        (R(r"Length of the early phase $n_{\mathrm E}$"),"32 blocks, counted from the start of the trial after a transfer"),
+        (R(r"Windows of $e(k)$ and $r(k)$ in $z_n$"),"512; 1024 samples"),
+        (R(r"Weight of the exponential average $\bar{z}_n$; threshold $\gamma$"),"0.05; 4, for two consecutive blocks"),
+        (R(r"Interval $n_{\mathrm G}$ before the next trial"),R(r"64 blocks, with $\bar{z}_n$ held constant")),
+        (R(r"Discard threshold $\rho_{\mathrm{abort}}$"),"4, from block 2 of the trial"),
+        (R(r"Transfer rules $(n_1, \rho_1)$; $(n_2, \rho_2)$"),"(4, 0.25); (16, 0.5)"),
     ]
     baselines=[(NAMES.get(m,EXTERNAL_NAMES.get(m,m)),f"{r['mu']:g}",
                 f"Error clipping to [{r['params']['c1']:g}, {r['params']['c2']:g}]" if m=="Th_FxNLMS" else "--")
@@ -243,10 +245,10 @@ def table1():
     cc=json.loads((ROOT/"TUNE_cc.json").read_text())["chosen"][C]
     baselines.append((EXTERNAL_NAMES[C],f"{cc['mu']:g} (fast), {cc['mu']*cc['params']['ratio']:g} (slow)",
                       "Normalized component filters" if cc["params"]["norm"] else "LMS component filters"))
-    output_table(1,"Evaluation settings and selected baseline steps",[
-        ("Proposed method",("Setting","Value"),settings),
-        ("Comparison algorithms",("Method","Selected step μ","Selected setting"),baselines)],
-        ["The comparison algorithms use the common settings selected on design data (TUNE.json, TUNE_cc.json)."])
+    output_table(1,"Settings of the proposed algorithm and selected step sizes of the comparison algorithms",[
+        ("Proposed algorithm",("Parameter","Value"),settings),
+        ("Comparison algorithms",("Algorithm","Step size μ","Other setting"),baselines)],
+        ["The comparison algorithms use one setting for all noise types and conditions (Section 5.3)."])
 
 
 def table2(final,coef,cr,final_text,ccf,ccc):
@@ -289,7 +291,7 @@ def table2(final,coef,cr,final_text,ccf,ccc):
          [(*r[:4],x[0],r[4]) for r,x in zip(result,extra)]),
         ("Paired differences",("Switch","Metric",f"Proposed - {NAMES[A]}",f"Proposed - {EXTERNAL_NAMES[C]}",f"Proposed - {NAMES[N]}"),
          [(*r[:2],r[5],x[1],r[6]) for r,x in zip(result,extra)])],
-        ["Recovery uses each method's post-change reference level +3 dB and a Kaplan-Meier median. Runs without recovery, including all runs with the isolated impulses, are censored.",
+        ["Recovery uses each algorithm's post-change reference level +3 dB and a Kaplan-Meier median. Runs without recovery, including all runs with the isolated impulses, are censored.",
          "NR at 0.13 s and 0.51 s is the noise reduction with the coefficients frozen at that time after the switch (residual-to-primary power ratio, first 256 ms excluded).",
          "Differences are paired means with seed-bootstrap 95% intervals and pair counts in parentheses. Recovery differences use pairs with recovery observed in both runs."])
 
@@ -341,13 +343,13 @@ def table3(final, final_text, fast, ccf):
     costs.append(("FxNLMS (time domain)",f"{FXNLMS_MULT:,}","1.00","--"))
     output_table(3,"Noise reduction with a fixed primary path",[
         ("Levels [dB]",
-         ("Condition","Method","30 s","Last 10 s","2 s after disturbance","Transfers","Identical runs"),statements),
+         ("Condition","Algorithm","30 s","Last 10 s","2 s after disturbance","Transfers","Identical runs"),statements),
         ("Paired differences (proposed minus the other algorithm) [dB]",
          ("Condition","Other algorithm","Window","Difference [95% CI]"),
          [(c,m,{"30 s":"30 s","Last 10 s":"Last 10 s","Post-event 2 s":"2 s after disturbance"}.get(w,w),d) for c,m,w,d in differences])],
         ["Transfers count events in 200 runs. Identical runs are those whose error and control signals equal those of the algorithm without the trials exactly."])
     output_table(4,"Variants of the proposed algorithm (200 runs per condition)",[
-        (title4,("Method",*(SCEN[s] for s in (*QUIET,*SWITCHES))),
+        (title4,("Algorithm",*(SCEN[s] for s in (*QUIET,*SWITCHES))),
          [(NAMES[m],*(c.split("/")[i] for c in counts)) for m,counts in internal.items() if m not in ("ND-always-cap","SF-fix")])
         for i,title4 in enumerate(("Diverged runs","Transfers","Runs with a control signal different from that without the trials"))],[])
     output_table(5,"Real multiplications per block of 128 samples",[

@@ -2,7 +2,7 @@
 
 ## Levels [dB]
 
-| Condition | Method | 30 s | Last 10 s | 2 s after disturbance | Transfers | Identical runs |
+| Condition | Algorithm | 30 s | Last 10 s | 2 s after disturbance | Transfers | Identical runs |
 | --- | --- | --- | --- | --- | --- | --- |
 | No change | Proposed | -9.03 | -9.11 | -- | 0 | 200/200 |
 | No change | CohVSS-FxNLMS | -8.98 | -9.18 | -- | -- | -- |

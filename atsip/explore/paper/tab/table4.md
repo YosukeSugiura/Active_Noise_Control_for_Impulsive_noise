@@ -2,7 +2,7 @@
 
 ## Diverged runs
 
-| Method | No change | Disturbance (0 dB) | Disturbance (-10 dB) | Close | Far |
+| Algorithm | No change | Disturbance (0 dB) | Disturbance (-10 dB) | Close | Far |
 | --- | --- | --- | --- | --- | --- |
 | Proposed | 0 | 0 | 0 | 0 | 0 |
 | Without trials | 0 | 0 | 0 | 0 | 0 |
@@ -12,7 +12,7 @@
 
 ## Transfers
 
-| Method | No change | Disturbance (0 dB) | Disturbance (-10 dB) | Close | Far |
+| Algorithm | No change | Disturbance (0 dB) | Disturbance (-10 dB) | Close | Far |
 | --- | --- | --- | --- | --- | --- |
 | Proposed | 0 | 13 | 2 | 140 | 181 |
 | Without trials | 0 | 0 | 0 | 0 | 0 |
@@ -22,7 +22,7 @@
 
 ## Runs with a control signal different from that without the trials
 
-| Method | No change | Disturbance (0 dB) | Disturbance (-10 dB) | Close | Far |
+| Algorithm | No change | Disturbance (0 dB) | Disturbance (-10 dB) | Close | Far |
 | --- | --- | --- | --- | --- | --- |
 | Proposed | 0 | 13 | 2 | 0 | 1 |
 | Without trials | 0 | 0 | 0 | 0 | 0 |
