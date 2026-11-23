@@ -327,10 +327,15 @@ def table3(final, final_text, fast, ccf):
         differences.append((SCEN[s],NAMES[m],title,ci_text(v)))
         if m==A:
             differences.append((SCEN[s],EXTERNAL_NAMES[C],title,ci_text(paired(final[s,P],ccf[s,C],lambda row: row.get(key)))))
-    costs=[]
-    for phase,label in (("late","Ordinary block"),("late+trial","Ordinary block with trial")):
+    FXNLMS_MULT=196608                                   # RESULTS_fast.md: time-domain FxNLMS, M = Ls = 512, per 128 samples
+    assert "196,608" in fast
+    costs=[]; tot=0; blocks=0
+    for phase,label in (("late","Late phase"),("early","Early phase"),("late+trial","Late phase with trial"),("early+trial","Early phase with trial")):
         r=next(r for r in md_rows(fast) if r[0]==phase)
-        costs.append((label,r[2].replace("／","/"),r[3],r[4].replace("／","/"),r[5],r[6]))
+        mult=int(r[5].replace(",","")); n=int(r[1]); tot+=mult*n; blocks+=n
+        costs.append((label,f"{mult:,}",f"{mult/FXNLMS_MULT:.2f}",f"{n:,}"))
+    costs.append(("Average over the measured blocks",f"{round(tot/blocks):,}",f"{tot/blocks/FXNLMS_MULT:.2f}",f"{blocks:,}"))
+    costs.append(("FxNLMS (time domain)",f"{FXNLMS_MULT:,}","1.00","--"))
     output_table(3,"Cost of the restart mechanism",[
         ("Stationary path and error-side disturbances",
          ("Condition","Method","30 s L1","Last 10 s","Post-event 2 s","Transfers","Matches"),statements),
@@ -339,11 +344,11 @@ def table3(final, final_text, fast, ccf):
         ("Internal comparisons (200 runs per condition)",
          ("Method",*(SCEN[s] for s in (*QUIET,*SWITCHES))),
          [(NAMES[m],*counts) for m,counts in internal.items()]),
-        ("Approximate operations per block",
-         ("State","Ref. FFT","Ref. mult.","Fast FFT","Fast mult.","Ratio"),costs)],
+        ("Real multiplications per block of 128 samples",
+         ("State","Multiplications","Relative to FxNLMS","Blocks"),costs)],
         ["L1 values are in dB. Transfers count events. Output matches require exact numerical equality for both error and control output against No restart.",
          "Internal comparisons show divergences / all transfers / unmatched transfers.",
-         "Ref. FFT counts real/complex transforms. Fast FFT counts 1024-/256-point transforms. The benchmark counts FIR and FFT multiplications."])
+         "Multiplications are the maximum over the blocks of each state and include the sample-by-sample filtering for the control signal. Blocks are those of the eight runs used for the count."])
 
 
 COEF_TITLE = "## 主表：変化から 0.13 秒後と 0.51 秒後の消音量（評価点は seed 100–119 の実行前に固定。2026-11-21）"

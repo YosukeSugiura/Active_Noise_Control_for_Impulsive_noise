@@ -44,13 +44,17 @@
 | Always reconstructed error | 0/0/0 | 0/0/0 | 0/0/0 | 0/0/0 | 0/0/0 |
 | Fixed-step SF | 0/0/0 | 0/0/0 | 0/0/0 | 0/0/0 | 0/0/0 |
 
-## Approximate operations per block
+## Real multiplications per block of 128 samples
 
-| State | Ref. FFT | Ref. mult. | Fast FFT | Fast mult. | Ratio |
-| --- | --- | --- | --- | --- | --- |
-| Ordinary block | 6/1 | 284,672 | 8/5 | 118,016 | 0.41 |
-| Ordinary block with trial | 17/2 | 429,056 | 19/5 | 241,920 | 0.56 |
+| State | Multiplications | Relative to FxNLMS | Blocks |
+| --- | --- | --- | --- |
+| Late phase | 118,016 | 0.60 | 27,727 |
+| Early phase | 174,336 | 0.89 | 188 |
+| Late phase with trial | 241,920 | 1.23 | 1,966 |
+| Early phase with trial | 241,920 | 1.23 | 119 |
+| Average over the measured blocks | 126,980 | 0.65 | 30,000 |
+| FxNLMS (time domain) | 196,608 | 1.00 | -- |
 
 L1 values are in dB. Transfers count events. Output matches require exact numerical equality for both error and control output against No restart.
 Internal comparisons show divergences / all transfers / unmatched transfers.
-Ref. FFT counts real/complex transforms. Fast FFT counts 1024-/256-point transforms. The benchmark counts FIR and FFT multiplications.
+Multiplications are the maximum over the blocks of each state and include the sample-by-sample filtering for the control signal. Blocks are those of the eight runs used for the count.

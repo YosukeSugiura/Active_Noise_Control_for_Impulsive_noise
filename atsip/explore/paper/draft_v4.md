@@ -1,4 +1,4 @@
-# Draft v4 (abstract, Sections 1–6)
+# Draft v4 (abstract, Sections 1–8)
 
 v3 を査読者の目で見直して直した版。[..] は著者用のメモ。
 
@@ -211,7 +211,7 @@ Proposition 3 requires no assumption on the signals or on the accuracy of $\hat{
 
 ### 4.7 Computational cost
 
-A block in the late phase without a trial requires 118,016 real multiplications, and a block with a trial requires 241,920. For comparison, the time-domain FxNLMS algorithm with the same filter lengths requires 196,608 multiplications for $B$ samples. These numbers include the sample-by-sample filtering for the control signal. Section 7 gives the details.
+The background filter adds computation only during a trial. Section 7.4 compares the number of multiplications with that of the FxNLMS algorithm.
 
 [4 章のメモ]
 - 命題 1 = THEORY 定理 A、命題 2 = 定理 C（系 C2）、命題 3 = 命題 H。補題 F は本文の導出（式 (9)）にした。付録は置かない。
@@ -278,6 +278,52 @@ The recovery time separated the algorithms for five noise types. For the Gaussia
 - 6.2 節「machine gun と car interior の理由」（バーストの間隔、誤差の増加が小さい）は説明の仮説で、数値の裏づけをまだ取っていない。"We hypothesize" に弱めるか、検出量 z_n の分布の図（設計用 seed のログ det.py）で裏づける。
 - 6.2 節の回復時間（クラス別）：提案法 22〜44 ブロック、CohVSS-FxNLMS 93〜204 ブロック（G、a145、a120、factory1、destroyerengine）。valve は両者 538、jackhammer は 148。
 - 変化なしの条件では 2494 回の試行が始まり、移行は 0 回（7 章で使う）。
+
+## 7. Cost of the trial mechanism
+
+This section examines the second and third requirements of Section 3.4 and the contribution of each element. Table 3 summarizes the results.
+
+### 7.1 No change in the primary path
+
+In the no-change condition, 2494 trials started in the 200 runs. All of them were discarded. The control signal and the error signal of the proposed algorithm were identical to those of the algorithm without the trials in all 200 runs, as stated by Proposition 3. The second requirement was therefore satisfied exactly in this condition.
+
+Compared with CohVSS-FxNLMS, the noise reduction of the proposed algorithm was larger by 0.05 dB over the whole run (95% confidence interval [−0.08, −0.03] dB) and smaller by 0.07 dB over the last 10 s ([0.04, 0.11] dB). Compared with C-FXLMS, it was larger by 0.98 dB over the whole run and by 0.62 dB over the last 10 s. For destroyer engine noise, C-FXLMS had the larger noise reduction, by 0.4 dB over the whole run and by 0.9 dB over the last 10 s.
+
+### 7.2 Disturbance at the error microphone
+
+With the 0 dB disturbance, 2641 trials started, and 13 of them ended with a transfer. With the −10 dB disturbance, two of 2520 trials ended with a transfer. No transfer occurred in the no-change condition. The control signal was identical to that of the algorithm without the trials in 187 and 198 of the 200 runs, and every run with a different control signal contained a transfer. In the far-source condition, one transfer occurred in addition to those after the change.
+
+These transfers did not reduce the noise reduction. Over the 2 s after each disturbance, the difference between the proposed algorithm and the algorithm without the trials was −0.01 dB with the 0 dB disturbance and −0.00 dB with the −10 dB disturbance, and both intervals included zero. Over the last 10 s with the 0 dB disturbance, the noise reduction of the proposed algorithm was larger by 0.08 dB ([−0.13, −0.04] dB). The third requirement was satisfied in this sense.
+
+The comparison algorithms recovered better from the 0 dB disturbance. Over the 2 s after the disturbance, the noise reduction of CohVSS-FxNLMS was larger than that of the proposed algorithm by 0.62 dB, and that of C-FXLMS was larger by 0.27 dB. In C-FXLMS, the mixing parameter fell to 0.04 during the disturbance, so that the slow filter generated the control signal. With the −10 dB disturbance, CohVSS-FxNLMS was better by 0.20 dB, and the proposed algorithm was better than C-FXLMS by 0.27 dB. The proposed algorithm applies its normal update during a disturbance, and the trial does not protect the foreground filter from this update.
+
+### 7.3 Contribution of each element
+
+We evaluated three variants of the proposed algorithm.
+
+Without the division by $g_n$, seven to nine of the 200 runs diverged in each condition. The division by the relative frame power was therefore necessary for stability with the early-phase step size.
+
+When the coefficients with the larger step size were used for the control signal as soon as the trial started and were restored if the trial failed, the median recovery times were the same as those of the proposed algorithm (0.36 s and 0.38 s). In the no-change condition, however, the control signal differed from that of the algorithm without the trials in 71 runs. The noise reduction over the whole run was smaller than that of the proposed algorithm by 0.02 dB ([−0.03, −0.02] dB).
+
+When a trial was started every $n_2$ blocks without the detector, the median recovery times were 0.30 s and 0.36 s, and no path change was missed by the detector. This variant transferred the coefficients 96 times in the no-change condition and 248 times with the 0 dB disturbance. In the no-change condition, its noise reduction was smaller than that of the proposed algorithm by 0.01 dB. With the 0 dB disturbance, it was larger by 0.50 dB over the 2 s after the disturbance ([0.37, 0.64] dB), because the transfers replaced the coefficients degraded by the disturbance. The cost of this variant is the computation: a trial is active in every block.
+
+### 7.4 Computational cost
+
+Table 3 lists the number of real multiplications per block of 128 samples, including the sample-by-sample filtering for the control signal. A block in the late phase requires 118,016 multiplications, which is 0.60 times that of the time-domain FxNLMS algorithm with the same filter lengths (196,608). A block with a trial requires 241,920 multiplications (1.23 times). In the eight runs used for this count, a trial was active in 7% of the blocks, and the average was 126,980 multiplications (0.65 times). The detector thus keeps the average cost below that of the FxNLMS algorithm, and the peak cost exceeds it during a trial.
+
+## 8. Conclusion
+
+This paper proposed a frequency-domain filtered-x algorithm for active control of impulsive noise that tests a larger step size on a background filter and transfers the result to the foreground filter only when it reduces the reconstructed error. We showed that a discarded trial leaves the control signal identical to that obtained without the trial. In simulations with room impulse responses measured in one room and ten noise types, the median recovery time after a switch of the noise source was 0.36 s and 0.40 s, compared with 0.98 s and 1.26 s for the fastest of nine comparison algorithms. With a fixed primary path, the control signal was identical to that of the algorithm without the trials in all runs, and 15 transfers occurred in the 400 runs with a disturbance at the error microphone without reducing the noise reduction.
+
+The proposed algorithm has three limitations. First, the trial did not start after the change in 60 and 20 of the 200 runs of the two source-switch conditions, mainly for machine gun and car interior noise, and the comparison algorithm reconverged faster for these noise types. Second, after a disturbance at the error microphone, two comparison algorithms had a larger noise reduction by 0.3 dB to 0.6 dB. Third, the evaluation was limited to simulations with paths from one room, a fixed secondary path, and a reference signal without acoustic feedback. Future work includes a detector for noise with intermittent bursts, the evaluation with paths from other rooms, and a real-time implementation.
+
+[7–8 章のメモ]
+- 7.1 節：変化なしの 2494 回の試行の内訳は、打ち切り（ρ > 4）188、判定で破棄 2297、実行の終わりで未了 9。
+- 7.2 節：「RS-far で 1 回の余分な移行」は Table 3 の 0/181/1。
+- 7.3 節の変種：1/g なし（P5-early-noG）、すぐ鳴らす版（P4-cap）、常時試行（TP-always-cap）。数値は今回こちらで対応差を計算した（figs.py の paired と同じ関数）。P4-cap の「71 回」は Table 3 の unmatched transfers（変化なし）。
+- **7.3 節の常時試行の結果は、査読で「検出器は要らないのでは」と問われうる。** 常時試行は見逃しがなく、外乱の後は 0.5 dB 良い。提案法（検出器あり）の利点は、平均の演算量（0.65 倍。常時試行は 1.23 倍）と、変化なしでの出力の一致（200/200。常時試行は 96 回の移行）。この 2 点を本文に書いた。常時試行の機関銃での回復は 122／117 ブロックで、提案法と同じ（検出が原因ではない可能性がある。6.2 節の説明と合わせて要検討）。
+- 7.4 節：平均は 8 実行（30,000 ブロック）の値。条件の内訳は RESULTS_fast.md。
+- 8 章の「15 回の移行」は EN0 の 13 と ENm10 の 2。
 
 [2 章のメモ]
 - APSIPA 2026 版の説明（周波数ごとのステップをコヒーレンスで伸縮、倍率は 0.6–1.6 の範囲）は algorithms/algorithms.py の Freq_FxNLMS_CohVSS から読んだもの。論文の記述と合っているか確認してください。
