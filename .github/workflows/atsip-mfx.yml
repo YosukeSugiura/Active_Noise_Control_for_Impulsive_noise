@@ -1,0 +1,166 @@
+name: ATSIP modified FxNLMS
+on:
+  push:
+    branches: [atsip/mfx]
+    paths: [atsip/explore/mfx.py]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: atsip-mfx
+  cancel-in-progress: false
+env:
+  OPENBLAS_NUM_THREADS: '1'
+  OMP_NUM_THREADS: '1'
+  MKL_NUM_THREADS: '1'
+  NUMEXPR_NUM_THREADS: '1'
+jobs:
+  tune:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Setup
+        run: |
+          git merge-base --is-ancestor ebdbae631dad644b545addbca22b4e8ca37b4a62 HEAD
+          python -m pip install -r requirements.txt scipy
+          cd atsip/explore
+          python -m py_compile mfx.py
+          python data/fetch.py mimii noisex sonyc
+          python data/make_noise.py
+      - name: Tune
+        working-directory: atsip/explore
+        run: timeout --signal=TERM 310m python mfx.py tune --procs 4
+      - name: Stage checkpoints
+        if: always()
+        working-directory: atsip/explore
+        run: |
+          mkdir -p "$RUNNER_TEMP/mfx-artifact/out"
+          if test -f TUNE_mfx.json; then cp TUNE_mfx.json "$RUNNER_TEMP/mfx-artifact/"; fi
+          if test -d out/mfx_tune; then cp -a out/mfx_tune "$RUNNER_TEMP/mfx-artifact/out/"; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mfx-tune
+          path: ${{ runner.temp }}/mfx-artifact/
+  eval:
+    needs: tune
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        scen: [stat, RS-near, RS-far, EN0, ENm10]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          name: mfx-tune
+          path: atsip/explore
+      - name: Setup
+        run: |
+          python -m pip install -r requirements.txt scipy
+          cd atsip/explore
+          python data/fetch.py mimii noisex sonyc
+          python data/make_noise.py
+      - name: Evaluate
+        working-directory: atsip/explore
+        run: timeout --signal=TERM 310m python mfx.py eval --scen '${{ matrix.scen }}' --procs 4
+      - name: Stage checkpoints
+        if: always()
+        working-directory: atsip/explore
+        run: |
+          mkdir -p "$RUNNER_TEMP/mfx-artifact/out/mfx_run" "$RUNNER_TEMP/mfx-artifact/out/mfx_coef"
+          for folder in mfx_run mfx_coef; do
+            if test -d "out/$folder"; then find "out/$folder" -maxdepth 1 -name '*_${{ matrix.scen }}_s*.json' -exec cp {} "$RUNNER_TEMP/mfx-artifact/out/$folder/" \;; fi
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mfx-eval-${{ matrix.scen }}
+          path: ${{ runner.temp }}/mfx-artifact/
+  class:
+    needs: tune
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          name: mfx-tune
+          path: atsip/explore
+      - name: Setup
+        run: |
+          python -m pip install -r requirements.txt scipy
+          cd atsip/explore
+          python data/fetch.py mimii noisex sonyc
+          python data/make_noise.py
+      - name: Class-specific evaluation
+        working-directory: atsip/explore
+        run: timeout --signal=TERM 310m python mfx.py class --procs 4
+      - name: Stage checkpoints
+        if: always()
+        working-directory: atsip/explore
+        run: |
+          mkdir -p "$RUNNER_TEMP/mfx-artifact/out"
+          if test -d out/mfx_class_run; then cp -a out/mfx_class_run "$RUNNER_TEMP/mfx-artifact/out/"; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mfx-class
+          path: ${{ runner.temp }}/mfx-artifact/
+  report:
+    needs: [tune, eval, class]
+    if: ${{ always() && !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: mfx-*
+          merge-multiple: true
+          path: atsip/explore
+      - name: Save resumable checkpoints
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          for p in TUNE_mfx.json out/mfx_tune out/mfx_run out/mfx_coef out/mfx_class_run; do
+            if test -e "atsip/explore/$p"; then git add -f "atsip/explore/$p"; fi
+          done
+          if ! git diff --cached --quiet; then git commit -m 'Checkpoint ATSIP MFxNLMS results'; git push origin HEAD:atsip/mfx; fi
+      - name: Setup report
+        run: |
+          python -m pip install -r requirements.txt scipy
+          cd atsip/explore
+          mkdir -p out
+          tar -xzf results/final2_run.tar.gz -C out
+          tar -xzf results/coef2_run.tar.gz -C out
+      - name: Report
+        working-directory: atsip/explore
+        run: python mfx.py report
+      - name: Save complete report
+        run: |
+          git add -f atsip/explore/RESULTS_mfx.md
+          if ! git diff --cached --quiet; then git commit -m 'Record completed ATSIP MFxNLMS evaluation'; git push origin HEAD:atsip/mfx; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mfx-report
+          path: atsip/explore/RESULTS_mfx.md
