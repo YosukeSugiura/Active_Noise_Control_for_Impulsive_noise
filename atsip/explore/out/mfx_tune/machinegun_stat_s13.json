@@ -1,0 +1,134 @@
+{
+  "version": 2,
+  "settings": [
+    {
+      "key": "mu0.01",
+      "mu": 0.01,
+      "params": {
+        "eps": 0.001
+      }
+    },
+    {
+      "key": "mu0.02",
+      "mu": 0.02,
+      "params": {
+        "eps": 0.001
+      }
+    },
+    {
+      "key": "mu0.05",
+      "mu": 0.05,
+      "params": {
+        "eps": 0.001
+      }
+    },
+    {
+      "key": "mu0.1",
+      "mu": 0.1,
+      "params": {
+        "eps": 0.001
+      }
+    },
+    {
+      "key": "mu0.2",
+      "mu": 0.2,
+      "params": {
+        "eps": 0.001
+      }
+    },
+    {
+      "key": "mu0.5",
+      "mu": 0.5,
+      "params": {
+        "eps": 0.001
+      }
+    },
+    {
+      "key": "mu1",
+      "mu": 1.0,
+      "params": {
+        "eps": 0.001
+      }
+    }
+  ],
+  "rows": [
+    {
+      "cls": "machinegun",
+      "scen": "stat",
+      "seed": 13,
+      "div": 0,
+      "seconds": 0.37,
+      "L1_whole": -2.886967085906863,
+      "L1_last10": -3.1978866515222064,
+      "L2_last5": -5.15827321531792
+    },
+    {
+      "cls": "machinegun",
+      "scen": "stat",
+      "seed": 13,
+      "div": 0,
+      "seconds": 0.4,
+      "L1_whole": -2.385231084362494,
+      "L1_last10": -2.7809069516888774,
+      "L2_last5": -4.335086766380928
+    },
+    {
+      "cls": "machinegun",
+      "scen": "stat",
+      "seed": 13,
+      "div": 0,
+      "seconds": 0.42,
+      "L1_whole": -1.0100199548732272,
+      "L1_last10": -1.5689787664684431,
+      "L2_last5": -2.2868082432596917
+    },
+    {
+      "cls": "machinegun",
+      "scen": "stat",
+      "seed": 13,
+      "div": 0,
+      "seconds": 0.41,
+      "L1_whole": 0.795105549762644,
+      "L1_last10": 0.035548565975652764,
+      "L2_last5": 0.42340868148274413
+    },
+    {
+      "cls": "machinegun",
+      "scen": "stat",
+      "seed": 13,
+      "div": 0,
+      "seconds": 0.4,
+      "L1_whole": 4.739585663642979,
+      "L1_last10": 3.557998264224497,
+      "L2_last5": 5.642021936770131
+    },
+    {
+      "cls": "machinegun",
+      "scen": "stat",
+      "seed": 13,
+      "div": 1,
+      "seconds": 0.06,
+      "div_block": 532,
+      "failure": {
+        "band": "250\u2013500",
+        "hz": 269.0,
+        "samples": 16000,
+        "sample": 68223
+      }
+    },
+    {
+      "cls": "machinegun",
+      "scen": "stat",
+      "seed": 13,
+      "div": 1,
+      "seconds": 0.04,
+      "div_block": 263,
+      "failure": {
+        "band": "100\u2013250",
+        "hz": 245.0,
+        "samples": 16000,
+        "sample": 33791
+      }
+    }
+  ]
+}

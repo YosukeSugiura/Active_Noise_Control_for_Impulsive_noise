@@ -1,0 +1,36 @@
+{
+  "version": 2,
+  "settings": {
+    "key": "mu0.05",
+    "mu": 0.05,
+    "params": {
+      "eps": 0.001
+    },
+    "div": 0,
+    "L1_whole": -8.290153129671893,
+    "L1_last10": -9.364424152849756,
+    "L1_ev": -5.390955785501202
+  },
+  "rows": [
+    {
+      "method": "MFxNLMS",
+      "cls": "volvo",
+      "scen": "RS-far",
+      "seed": 117,
+      "variant": "main",
+      "kind": "base",
+      "div": 0,
+      "seconds": 0.57,
+      "L1_whole": -4.981205399962901,
+      "L1_last10": -7.568037592991274,
+      "L2_last5": -7.38548333955685,
+      "L1_ev": -5.698966777210703,
+      "L1_pre": -2.143297598902023,
+      "rec_target": 0.0004911544108228556,
+      "rec_blocks": 30,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "post_div": 0
+    }
+  ]
+}

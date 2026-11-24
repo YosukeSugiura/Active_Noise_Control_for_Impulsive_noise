@@ -1,0 +1,36 @@
+{
+  "version": 2,
+  "settings": {
+    "key": "mu0.05",
+    "mu": 0.05,
+    "params": {
+      "eps": 0.001
+    },
+    "div": 0,
+    "L1_whole": -8.290153129671893,
+    "L1_last10": -9.364424152849756,
+    "L1_ev": -5.390955785501202
+  },
+  "rows": [
+    {
+      "method": "MFxNLMS",
+      "cls": "factory1",
+      "scen": "RS-far",
+      "seed": 109,
+      "variant": "main",
+      "kind": "base",
+      "div": 0,
+      "seconds": 0.43,
+      "L1_whole": -9.371382315350223,
+      "L1_last10": -11.766993232089876,
+      "L2_last5": -11.916294363523296,
+      "L1_ev": -6.723606938335109,
+      "L1_pre": -8.317230876354177,
+      "rec_target": 0.0013161808065161617,
+      "rec_blocks": 345,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "post_div": 0
+    }
+  ]
+}

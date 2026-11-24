@@ -1,0 +1,130 @@
+{
+  "version": 2,
+  "settings": [
+    {
+      "key": "mu0.01",
+      "mu": 0.01,
+      "params": {
+        "eps": 0.001
+      }
+    },
+    {
+      "key": "mu0.02",
+      "mu": 0.02,
+      "params": {
+        "eps": 0.001
+      }
+    },
+    {
+      "key": "mu0.05",
+      "mu": 0.05,
+      "params": {
+        "eps": 0.001
+      }
+    },
+    {
+      "key": "mu0.1",
+      "mu": 0.1,
+      "params": {
+        "eps": 0.001
+      }
+    },
+    {
+      "key": "mu0.2",
+      "mu": 0.2,
+      "params": {
+        "eps": 0.001
+      }
+    },
+    {
+      "key": "mu0.5",
+      "mu": 0.5,
+      "params": {
+        "eps": 0.001
+      }
+    },
+    {
+      "key": "mu1",
+      "mu": 1.0,
+      "params": {
+        "eps": 0.001
+      }
+    }
+  ],
+  "rows": [
+    {
+      "cls": "destroyerengine",
+      "scen": "stat",
+      "seed": 11,
+      "div": 0,
+      "seconds": 0.45,
+      "L1_whole": -9.80498119785648,
+      "L1_last10": -11.854314938721512,
+      "L2_last5": -12.476305543936878
+    },
+    {
+      "cls": "destroyerengine",
+      "scen": "stat",
+      "seed": 11,
+      "div": 0,
+      "seconds": 0.4,
+      "L1_whole": -10.567985167794413,
+      "L1_last10": -12.282352422360374,
+      "L2_last5": -12.868597842746851
+    },
+    {
+      "cls": "destroyerengine",
+      "scen": "stat",
+      "seed": 11,
+      "div": 0,
+      "seconds": 0.4,
+      "L1_whole": -11.073531733544538,
+      "L1_last10": -12.404331853951042,
+      "L2_last5": -12.985102398771698
+    },
+    {
+      "cls": "destroyerengine",
+      "scen": "stat",
+      "seed": 11,
+      "div": 0,
+      "seconds": 0.4,
+      "L1_whole": -11.037450061827572,
+      "L1_last10": -12.198186730166755,
+      "L2_last5": -12.838663981793959
+    },
+    {
+      "cls": "destroyerengine",
+      "scen": "stat",
+      "seed": 11,
+      "div": 0,
+      "seconds": 0.45,
+      "L1_whole": -10.530393709265788,
+      "L1_last10": -11.677568315586623,
+      "L2_last5": -12.440501246534904
+    },
+    {
+      "cls": "destroyerengine",
+      "scen": "stat",
+      "seed": 11,
+      "div": 0,
+      "seconds": 0.27,
+      "L1_whole": -8.364380595234786,
+      "L1_last10": -9.844338632393434,
+      "L2_last5": -11.027331372382797
+    },
+    {
+      "cls": "destroyerengine",
+      "scen": "stat",
+      "seed": 11,
+      "div": 1,
+      "seconds": 0.03,
+      "div_block": 380,
+      "failure": {
+        "band": "250\u2013500",
+        "hz": 456.0,
+        "samples": 16000,
+        "sample": 48767
+      }
+    }
+  ]
+}

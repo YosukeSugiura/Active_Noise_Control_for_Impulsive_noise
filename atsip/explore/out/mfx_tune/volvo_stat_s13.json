@@ -1,0 +1,138 @@
+{
+  "version": 2,
+  "settings": [
+    {
+      "key": "mu0.01",
+      "mu": 0.01,
+      "params": {
+        "eps": 0.001
+      }
+    },
+    {
+      "key": "mu0.02",
+      "mu": 0.02,
+      "params": {
+        "eps": 0.001
+      }
+    },
+    {
+      "key": "mu0.05",
+      "mu": 0.05,
+      "params": {
+        "eps": 0.001
+      }
+    },
+    {
+      "key": "mu0.1",
+      "mu": 0.1,
+      "params": {
+        "eps": 0.001
+      }
+    },
+    {
+      "key": "mu0.2",
+      "mu": 0.2,
+      "params": {
+        "eps": 0.001
+      }
+    },
+    {
+      "key": "mu0.5",
+      "mu": 0.5,
+      "params": {
+        "eps": 0.001
+      }
+    },
+    {
+      "key": "mu1",
+      "mu": 1.0,
+      "params": {
+        "eps": 0.001
+      }
+    }
+  ],
+  "rows": [
+    {
+      "cls": "volvo",
+      "scen": "stat",
+      "seed": 13,
+      "div": 0,
+      "seconds": 0.4,
+      "L1_whole": -4.395043774190465,
+      "L1_last10": -4.761029742125552,
+      "L2_last5": -4.866754440277537
+    },
+    {
+      "cls": "volvo",
+      "scen": "stat",
+      "seed": 13,
+      "div": 0,
+      "seconds": 0.41,
+      "L1_whole": -4.037116448972958,
+      "L1_last10": -4.352321565787889,
+      "L2_last5": -4.423508895863657
+    },
+    {
+      "cls": "volvo",
+      "scen": "stat",
+      "seed": 13,
+      "div": 0,
+      "seconds": 0.46,
+      "L1_whole": -2.7447618994879566,
+      "L1_last10": -2.977177181486821,
+      "L2_last5": -2.957658954245717
+    },
+    {
+      "cls": "volvo",
+      "scen": "stat",
+      "seed": 13,
+      "div": 0,
+      "seconds": 0.36,
+      "L1_whole": -0.6715503385486479,
+      "L1_last10": -0.8453280669934918,
+      "L2_last5": -0.7663478347973468
+    },
+    {
+      "cls": "volvo",
+      "scen": "stat",
+      "seed": 13,
+      "div": 1,
+      "seconds": 0.03,
+      "div_block": 439,
+      "failure": {
+        "band": "0\u201360",
+        "hz": 52.0,
+        "samples": 16000,
+        "sample": 56319
+      }
+    },
+    {
+      "cls": "volvo",
+      "scen": "stat",
+      "seed": 13,
+      "div": 1,
+      "seconds": 0.02,
+      "div_block": 232,
+      "failure": {
+        "band": "0\u201360",
+        "hz": 52.0,
+        "samples": 16000,
+        "sample": 29823
+      }
+    },
+    {
+      "cls": "volvo",
+      "scen": "stat",
+      "seed": 13,
+      "div": 1,
+      "seconds": 0.02,
+      "div_block": 181,
+      "failure": {
+        "band": "0\u201360",
+        "hz": 51.0,
+        "samples": 16000,
+        "sample": 23295
+      }
+    }
+  ]
+}
