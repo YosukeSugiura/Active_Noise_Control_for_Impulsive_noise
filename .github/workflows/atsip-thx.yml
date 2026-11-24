@@ -1,0 +1,499 @@
+{
+  "name": "ATSIP Th2-FxNLMS",
+  "on": {
+    "push": {
+      "branches": [
+        "atsip/thx"
+      ],
+      "paths": [
+        "atsip/explore/thx.py"
+      ]
+    },
+    "workflow_dispatch": {}
+  },
+  "permissions": {
+    "contents": "write"
+  },
+  "concurrency": {
+    "group": "atsip-thx",
+    "cancel-in-progress": false
+  },
+  "env": {
+    "OPENBLAS_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1",
+    "NUMBA_NUM_THREADS": "1"
+  },
+  "jobs": {
+    "data": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 350,
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "fetch-depth": 0
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "name": "Install dependencies",
+          "run": "python -m pip install -r requirements.txt scipy\npython -m pip freeze"
+        },
+        {
+          "name": "Check base",
+          "run": "git merge-base --is-ancestor fb2e06d32b2d255adf4cdbbdb6b10d9eeaeea023 HEAD\npython -m py_compile atsip/explore/thx.py"
+        },
+        {
+          "name": "Restore previous attempt",
+          "uses": "actions/download-artifact@v4",
+          "continue-on-error": true,
+          "with": {
+            "name": "thx-data",
+            "path": "atsip/explore/data/prepared"
+          }
+        },
+        {
+          "name": "Prepare all six recordings once",
+          "working-directory": "atsip/explore",
+          "run": "if ! python -c 'from pathlib import Path; from scipy.io import wavfile; p=Path(\"data/prepared\"); assert all((lambda z: z[0]==16000 and z[1].ndim==1 and len(z[1])>=608000)(wavfile.read(p/(c+\".wav\"))) for c in (\"machinegun\",\"factory1\",\"destroyerengine\",\"volvo\",\"valve\",\"jackhammer\"))'; then\n  python data/fetch.py mimii noisex sonyc\n  python data/make_noise.py\nfi"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "thx-data",
+            "path": "atsip/explore/data/prepared/",
+            "overwrite": true,
+            "if-no-files-found": "warn"
+          }
+        }
+      ]
+    },
+    "tune": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 350,
+      "needs": "data",
+      "strategy": {
+        "fail-fast": false,
+        "matrix": {
+          "noise": [
+            "G",
+            "a145",
+            "II300",
+            "machinegun",
+            "factory1",
+            "destroyerengine",
+            "volvo",
+            "valve",
+            "jackhammer"
+          ]
+        }
+      },
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "fetch-depth": 0
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "name": "Install dependencies",
+          "run": "python -m pip install -r requirements.txt scipy\npython -m pip freeze"
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "thx-data",
+            "path": "atsip/explore/data/prepared"
+          }
+        },
+        {
+          "name": "Restore previous attempt",
+          "uses": "actions/download-artifact@v4",
+          "continue-on-error": true,
+          "with": {
+            "name": "thx-tune-${{ matrix.noise }}",
+            "path": "atsip/explore/out/thx_tune"
+          }
+        },
+        {
+          "name": "Tune noise",
+          "working-directory": "atsip/explore",
+          "run": "python thx.py tune --noise '${{ matrix.noise }}' --procs 4"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "thx-tune-${{ matrix.noise }}",
+            "path": "atsip/explore/out/thx_tune/",
+            "overwrite": true,
+            "if-no-files-found": "warn"
+          }
+        }
+      ]
+    },
+    "tune-merge": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 350,
+      "needs": "tune",
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "fetch-depth": 0
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "name": "Install dependencies",
+          "run": "python -m pip install -r requirements.txt scipy\npython -m pip freeze"
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "pattern": "thx-tune-*",
+            "merge-multiple": true,
+            "path": "atsip/explore/out/thx_tune"
+          }
+        },
+        {
+          "name": "Select common and noise-specific settings",
+          "working-directory": "atsip/explore",
+          "run": "python thx.py tune --aggregate"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "thx-settings",
+            "path": "atsip/explore/TUNE_thx.json",
+            "overwrite": true,
+            "if-no-files-found": "warn"
+          }
+        }
+      ]
+    },
+    "eval": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 350,
+      "needs": "tune-merge",
+      "strategy": {
+        "fail-fast": false,
+        "matrix": {
+          "scen": [
+            "stat",
+            "RS-near",
+            "RS-far",
+            "EN0",
+            "ENm10"
+          ],
+          "group": [
+            0,
+            1
+          ]
+        }
+      },
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "fetch-depth": 0
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "name": "Install dependencies",
+          "run": "python -m pip install -r requirements.txt scipy\npython -m pip freeze"
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "thx-data",
+            "path": "atsip/explore/data/prepared"
+          }
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "thx-settings",
+            "path": "atsip/explore"
+          }
+        },
+        {
+          "name": "Extract frozen results",
+          "working-directory": "atsip/explore",
+          "run": "mkdir -p out\ntar -xzf results/final2_run.tar.gz -C out\ntar -xzf results/coef2_run.tar.gz -C out"
+        },
+        {
+          "name": "Restore previous attempt",
+          "uses": "actions/download-artifact@v4",
+          "continue-on-error": true,
+          "with": {
+            "name": "thx-eval-${{ matrix.scen }}-${{ matrix.group }}",
+            "path": "atsip/explore/out"
+          }
+        },
+        {
+          "name": "Evaluate",
+          "working-directory": "atsip/explore",
+          "run": "python thx.py eval --scen '${{ matrix.scen }}' --group ${{ matrix.group }} --procs 4"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "thx-eval-${{ matrix.scen }}-${{ matrix.group }}",
+            "path": "atsip/explore/out/thx_run/\natsip/explore/out/thx_coef/",
+            "overwrite": true,
+            "if-no-files-found": "warn"
+          }
+        }
+      ]
+    },
+    "class": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 350,
+      "needs": "tune-merge",
+      "strategy": {
+        "fail-fast": false,
+        "matrix": {
+          "group": [
+            0,
+            1
+          ]
+        }
+      },
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "fetch-depth": 0
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "name": "Install dependencies",
+          "run": "python -m pip install -r requirements.txt scipy\npython -m pip freeze"
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "thx-data",
+            "path": "atsip/explore/data/prepared"
+          }
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "thx-settings",
+            "path": "atsip/explore"
+          }
+        },
+        {
+          "name": "Restore previous attempt",
+          "uses": "actions/download-artifact@v4",
+          "continue-on-error": true,
+          "with": {
+            "name": "thx-class-${{ matrix.group }}",
+            "path": "atsip/explore/out/thx_class_run"
+          }
+        },
+        {
+          "name": "Evaluate class-specific settings",
+          "working-directory": "atsip/explore",
+          "run": "python thx.py class --group ${{ matrix.group }} --procs 4"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "thx-class-${{ matrix.group }}",
+            "path": "atsip/explore/out/thx_class_run/",
+            "overwrite": true,
+            "if-no-files-found": "warn"
+          }
+        }
+      ]
+    },
+    "sweep": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 350,
+      "needs": "tune-merge",
+      "strategy": {
+        "fail-fast": false,
+        "matrix": {
+          "group": [
+            0,
+            1
+          ]
+        }
+      },
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "fetch-depth": 0
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "name": "Install dependencies",
+          "run": "python -m pip install -r requirements.txt scipy\npython -m pip freeze"
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "thx-data",
+            "path": "atsip/explore/data/prepared"
+          }
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "thx-settings",
+            "path": "atsip/explore"
+          }
+        },
+        {
+          "name": "Restore previous attempt",
+          "uses": "actions/download-artifact@v4",
+          "continue-on-error": true,
+          "with": {
+            "name": "thx-sweep-${{ matrix.group }}",
+            "path": "atsip/explore/out/thx_sweep_run"
+          }
+        },
+        {
+          "name": "Sweep common step sizes",
+          "working-directory": "atsip/explore",
+          "run": "python thx.py sweep --group ${{ matrix.group }} --procs 4"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "thx-sweep-${{ matrix.group }}",
+            "path": "atsip/explore/out/thx_sweep_run/",
+            "overwrite": true,
+            "if-no-files-found": "warn"
+          }
+        }
+      ]
+    },
+    "report": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 350,
+      "needs": [
+        "eval",
+        "class",
+        "sweep"
+      ],
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "fetch-depth": 0
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "name": "Install dependencies",
+          "run": "python -m pip install -r requirements.txt scipy\npython -m pip freeze"
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "thx-settings",
+            "path": "atsip/explore"
+          }
+        },
+        {
+          "name": "Extract frozen results",
+          "working-directory": "atsip/explore",
+          "run": "mkdir -p out\ntar -xzf results/final2_run.tar.gz -C out\ntar -xzf results/coef2_run.tar.gz -C out"
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "pattern": "thx-eval-*",
+            "merge-multiple": true,
+            "path": "atsip/explore/out"
+          }
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "pattern": "thx-class-*",
+            "merge-multiple": true,
+            "path": "atsip/explore/out/thx_class_run"
+          }
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "pattern": "thx-sweep-*",
+            "merge-multiple": true,
+            "path": "atsip/explore/out/thx_sweep_run"
+          }
+        },
+        {
+          "name": "Report and verify sweep 1x",
+          "working-directory": "atsip/explore",
+          "run": "python thx.py report"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "thx-report",
+            "path": "atsip/explore/RESULTS_thx.md\natsip/explore/TUNE_thx.json",
+            "overwrite": true,
+            "if-no-files-found": "warn"
+          }
+        },
+        {
+          "name": "Commit results",
+          "run": "git config user.name 'github-actions[bot]'\ngit config user.email '41898282+github-actions[bot]@users.noreply.github.com'\ngit add atsip/explore/TUNE_thx.json atsip/explore/out/thx_run atsip/explore/out/thx_coef atsip/explore/out/thx_class_run atsip/explore/out/thx_sweep_run atsip/explore/RESULTS_thx.md\nif ! git diff --cached --quiet; then\n  git commit -m 'Record completed Th2-FxNLMS experiments'\n  git push origin HEAD:atsip/thx\nfi"
+        }
+      ]
+    }
+  }
+}
