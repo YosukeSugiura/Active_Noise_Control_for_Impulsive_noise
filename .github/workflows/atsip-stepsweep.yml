@@ -1,0 +1,57 @@
+name: ATSIP step sweep
+on:
+  push:
+    branches: [atsip/stepsweep]
+    paths: [atsip/explore/stepsweep.py]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: atsip-stepsweep
+  cancel-in-progress: false
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Verify base and install dependencies
+        run: |
+          git merge-base --is-ancestor ebdbae631dad644b545addbca22b4e8ca37b4a62 HEAD
+          python -m pip install -r requirements.txt scipy
+          python -m pip freeze
+      - name: Prepare original data
+        working-directory: atsip/explore
+        run: |
+          mkdir -p out
+          tar -xzf results/final2_run.tar.gz -C out
+          test -f out/final2_run/G_RS-near_s100.json
+          python data/fetch.py mimii noisex sonyc
+          python data/make_noise.py
+      - name: Run exact 1x gate then sweep
+        working-directory: atsip/explore
+        run: python stepsweep.py run --procs 4
+      - name: Save outputs on experiment branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add atsip/explore/out/stepsweep_run atsip/explore/out/stepsweep_summary.json atsip/explore/RESULTS_stepsweep.md
+          git commit -m 'Record completed ATSIP step sweep'
+          git push origin HEAD:atsip/stepsweep
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: stepsweep-results
+          path: |
+            atsip/explore/out/stepsweep_run/
+            atsip/explore/out/stepsweep_summary.json
+            atsip/explore/RESULTS_stepsweep.md
