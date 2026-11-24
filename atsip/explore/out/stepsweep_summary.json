@@ -1,0 +1,1259 @@
+{
+  "version": 1,
+  "groups": [
+    {
+      "method": "Freq_FxNLMS_CohVSS",
+      "factor": 0.5,
+      "condition": "RS-far",
+      "n": 200,
+      "divergence_count": 0,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 0,
+        "factory1": 0,
+        "destroyerengine": 0,
+        "volvo": 0,
+        "valve": 0,
+        "jackhammer": 0
+      },
+      "recovery_with_divergence": {
+        "median": 2.64,
+        "n": 200,
+        "censored": 32,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 2.64,
+        "n": 200,
+        "censored": 32,
+        "missing_target": 0
+      },
+      "L1_whole": -9.238850773550476,
+      "L1_pre5": -8.98039455605847
+    },
+    {
+      "method": "Freq_FxNLMS_CohVSS",
+      "factor": 1.0,
+      "condition": "RS-far",
+      "n": 200,
+      "divergence_count": 0,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 0,
+        "factory1": 0,
+        "destroyerengine": 0,
+        "volvo": 0,
+        "valve": 0,
+        "jackhammer": 0
+      },
+      "recovery_with_divergence": {
+        "median": 1.256,
+        "n": 200,
+        "censored": 28,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 1.256,
+        "n": 200,
+        "censored": 28,
+        "missing_target": 0
+      },
+      "L1_whole": -9.700936931591187,
+      "L1_pre5": -8.956273722360383
+    },
+    {
+      "method": "Freq_FxNLMS_CohVSS",
+      "factor": 2.0,
+      "condition": "RS-far",
+      "n": 200,
+      "divergence_count": 20,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 0,
+        "factory1": 0,
+        "destroyerengine": 0,
+        "volvo": 0,
+        "valve": 20,
+        "jackhammer": 0
+      },
+      "recovery_with_divergence": {
+        "median": 0.728,
+        "n": 199,
+        "censored": 40,
+        "missing_target": 1
+      },
+      "recovery_without_divergence": {
+        "median": 0.6960000000000001,
+        "n": 179,
+        "censored": 20,
+        "missing_target": 1
+      },
+      "L1_whole": -9.345156457219522,
+      "L1_pre5": -8.493959146995135
+    },
+    {
+      "method": "Freq_FxNLMS_CohVSS",
+      "factor": 4.0,
+      "condition": "RS-far",
+      "n": 200,
+      "divergence_count": 62,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 20,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 20,
+        "factory1": 0,
+        "destroyerengine": 2,
+        "volvo": 0,
+        "valve": 20,
+        "jackhammer": 0
+      },
+      "recovery_with_divergence": {
+        "median": 0.856,
+        "n": 200,
+        "censored": 62,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 0.32,
+        "n": 138,
+        "censored": 0,
+        "missing_target": 0
+      },
+      "L1_whole": -8.177167313955795,
+      "L1_pre5": -7.168966616598039
+    },
+    {
+      "method": "Freq_FxNLMS_CohVSS",
+      "factor": 8.0,
+      "condition": "RS-far",
+      "n": 200,
+      "divergence_count": 172,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 20,
+        "a145": 13,
+        "a120": 19,
+        "machinegun": 20,
+        "factory1": 20,
+        "destroyerengine": 20,
+        "volvo": 20,
+        "valve": 20,
+        "jackhammer": 20
+      },
+      "recovery_with_divergence": {
+        "median": null,
+        "n": 191,
+        "censored": 172,
+        "missing_target": 9
+      },
+      "recovery_without_divergence": {
+        "median": 0.296,
+        "n": 19,
+        "censored": 0,
+        "missing_target": 9
+      },
+      "L1_whole": -7.93590612479357,
+      "L1_pre5": -7.974845233286203
+    },
+    {
+      "method": "Freq_FxNLMS_CohVSS",
+      "factor": 16.0,
+      "condition": "RS-far",
+      "n": 200,
+      "divergence_count": 200,
+      "divergence_by_noise": {
+        "G": 20,
+        "II300": 20,
+        "a145": 20,
+        "a120": 20,
+        "machinegun": 20,
+        "factory1": 20,
+        "destroyerengine": 20,
+        "volvo": 20,
+        "valve": 20,
+        "jackhammer": 20
+      },
+      "recovery_with_divergence": {
+        "median": null,
+        "n": 200,
+        "censored": 200,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": null,
+        "n": 0,
+        "censored": 0,
+        "missing_target": 0
+      },
+      "L1_whole": null,
+      "L1_pre5": null
+    },
+    {
+      "method": "FxNLMS",
+      "factor": 0.5,
+      "condition": "RS-far",
+      "n": 200,
+      "divergence_count": 0,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 0,
+        "factory1": 0,
+        "destroyerengine": 0,
+        "volvo": 0,
+        "valve": 0,
+        "jackhammer": 0
+      },
+      "recovery_with_divergence": {
+        "median": 6.496,
+        "n": 200,
+        "censored": 32,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 6.496,
+        "n": 200,
+        "censored": 32,
+        "missing_target": 0
+      },
+      "L1_whole": -6.767483449727751,
+      "L1_pre5": -7.811435166207348
+    },
+    {
+      "method": "FxNLMS",
+      "factor": 1.0,
+      "condition": "RS-far",
+      "n": 200,
+      "divergence_count": 0,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 0,
+        "factory1": 0,
+        "destroyerengine": 0,
+        "volvo": 0,
+        "valve": 0,
+        "jackhammer": 0
+      },
+      "recovery_with_divergence": {
+        "median": 4.296,
+        "n": 200,
+        "censored": 32,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 4.296,
+        "n": 200,
+        "censored": 32,
+        "missing_target": 0
+      },
+      "L1_whole": -7.760759753209827,
+      "L1_pre5": -8.181760336657234
+    },
+    {
+      "method": "FxNLMS",
+      "factor": 2.0,
+      "condition": "RS-far",
+      "n": 200,
+      "divergence_count": 15,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 9,
+        "factory1": 0,
+        "destroyerengine": 0,
+        "volvo": 6,
+        "valve": 0,
+        "jackhammer": 0
+      },
+      "recovery_with_divergence": {
+        "median": 3.432,
+        "n": 200,
+        "censored": 44,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 3.08,
+        "n": 185,
+        "censored": 29,
+        "missing_target": 0
+      },
+      "L1_whole": -8.191164671299912,
+      "L1_pre5": -8.053678978225756
+    },
+    {
+      "method": "FxNLMS",
+      "factor": 4.0,
+      "condition": "RS-far",
+      "n": 200,
+      "divergence_count": 63,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 20,
+        "factory1": 0,
+        "destroyerengine": 8,
+        "volvo": 20,
+        "valve": 15,
+        "jackhammer": 0
+      },
+      "recovery_with_divergence": {
+        "median": 3.224,
+        "n": 200,
+        "censored": 87,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 1.952,
+        "n": 137,
+        "censored": 24,
+        "missing_target": 0
+      },
+      "L1_whole": -9.951566539585714,
+      "L1_pre5": -9.733393391211365
+    },
+    {
+      "method": "FxNLMS",
+      "factor": 8.0,
+      "condition": "RS-far",
+      "n": 200,
+      "divergence_count": 103,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 20,
+        "factory1": 3,
+        "destroyerengine": 20,
+        "volvo": 20,
+        "valve": 20,
+        "jackhammer": 20
+      },
+      "recovery_with_divergence": {
+        "median": null,
+        "n": 200,
+        "censored": 123,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 0.912,
+        "n": 97,
+        "censored": 20,
+        "missing_target": 0
+      },
+      "L1_whole": -10.216434467179571,
+      "L1_pre5": -9.609302002448446
+    },
+    {
+      "method": "FxNLMS",
+      "factor": 16.0,
+      "condition": "RS-far",
+      "n": 200,
+      "divergence_count": 120,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 20,
+        "factory1": 20,
+        "destroyerengine": 20,
+        "volvo": 20,
+        "valve": 20,
+        "jackhammer": 20
+      },
+      "recovery_with_divergence": {
+        "median": null,
+        "n": 200,
+        "censored": 140,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 0.52,
+        "n": 80,
+        "censored": 20,
+        "missing_target": 0
+      },
+      "L1_whole": -10.26421660521913,
+      "L1_pre5": -9.534255812497593
+    },
+    {
+      "method": "P5-early-cap",
+      "factor": null,
+      "condition": "RS-far",
+      "n": 200,
+      "divergence_count": 0,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 0,
+        "factory1": 0,
+        "destroyerengine": 0,
+        "volvo": 0,
+        "valve": 0,
+        "jackhammer": 0
+      },
+      "recovery_with_divergence": {
+        "median": 0.4,
+        "n": 200,
+        "censored": 28,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 0.4,
+        "n": 200,
+        "censored": 28,
+        "missing_target": 0
+      },
+      "L1_whole": -10.075641538557402,
+      "L1_pre5": null
+    },
+    {
+      "method": "Th_FxNLMS",
+      "factor": 0.5,
+      "condition": "RS-far",
+      "n": 200,
+      "divergence_count": 0,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 0,
+        "factory1": 0,
+        "destroyerengine": 0,
+        "volvo": 0,
+        "valve": 0,
+        "jackhammer": 0
+      },
+      "recovery_with_divergence": {
+        "median": 6.496,
+        "n": 200,
+        "censored": 32,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 6.496,
+        "n": 200,
+        "censored": 32,
+        "missing_target": 0
+      },
+      "L1_whole": -6.767344804294938,
+      "L1_pre5": -7.811393366284518
+    },
+    {
+      "method": "Th_FxNLMS",
+      "factor": 1.0,
+      "condition": "RS-far",
+      "n": 200,
+      "divergence_count": 0,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 0,
+        "factory1": 0,
+        "destroyerengine": 0,
+        "volvo": 0,
+        "valve": 0,
+        "jackhammer": 0
+      },
+      "recovery_with_divergence": {
+        "median": 4.296,
+        "n": 200,
+        "censored": 32,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 4.296,
+        "n": 200,
+        "censored": 32,
+        "missing_target": 0
+      },
+      "L1_whole": -7.760685128127878,
+      "L1_pre5": -8.181755532239833
+    },
+    {
+      "method": "Th_FxNLMS",
+      "factor": 2.0,
+      "condition": "RS-far",
+      "n": 200,
+      "divergence_count": 15,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 9,
+        "factory1": 0,
+        "destroyerengine": 0,
+        "volvo": 6,
+        "valve": 0,
+        "jackhammer": 0
+      },
+      "recovery_with_divergence": {
+        "median": 3.432,
+        "n": 200,
+        "censored": 44,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 3.08,
+        "n": 185,
+        "censored": 29,
+        "missing_target": 0
+      },
+      "L1_whole": -8.191119021632867,
+      "L1_pre5": -8.053683224051369
+    },
+    {
+      "method": "Th_FxNLMS",
+      "factor": 4.0,
+      "condition": "RS-far",
+      "n": 200,
+      "divergence_count": 63,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 20,
+        "factory1": 0,
+        "destroyerengine": 8,
+        "volvo": 20,
+        "valve": 15,
+        "jackhammer": 0
+      },
+      "recovery_with_divergence": {
+        "median": 3.224,
+        "n": 200,
+        "censored": 87,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 1.952,
+        "n": 137,
+        "censored": 24,
+        "missing_target": 0
+      },
+      "L1_whole": -9.951534476302161,
+      "L1_pre5": -9.733397094953478
+    },
+    {
+      "method": "Th_FxNLMS",
+      "factor": 8.0,
+      "condition": "RS-far",
+      "n": 200,
+      "divergence_count": 103,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 20,
+        "factory1": 3,
+        "destroyerengine": 20,
+        "volvo": 20,
+        "valve": 20,
+        "jackhammer": 20
+      },
+      "recovery_with_divergence": {
+        "median": null,
+        "n": 200,
+        "censored": 123,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 0.912,
+        "n": 97,
+        "censored": 20,
+        "missing_target": 0
+      },
+      "L1_whole": -10.216414216156517,
+      "L1_pre5": -9.609301783730885
+    },
+    {
+      "method": "Th_FxNLMS",
+      "factor": 16.0,
+      "condition": "RS-far",
+      "n": 200,
+      "divergence_count": 120,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 20,
+        "factory1": 20,
+        "destroyerengine": 20,
+        "volvo": 20,
+        "valve": 20,
+        "jackhammer": 20
+      },
+      "recovery_with_divergence": {
+        "median": null,
+        "n": 200,
+        "censored": 140,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 0.52,
+        "n": 80,
+        "censored": 20,
+        "missing_target": 0
+      },
+      "L1_whole": -10.264199356980967,
+      "L1_pre5": -9.53425254348564
+    },
+    {
+      "method": "Freq_FxNLMS_CohVSS",
+      "factor": 0.5,
+      "condition": "RS-near",
+      "n": 200,
+      "divergence_count": 0,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 0,
+        "factory1": 0,
+        "destroyerengine": 0,
+        "volvo": 0,
+        "valve": 0,
+        "jackhammer": 0
+      },
+      "recovery_with_divergence": {
+        "median": 2.08,
+        "n": 200,
+        "censored": 32,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 2.08,
+        "n": 200,
+        "censored": 32,
+        "missing_target": 0
+      },
+      "L1_whole": -8.309339656464244,
+      "L1_pre5": -8.98039455605847
+    },
+    {
+      "method": "Freq_FxNLMS_CohVSS",
+      "factor": 1.0,
+      "condition": "RS-near",
+      "n": 200,
+      "divergence_count": 0,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 0,
+        "factory1": 0,
+        "destroyerengine": 0,
+        "volvo": 0,
+        "valve": 0,
+        "jackhammer": 0
+      },
+      "recovery_with_divergence": {
+        "median": 0.976,
+        "n": 200,
+        "censored": 28,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 0.976,
+        "n": 200,
+        "censored": 28,
+        "missing_target": 0
+      },
+      "L1_whole": -8.685840383327053,
+      "L1_pre5": -8.956273722360383
+    },
+    {
+      "method": "Freq_FxNLMS_CohVSS",
+      "factor": 2.0,
+      "condition": "RS-near",
+      "n": 200,
+      "divergence_count": 20,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 0,
+        "factory1": 0,
+        "destroyerengine": 0,
+        "volvo": 0,
+        "valve": 20,
+        "jackhammer": 0
+      },
+      "recovery_with_divergence": {
+        "median": 0.6,
+        "n": 199,
+        "censored": 40,
+        "missing_target": 1
+      },
+      "recovery_without_divergence": {
+        "median": 0.536,
+        "n": 179,
+        "censored": 20,
+        "missing_target": 1
+      },
+      "L1_whole": -8.307126265798804,
+      "L1_pre5": -8.493959146995135
+    },
+    {
+      "method": "Freq_FxNLMS_CohVSS",
+      "factor": 4.0,
+      "condition": "RS-near",
+      "n": 200,
+      "divergence_count": 62,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 20,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 20,
+        "factory1": 0,
+        "destroyerengine": 2,
+        "volvo": 0,
+        "valve": 20,
+        "jackhammer": 0
+      },
+      "recovery_with_divergence": {
+        "median": 0.84,
+        "n": 198,
+        "censored": 62,
+        "missing_target": 2
+      },
+      "recovery_without_divergence": {
+        "median": 0.296,
+        "n": 136,
+        "censored": 0,
+        "missing_target": 2
+      },
+      "L1_whole": -7.022524937093214,
+      "L1_pre5": -7.168966616598039
+    },
+    {
+      "method": "Freq_FxNLMS_CohVSS",
+      "factor": 8.0,
+      "condition": "RS-near",
+      "n": 200,
+      "divergence_count": 175,
+      "divergence_by_noise": {
+        "G": 2,
+        "II300": 20,
+        "a145": 14,
+        "a120": 19,
+        "machinegun": 20,
+        "factory1": 20,
+        "destroyerengine": 20,
+        "volvo": 20,
+        "valve": 20,
+        "jackhammer": 20
+      },
+      "recovery_with_divergence": {
+        "median": null,
+        "n": 200,
+        "censored": 175,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 0.28800000000000003,
+        "n": 25,
+        "censored": 0,
+        "missing_target": 0
+      },
+      "L1_whole": -6.793998102305666,
+      "L1_pre5": -8.01504358604032
+    },
+    {
+      "method": "Freq_FxNLMS_CohVSS",
+      "factor": 16.0,
+      "condition": "RS-near",
+      "n": 200,
+      "divergence_count": 200,
+      "divergence_by_noise": {
+        "G": 20,
+        "II300": 20,
+        "a145": 20,
+        "a120": 20,
+        "machinegun": 20,
+        "factory1": 20,
+        "destroyerengine": 20,
+        "volvo": 20,
+        "valve": 20,
+        "jackhammer": 20
+      },
+      "recovery_with_divergence": {
+        "median": null,
+        "n": 200,
+        "censored": 200,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": null,
+        "n": 0,
+        "censored": 0,
+        "missing_target": 0
+      },
+      "L1_whole": null,
+      "L1_pre5": null
+    },
+    {
+      "method": "FxNLMS",
+      "factor": 0.5,
+      "condition": "RS-near",
+      "n": 200,
+      "divergence_count": 0,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 0,
+        "factory1": 0,
+        "destroyerengine": 0,
+        "volvo": 0,
+        "valve": 0,
+        "jackhammer": 0
+      },
+      "recovery_with_divergence": {
+        "median": 5.256,
+        "n": 200,
+        "censored": 32,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 5.256,
+        "n": 200,
+        "censored": 32,
+        "missing_target": 0
+      },
+      "L1_whole": -6.077528858335711,
+      "L1_pre5": -7.811435166207348
+    },
+    {
+      "method": "FxNLMS",
+      "factor": 1.0,
+      "condition": "RS-near",
+      "n": 200,
+      "divergence_count": 0,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 0,
+        "factory1": 0,
+        "destroyerengine": 0,
+        "volvo": 0,
+        "valve": 0,
+        "jackhammer": 0
+      },
+      "recovery_with_divergence": {
+        "median": 3.3200000000000003,
+        "n": 200,
+        "censored": 32,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 3.3200000000000003,
+        "n": 200,
+        "censored": 32,
+        "missing_target": 0
+      },
+      "L1_whole": -6.919299454151924,
+      "L1_pre5": -8.181760336657234
+    },
+    {
+      "method": "FxNLMS",
+      "factor": 2.0,
+      "condition": "RS-near",
+      "n": 200,
+      "divergence_count": 19,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 12,
+        "factory1": 0,
+        "destroyerengine": 0,
+        "volvo": 7,
+        "valve": 0,
+        "jackhammer": 0
+      },
+      "recovery_with_divergence": {
+        "median": 2.7680000000000002,
+        "n": 200,
+        "censored": 47,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 2.712,
+        "n": 181,
+        "censored": 28,
+        "missing_target": 0
+      },
+      "L1_whole": -7.663106201485324,
+      "L1_pre5": -8.51875844627556
+    },
+    {
+      "method": "FxNLMS",
+      "factor": 4.0,
+      "condition": "RS-near",
+      "n": 200,
+      "divergence_count": 64,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 20,
+        "factory1": 0,
+        "destroyerengine": 9,
+        "volvo": 20,
+        "valve": 15,
+        "jackhammer": 0
+      },
+      "recovery_with_divergence": {
+        "median": 3.216,
+        "n": 200,
+        "censored": 88,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 1.464,
+        "n": 136,
+        "censored": 24,
+        "missing_target": 0
+      },
+      "L1_whole": -9.035669825840754,
+      "L1_pre5": -9.726451891278122
+    },
+    {
+      "method": "FxNLMS",
+      "factor": 8.0,
+      "condition": "RS-near",
+      "n": 200,
+      "divergence_count": 100,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 20,
+        "factory1": 0,
+        "destroyerengine": 20,
+        "volvo": 20,
+        "valve": 20,
+        "jackhammer": 20
+      },
+      "recovery_with_divergence": {
+        "median": null,
+        "n": 200,
+        "censored": 120,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 0.776,
+        "n": 100,
+        "censored": 20,
+        "missing_target": 0
+      },
+      "L1_whole": -9.146704059991842,
+      "L1_pre5": -9.492749446200373
+    },
+    {
+      "method": "FxNLMS",
+      "factor": 16.0,
+      "condition": "RS-near",
+      "n": 200,
+      "divergence_count": 120,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 20,
+        "factory1": 20,
+        "destroyerengine": 20,
+        "volvo": 20,
+        "valve": 20,
+        "jackhammer": 20
+      },
+      "recovery_with_divergence": {
+        "median": null,
+        "n": 200,
+        "censored": 140,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 0.432,
+        "n": 80,
+        "censored": 20,
+        "missing_target": 0
+      },
+      "L1_whole": -9.417584058181358,
+      "L1_pre5": -9.534255812497593
+    },
+    {
+      "method": "P5-early-cap",
+      "factor": null,
+      "condition": "RS-near",
+      "n": 200,
+      "divergence_count": 0,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 0,
+        "factory1": 0,
+        "destroyerengine": 0,
+        "volvo": 0,
+        "valve": 0,
+        "jackhammer": 0
+      },
+      "recovery_with_divergence": {
+        "median": 0.36,
+        "n": 200,
+        "censored": 28,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 0.36,
+        "n": 200,
+        "censored": 28,
+        "missing_target": 0
+      },
+      "L1_whole": -8.924745120164777,
+      "L1_pre5": null
+    },
+    {
+      "method": "Th_FxNLMS",
+      "factor": 0.5,
+      "condition": "RS-near",
+      "n": 200,
+      "divergence_count": 0,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 0,
+        "factory1": 0,
+        "destroyerengine": 0,
+        "volvo": 0,
+        "valve": 0,
+        "jackhammer": 0
+      },
+      "recovery_with_divergence": {
+        "median": 5.256,
+        "n": 200,
+        "censored": 32,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 5.256,
+        "n": 200,
+        "censored": 32,
+        "missing_target": 0
+      },
+      "L1_whole": -6.077457897667714,
+      "L1_pre5": -7.811393366284518
+    },
+    {
+      "method": "Th_FxNLMS",
+      "factor": 1.0,
+      "condition": "RS-near",
+      "n": 200,
+      "divergence_count": 0,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 0,
+        "factory1": 0,
+        "destroyerengine": 0,
+        "volvo": 0,
+        "valve": 0,
+        "jackhammer": 0
+      },
+      "recovery_with_divergence": {
+        "median": 3.3200000000000003,
+        "n": 200,
+        "censored": 32,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 3.3200000000000003,
+        "n": 200,
+        "censored": 32,
+        "missing_target": 0
+      },
+      "L1_whole": -6.919259940070863,
+      "L1_pre5": -8.181755532239833
+    },
+    {
+      "method": "Th_FxNLMS",
+      "factor": 2.0,
+      "condition": "RS-near",
+      "n": 200,
+      "divergence_count": 19,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 12,
+        "factory1": 0,
+        "destroyerengine": 0,
+        "volvo": 7,
+        "valve": 0,
+        "jackhammer": 0
+      },
+      "recovery_with_divergence": {
+        "median": 2.7680000000000002,
+        "n": 200,
+        "censored": 47,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 2.712,
+        "n": 181,
+        "censored": 28,
+        "missing_target": 0
+      },
+      "L1_whole": -7.663082664672324,
+      "L1_pre5": -8.518762822475832
+    },
+    {
+      "method": "Th_FxNLMS",
+      "factor": 4.0,
+      "condition": "RS-near",
+      "n": 200,
+      "divergence_count": 64,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 20,
+        "factory1": 0,
+        "destroyerengine": 9,
+        "volvo": 20,
+        "valve": 15,
+        "jackhammer": 0
+      },
+      "recovery_with_divergence": {
+        "median": 3.216,
+        "n": 200,
+        "censored": 88,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 1.464,
+        "n": 136,
+        "censored": 24,
+        "missing_target": 0
+      },
+      "L1_whole": -9.035652407164077,
+      "L1_pre5": -9.72645561119325
+    },
+    {
+      "method": "Th_FxNLMS",
+      "factor": 8.0,
+      "condition": "RS-near",
+      "n": 200,
+      "divergence_count": 100,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 20,
+        "factory1": 0,
+        "destroyerengine": 20,
+        "volvo": 20,
+        "valve": 20,
+        "jackhammer": 20
+      },
+      "recovery_with_divergence": {
+        "median": null,
+        "n": 200,
+        "censored": 120,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 0.776,
+        "n": 100,
+        "censored": 20,
+        "missing_target": 0
+      },
+      "L1_whole": -9.146694253406,
+      "L1_pre5": -9.492749227482813
+    },
+    {
+      "method": "Th_FxNLMS",
+      "factor": 16.0,
+      "condition": "RS-near",
+      "n": 200,
+      "divergence_count": 120,
+      "divergence_by_noise": {
+        "G": 0,
+        "II300": 0,
+        "a145": 0,
+        "a120": 0,
+        "machinegun": 20,
+        "factory1": 20,
+        "destroyerengine": 20,
+        "volvo": 20,
+        "valve": 20,
+        "jackhammer": 20
+      },
+      "recovery_with_divergence": {
+        "median": null,
+        "n": 200,
+        "censored": 140,
+        "missing_target": 0
+      },
+      "recovery_without_divergence": {
+        "median": 0.432,
+        "n": 80,
+        "censored": 20,
+        "missing_target": 0
+      },
+      "L1_whole": -9.417574726441513,
+      "L1_pre5": -9.53425254348564
+    }
+  ]
+}
