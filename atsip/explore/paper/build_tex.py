@@ -56,7 +56,7 @@ def cites(md):
     return re.sub(r"\[([^\[\]]+)\]", one, md)
 
 
-FIG = {"1": "fig:system", "2": "fig:structure", "3": "fig:anr", "4": "fig:frozen", "5": "fig:classes"}
+FIG = {"1": "fig:system", "2": "fig:structure", "3": "fig:anr", "4": "fig:frozen", "5": "fig:stepsweep", "6": "fig:classes"}
 
 
 def xref(tex, stats):
