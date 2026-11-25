@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "settings": {
+    "key": "x1_q1_99",
+    "mu": 0.01875,
+    "params": {
+      "percentiles": [
+        1,
+        99
+      ],
+      "window": 8000,
+      "interval": 128,
+      "eps": 0.001
+    }
+  },
+  "rows": [
+    {
+      "method": "Th2_FxNLMS",
+      "cls": "a145",
+      "scen": "ENm10",
+      "seed": 110,
+      "kind": "base",
+      "variant": "main",
+      "key": "x1_q1_99",
+      "mu": 0.01875,
+      "div": 0,
+      "seconds": 1.36,
+      "L1_whole": -9.563466669838292,
+      "L1_last10": -10.038564379881874,
+      "L2_last5": -12.654090349644724,
+      "L1_ev": -8.741867169013013,
+      "L1_pre": -10.610671957410677,
+      "clip_x": 10067,
+      "clip_e": 14005,
+      "clip_n": 480000,
+      "post_div": null,
+      "same_as_fx_metrics": 0,
+      "same_as_fx_waveform": 0,
+      "same_as_fx_waveform_tol": 0
+    }
+  ]
+}

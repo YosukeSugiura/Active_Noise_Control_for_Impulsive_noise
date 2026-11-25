@@ -1,0 +1,250 @@
+{
+  "version": 1,
+  "settings": [
+    {
+      "key": "x1_q1_99",
+      "mu": 0.009375,
+      "params": {
+        "percentiles": [
+          1,
+          99
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "factor": 0.5
+    },
+    {
+      "key": "x1_q1_99",
+      "mu": 0.01875,
+      "params": {
+        "percentiles": [
+          1,
+          99
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "factor": 1.0
+    },
+    {
+      "key": "x1_q1_99",
+      "mu": 0.0375,
+      "params": {
+        "percentiles": [
+          1,
+          99
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "factor": 2.0
+    },
+    {
+      "key": "x1_q1_99",
+      "mu": 0.075,
+      "params": {
+        "percentiles": [
+          1,
+          99
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "factor": 4.0
+    },
+    {
+      "key": "x1_q1_99",
+      "mu": 0.15,
+      "params": {
+        "percentiles": [
+          1,
+          99
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "factor": 8.0
+    },
+    {
+      "key": "x1_q1_99",
+      "mu": 0.3,
+      "params": {
+        "percentiles": [
+          1,
+          99
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "factor": 16.0
+    }
+  ],
+  "rows": [
+    {
+      "method": "Th2_FxNLMS",
+      "cls": "machinegun",
+      "scen": "RS-far",
+      "seed": 116,
+      "kind": "base",
+      "variant": "sweep",
+      "key": "x1_q1_99",
+      "mu": 0.009375,
+      "div": 0,
+      "seconds": 1.52,
+      "L1_whole": -2.822940498907364,
+      "L1_last10": -4.062123502824968,
+      "L2_last5": -7.418347193898973,
+      "L1_ev": -1.334039408095479,
+      "L1_pre": -1.7097463208083372,
+      "rec_target": 0.0019351338704000356,
+      "rec_blocks": 116,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "clip_x": 14747,
+      "clip_e": 17702,
+      "clip_n": 480000,
+      "post_div": 0,
+      "sweep_rec_limit": 1751,
+      "L1_pre5": -1.9425590596724265,
+      "factor": 0.5
+    },
+    {
+      "method": "Th2_FxNLMS",
+      "cls": "machinegun",
+      "scen": "RS-far",
+      "seed": 116,
+      "kind": "base",
+      "variant": "sweep",
+      "key": "x1_q1_99",
+      "mu": 0.01875,
+      "div": 0,
+      "seconds": 1.58,
+      "L1_whole": -1.8342202623811403,
+      "L1_last10": -3.359670010992983,
+      "L2_last5": -6.309162176078606,
+      "L1_ev": -0.7385781721334325,
+      "L1_pre": -0.4430702165973033,
+      "rec_target": 0.0025258157329393614,
+      "rec_blocks": 114,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "clip_x": 14747,
+      "clip_e": 17501,
+      "clip_n": 480000,
+      "post_div": 0,
+      "sweep_rec_limit": 1751,
+      "L1_pre5": -0.5718157831078965,
+      "factor": 1.0
+    },
+    {
+      "method": "Th2_FxNLMS",
+      "cls": "machinegun",
+      "scen": "RS-far",
+      "seed": 116,
+      "kind": "base",
+      "variant": "sweep",
+      "key": "x1_q1_99",
+      "mu": 0.0375,
+      "div": 0,
+      "seconds": 1.47,
+      "L1_whole": 5.2969664331799855,
+      "L1_last10": 2.65549463196146,
+      "L2_last5": 0.8404188329617469,
+      "L1_ev": 5.2129464039483215,
+      "L1_pre": 10.440586120126278,
+      "rec_target": 0.013760245644654046,
+      "rec_blocks": 101,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "clip_x": 14747,
+      "clip_e": 14101,
+      "clip_n": 480000,
+      "post_div": 0,
+      "sweep_rec_limit": 1751,
+      "L1_pre5": 7.791800903738572,
+      "factor": 2.0
+    },
+    {
+      "method": "Th2_FxNLMS",
+      "cls": "machinegun",
+      "scen": "RS-far",
+      "seed": 116,
+      "kind": "base",
+      "variant": "sweep",
+      "key": "x1_q1_99",
+      "mu": 0.075,
+      "div": 1,
+      "seconds": 0.03,
+      "div_block": 96,
+      "failure": {
+        "band": "250\u2013500",
+        "hz": 262.0,
+        "samples": 12288,
+        "sample": 12415
+      },
+      "clip_x": 596,
+      "clip_e": 2060,
+      "clip_n": 12416,
+      "post_div": null,
+      "sweep_rec_limit": 1751,
+      "factor": 4.0
+    },
+    {
+      "method": "Th2_FxNLMS",
+      "cls": "machinegun",
+      "scen": "RS-far",
+      "seed": 116,
+      "kind": "base",
+      "variant": "sweep",
+      "key": "x1_q1_99",
+      "mu": 0.15,
+      "div": 1,
+      "seconds": 0.01,
+      "div_block": 55,
+      "failure": {
+        "band": "250\u2013500",
+        "hz": 252.0,
+        "samples": 7040,
+        "sample": 7167
+      },
+      "clip_x": 446,
+      "clip_e": 1384,
+      "clip_n": 7168,
+      "post_div": null,
+      "sweep_rec_limit": 1751,
+      "factor": 8.0
+    },
+    {
+      "method": "Th2_FxNLMS",
+      "cls": "machinegun",
+      "scen": "RS-far",
+      "seed": 116,
+      "kind": "base",
+      "variant": "sweep",
+      "key": "x1_q1_99",
+      "mu": 0.3,
+      "div": 1,
+      "seconds": 0.01,
+      "div_block": 46,
+      "failure": {
+        "band": "250\u2013500",
+        "hz": 256.0,
+        "samples": 5888,
+        "sample": 6015
+      },
+      "clip_x": 363,
+      "clip_e": 1114,
+      "clip_n": 6016,
+      "post_div": null,
+      "sweep_rec_limit": 1751,
+      "factor": 16.0
+    }
+  ]
+}

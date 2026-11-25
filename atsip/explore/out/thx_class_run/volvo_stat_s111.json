@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "settings": {
+    "key": "x0.5_q1_99",
+    "mu": 0.009375,
+    "params": {
+      "percentiles": [
+        1,
+        99
+      ],
+      "window": 8000,
+      "interval": 128,
+      "eps": 0.001
+    }
+  },
+  "rows": [
+    {
+      "method": "Th2_FxNLMS",
+      "cls": "volvo",
+      "scen": "stat",
+      "seed": 111,
+      "kind": "base",
+      "variant": "class",
+      "key": "x0.5_q1_99",
+      "mu": 0.009375,
+      "div": 0,
+      "seconds": 0.97,
+      "L1_whole": -3.6617642277756035,
+      "L1_last10": -3.5692364462440898,
+      "L2_last5": -3.3942593539790193,
+      "clip_x": 10887,
+      "clip_e": 10841,
+      "clip_n": 480000,
+      "post_div": null
+    }
+  ]
+}

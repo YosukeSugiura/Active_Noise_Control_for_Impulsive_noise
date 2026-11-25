@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "settings": {
+    "key": "x2_q1_99",
+    "mu": 0.0375,
+    "params": {
+      "percentiles": [
+        1,
+        99
+      ],
+      "window": 8000,
+      "interval": 128,
+      "eps": 0.001
+    }
+  },
+  "rows": [
+    {
+      "method": "Th2_FxNLMS",
+      "cls": "valve",
+      "scen": "RS-far",
+      "seed": 117,
+      "kind": "base",
+      "variant": "class",
+      "key": "x2_q1_99",
+      "mu": 0.0375,
+      "div": 0,
+      "seconds": 1.13,
+      "L1_whole": -8.267839071551833,
+      "L1_last10": -11.04313286095785,
+      "L2_last5": -10.491499410124439,
+      "L1_ev": -6.9721684599758875,
+      "L1_pre": -6.745369595950254,
+      "rec_target": 0.0018616546302602708,
+      "rec_blocks": 100,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "clip_x": 11090,
+      "clip_e": 12789,
+      "clip_n": 480000,
+      "post_div": 0,
+      "sweep_rec_limit": 1751,
+      "L1_pre5": -6.85866977334954
+    }
+  ]
+}

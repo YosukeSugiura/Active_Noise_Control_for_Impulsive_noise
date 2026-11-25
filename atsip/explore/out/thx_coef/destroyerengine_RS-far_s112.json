@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "settings": {
+    "key": "x1_q1_99",
+    "mu": 0.01875,
+    "params": {
+      "percentiles": [
+        1,
+        99
+      ],
+      "window": 8000,
+      "interval": 128,
+      "eps": 0.001
+    }
+  },
+  "rows": [
+    {
+      "method": "Th2_FxNLMS",
+      "cls": "destroyerengine",
+      "scen": "RS-far",
+      "seed": 112,
+      "variant": "main",
+      "kind": "base",
+      "div": 0,
+      "J": {
+        "16": -0.34316346934477504,
+        "64": -2.5309459217288706
+      }
+    }
+  ]
+}

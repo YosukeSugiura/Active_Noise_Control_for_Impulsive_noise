@@ -1,0 +1,253 @@
+{
+  "version": 1,
+  "settings": [
+    {
+      "key": "x1_q1_99",
+      "mu": 0.009375,
+      "params": {
+        "percentiles": [
+          1,
+          99
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "factor": 0.5
+    },
+    {
+      "key": "x1_q1_99",
+      "mu": 0.01875,
+      "params": {
+        "percentiles": [
+          1,
+          99
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "factor": 1.0
+    },
+    {
+      "key": "x1_q1_99",
+      "mu": 0.0375,
+      "params": {
+        "percentiles": [
+          1,
+          99
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "factor": 2.0
+    },
+    {
+      "key": "x1_q1_99",
+      "mu": 0.075,
+      "params": {
+        "percentiles": [
+          1,
+          99
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "factor": 4.0
+    },
+    {
+      "key": "x1_q1_99",
+      "mu": 0.15,
+      "params": {
+        "percentiles": [
+          1,
+          99
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "factor": 8.0
+    },
+    {
+      "key": "x1_q1_99",
+      "mu": 0.3,
+      "params": {
+        "percentiles": [
+          1,
+          99
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "factor": 16.0
+    }
+  ],
+  "rows": [
+    {
+      "method": "Th2_FxNLMS",
+      "cls": "destroyerengine",
+      "scen": "RS-far",
+      "seed": 109,
+      "kind": "base",
+      "variant": "sweep",
+      "key": "x1_q1_99",
+      "mu": 0.009375,
+      "div": 0,
+      "seconds": 2.21,
+      "L1_whole": -9.827792897381165,
+      "L1_last10": -13.090843081775464,
+      "L2_last5": -14.55896760489665,
+      "L1_ev": -4.769613451936898,
+      "L1_pre": -8.377360435570273,
+      "rec_target": 0.0007654694630053666,
+      "rec_blocks": 1480,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "clip_x": 10343,
+      "clip_e": 9267,
+      "clip_n": 480000,
+      "post_div": 0,
+      "sweep_rec_limit": 1751,
+      "L1_pre5": -8.893197824697005,
+      "factor": 0.5
+    },
+    {
+      "method": "Th2_FxNLMS",
+      "cls": "destroyerengine",
+      "scen": "RS-far",
+      "seed": 109,
+      "kind": "base",
+      "variant": "sweep",
+      "key": "x1_q1_99",
+      "mu": 0.01875,
+      "div": 0,
+      "seconds": 2.11,
+      "L1_whole": -11.233360936448927,
+      "L1_last10": -15.261485191384377,
+      "L2_last5": -16.600944354090043,
+      "L1_ev": -5.835995476757425,
+      "L1_pre": -8.950100459438785,
+      "rec_target": 0.0006003543058345316,
+      "rec_blocks": 982,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "clip_x": 10343,
+      "clip_e": 9260,
+      "clip_n": 480000,
+      "post_div": 0,
+      "sweep_rec_limit": 1751,
+      "L1_pre5": -9.593309217953994,
+      "factor": 1.0
+    },
+    {
+      "method": "Th2_FxNLMS",
+      "cls": "destroyerengine",
+      "scen": "RS-far",
+      "seed": 109,
+      "kind": "base",
+      "variant": "sweep",
+      "key": "x1_q1_99",
+      "mu": 0.0375,
+      "div": 0,
+      "seconds": 2.11,
+      "L1_whole": -12.409975486878457,
+      "L1_last10": -16.96672285553222,
+      "L2_last5": -17.94855963499491,
+      "L1_ev": -7.190802954921957,
+      "L1_pre": -9.180871598413724,
+      "rec_target": 0.0005344814884504267,
+      "rec_blocks": 694,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "clip_x": 10343,
+      "clip_e": 9336,
+      "clip_n": 480000,
+      "post_div": 0,
+      "sweep_rec_limit": 1751,
+      "L1_pre5": -9.897026270291637,
+      "factor": 2.0
+    },
+    {
+      "method": "Th2_FxNLMS",
+      "cls": "destroyerengine",
+      "scen": "RS-far",
+      "seed": 109,
+      "kind": "base",
+      "variant": "sweep",
+      "key": "x1_q1_99",
+      "mu": 0.075,
+      "div": 0,
+      "seconds": 2.01,
+      "L1_whole": -12.834882954934828,
+      "L1_last10": -17.132786300947558,
+      "L2_last5": -13.620236747184574,
+      "L1_ev": -8.92780260829899,
+      "L1_pre": -9.093333082690107,
+      "rec_target": 0.0016244894260918795,
+      "rec_blocks": 99,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "clip_x": 10343,
+      "clip_e": 10637,
+      "clip_n": 480000,
+      "post_div": 0,
+      "sweep_rec_limit": 1751,
+      "L1_pre5": -9.802258197959553,
+      "factor": 4.0
+    },
+    {
+      "method": "Th2_FxNLMS",
+      "cls": "destroyerengine",
+      "scen": "RS-far",
+      "seed": 109,
+      "kind": "base",
+      "variant": "sweep",
+      "key": "x1_q1_99",
+      "mu": 0.15,
+      "div": 1,
+      "seconds": 0.03,
+      "div_block": 64,
+      "failure": {
+        "band": "2000\u20134000",
+        "hz": 2250.0,
+        "samples": 8192,
+        "sample": 8319
+      },
+      "clip_x": 241,
+      "clip_e": 2218,
+      "clip_n": 8320,
+      "post_div": null,
+      "sweep_rec_limit": 1751,
+      "factor": 8.0
+    },
+    {
+      "method": "Th2_FxNLMS",
+      "cls": "destroyerengine",
+      "scen": "RS-far",
+      "seed": 109,
+      "kind": "base",
+      "variant": "sweep",
+      "key": "x1_q1_99",
+      "mu": 0.3,
+      "div": 1,
+      "seconds": 0.01,
+      "div_block": 13,
+      "failure": {
+        "band": "2000\u20134000",
+        "hz": 2208.0,
+        "samples": 1664,
+        "sample": 1791
+      },
+      "clip_x": 53,
+      "clip_e": 762,
+      "clip_n": 1792,
+      "post_div": null,
+      "sweep_rec_limit": 1751,
+      "factor": 16.0
+    }
+  ]
+}

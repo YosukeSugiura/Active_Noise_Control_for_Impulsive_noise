@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "settings": {
+    "key": "x1_q1_99",
+    "mu": 0.01875,
+    "params": {
+      "percentiles": [
+        1,
+        99
+      ],
+      "window": 8000,
+      "interval": 128,
+      "eps": 0.001
+    }
+  },
+  "rows": [
+    {
+      "method": "Th2_FxNLMS",
+      "cls": "jackhammer",
+      "scen": "RS-near",
+      "seed": 115,
+      "kind": "base",
+      "variant": "main",
+      "key": "x1_q1_99",
+      "mu": 0.01875,
+      "div": 0,
+      "seconds": 2.01,
+      "L1_whole": -7.468277269348709,
+      "L1_last10": -7.131164091453039,
+      "L2_last5": -7.487461160164433,
+      "L1_ev": -2.2515279737836833,
+      "L1_pre": -8.154352824800725,
+      "rec_target": 1.8769661655544772e-05,
+      "rec_blocks": 655,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "clip_x": 11369,
+      "clip_e": 11908,
+      "clip_n": 480000,
+      "post_div": 0,
+      "sweep_rec_limit": 1751,
+      "L1_pre5": -8.779760213536132,
+      "same_as_fx_metrics": 0,
+      "same_as_fx_waveform": 0,
+      "same_as_fx_waveform_tol": 0
+    }
+  ]
+}

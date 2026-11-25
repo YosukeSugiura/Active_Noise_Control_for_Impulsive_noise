@@ -22,7 +22,7 @@
 | Algorithm | Step size μ | Other setting |
 | --- | --- | --- |
 | FxNLMS | 0.01875 | -- |
-| Th-FxNLMS | 0.01875 | Error clipping to [-200, 200] |
+| Th-FxNLMS | 0.01875 | Clipping at the 1st and 99th percentiles |
 | FxlogNLMS | 0.015625 | -- |
 | MFxLMM | 0.000125 | -- |
 | FxNFLOC | 0.1 | -- |

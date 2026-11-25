@@ -26,7 +26,8 @@ from paired_ci import paired
 P, A, N = "P5-early-cap", "Freq_FxNLMS_CohVSS", "nors-cap"
 C = "C_FXLMS"                                   # convex combination (Ferrer et al. 2013), results in out/cc_run and out/cc_coef
 M = "MFxNLMS"                                   # normalized modified FxLMS (Bjarnason 1992), results in out/mfx_run and out/mfx_coef
-EXTERNAL_NAMES = {"Th_FxNLMS": "Th-FxNLMS", "EVSS_FxeLMS": "EVSS-FxeLMS", C: "C-FXLMS", M: "MFxNLMS"}
+TH = "Th2_FxNLMS"                               # Th-FxNLMS with percentile clipping of reference and error (Akhtar and Mitsuhashi 2009), results in out/thx_run, out/thx_coef, TUNE_thx.json
+EXTERNAL_NAMES = {TH: "Th-FxNLMS", "EVSS_FxeLMS": "EVSS-FxeLMS", C: "C-FXLMS", M: "MFxNLMS"}
 NAMES = {P: "Proposed", A: "CohVSS-FxNLMS", N: "Without trials",
          "P5-early-noG": "Proposed without 1/g", "P4-cap": "Immediate restart",
          "TP-always-cap": "Always-on background trial", "ND-always-cap": "Always reconstructed error",
@@ -240,9 +241,14 @@ def table1():
         (R(r"Discard threshold $\rho_{\mathrm{abort}}$"),"4, from block 2 of the trial"),
         (R(r"Transfer rules $(n_1, \rho_1)$; $(n_2, \rho_2)$"),"(4, 0.25); (16, 0.5)"),
     ]
-    baselines=[(NAMES.get(m,EXTERNAL_NAMES.get(m,m)),f"{r['mu']:g}",
-                f"Error clipping to [{r['params']['c1']:g}, {r['params']['c2']:g}]" if m=="Th_FxNLMS" else "--")
-               for m,r in tune["chosen"].items()]
+    thx=json.loads((ROOT/"TUNE_thx.json").read_text())["chosen"][TH]
+    lo,hi=thx["params"]["percentiles"]
+    baselines=[]
+    for m,r in tune["chosen"].items():
+        if m=="Th_FxNLMS":      # the old implementation (clipping inactive) is replaced by Th2_FxNLMS
+            baselines.append((EXTERNAL_NAMES[TH],f"{thx['mu']:g}",f"Clipping at the {lo:g}st and {hi:g}th percentiles"))
+        else:
+            baselines.append((NAMES.get(m,EXTERNAL_NAMES.get(m,m)),f"{r['mu']:g}","--"))
     cc=json.loads((ROOT/"TUNE_cc.json").read_text())["chosen"][C]
     baselines.append((EXTERNAL_NAMES[C],f"{cc['mu']:g} (fast), {cc['mu']*cc['params']['ratio']:g} (slow)",
                       "Normalized component filters" if cc["params"]["norm"] else "LMS component filters"))

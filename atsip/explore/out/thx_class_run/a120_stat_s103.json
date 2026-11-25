@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "settings": {
+    "key": "x1_q1_99",
+    "mu": 0.01875,
+    "params": {
+      "percentiles": [
+        1,
+        99
+      ],
+      "window": 8000,
+      "interval": 128,
+      "eps": 0.001
+    }
+  },
+  "rows": [
+    {
+      "method": "Th2_FxNLMS",
+      "cls": "a120",
+      "scen": "stat",
+      "seed": 103,
+      "kind": "base",
+      "variant": "class",
+      "key": "x1_q1_99",
+      "mu": 0.01875,
+      "div": 0,
+      "seconds": 1.98,
+      "L1_whole": -8.743142861319656,
+      "L1_last10": -9.747150452117637,
+      "L2_last5": -12.505560654052431,
+      "clip_x": 10519,
+      "clip_e": 16488,
+      "clip_n": 480000,
+      "post_div": null
+    }
+  ]
+}

@@ -1,0 +1,454 @@
+{
+  "version": 1,
+  "chosen": {
+    "Th2_FxNLMS": {
+      "key": "x1_q1_99",
+      "mu": 0.01875,
+      "params": {
+        "percentiles": [
+          1,
+          99
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "div": 0,
+      "L1_whole": -7.871888053567242
+    }
+  },
+  "per_class": {
+    "Th2_FxNLMS": {
+      "G": {
+        "key": "x8_q1_99",
+        "mu": 0.15,
+        "params": {
+          "percentiles": [
+            1,
+            99
+          ],
+          "window": 8000,
+          "interval": 128,
+          "eps": 0.001
+        },
+        "div": 0,
+        "L1_whole": -12.768227040889775
+      },
+      "a145": {
+        "key": "x2_q1_99",
+        "mu": 0.0375,
+        "params": {
+          "percentiles": [
+            1,
+            99
+          ],
+          "window": 8000,
+          "interval": 128,
+          "eps": 0.001
+        },
+        "div": 0,
+        "L1_whole": -9.940414869433344
+      },
+      "II300": {
+        "key": "x4_q10_90",
+        "mu": 0.075,
+        "params": {
+          "percentiles": [
+            10,
+            90
+          ],
+          "window": 8000,
+          "interval": 128,
+          "eps": 0.001
+        },
+        "div": 0,
+        "L1_whole": -10.530408815298056
+      },
+      "machinegun": {
+        "key": "x0.25_q1_99",
+        "mu": 0.0046875,
+        "params": {
+          "percentiles": [
+            1,
+            99
+          ],
+          "window": 8000,
+          "interval": 128,
+          "eps": 0.001
+        },
+        "div": 0,
+        "L1_whole": -2.7844238387639155
+      },
+      "factory1": {
+        "key": "x4_q1_99",
+        "mu": 0.075,
+        "params": {
+          "percentiles": [
+            1,
+            99
+          ],
+          "window": 8000,
+          "interval": 128,
+          "eps": 0.001
+        },
+        "div": 0,
+        "L1_whole": -8.635740381540973
+      },
+      "destroyerengine": {
+        "key": "x2_q1_99",
+        "mu": 0.0375,
+        "params": {
+          "percentiles": [
+            1,
+            99
+          ],
+          "window": 8000,
+          "interval": 128,
+          "eps": 0.001
+        },
+        "div": 0,
+        "L1_whole": -11.10274707812577
+      },
+      "volvo": {
+        "key": "x0.5_q1_99",
+        "mu": 0.009375,
+        "params": {
+          "percentiles": [
+            1,
+            99
+          ],
+          "window": 8000,
+          "interval": 128,
+          "eps": 0.001
+        },
+        "div": 0,
+        "L1_whole": -5.564614095867185
+      },
+      "valve": {
+        "key": "x2_q1_99",
+        "mu": 0.0375,
+        "params": {
+          "percentiles": [
+            1,
+            99
+          ],
+          "window": 8000,
+          "interval": 128,
+          "eps": 0.001
+        },
+        "div": 0,
+        "L1_whole": -8.068935181703008
+      },
+      "jackhammer": {
+        "key": "x2_q1_99",
+        "mu": 0.0375,
+        "params": {
+          "percentiles": [
+            1,
+            99
+          ],
+          "window": 8000,
+          "interval": 128,
+          "eps": 0.001
+        },
+        "div": 0,
+        "L1_whole": -8.60431946981179
+      }
+    }
+  },
+  "grid": [
+    {
+      "key": "x0.25_q1_99",
+      "mu": 0.0046875,
+      "params": {
+        "percentiles": [
+          1,
+          99
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "div": 0,
+      "L1_whole": -6.1883335270835325
+    },
+    {
+      "key": "x0.25_q5_95",
+      "mu": 0.0046875,
+      "params": {
+        "percentiles": [
+          5,
+          95
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "div": 0,
+      "L1_whole": -6.110038718873162
+    },
+    {
+      "key": "x0.25_q10_90",
+      "mu": 0.0046875,
+      "params": {
+        "percentiles": [
+          10,
+          90
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "div": 0,
+      "L1_whole": -6.010171363573444
+    },
+    {
+      "key": "x0.5_q1_99",
+      "mu": 0.009375,
+      "params": {
+        "percentiles": [
+          1,
+          99
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "div": 0,
+      "L1_whole": -7.267759766440374
+    },
+    {
+      "key": "x0.5_q5_95",
+      "mu": 0.009375,
+      "params": {
+        "percentiles": [
+          5,
+          95
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "div": 0,
+      "L1_whole": -7.195231447487505
+    },
+    {
+      "key": "x0.5_q10_90",
+      "mu": 0.009375,
+      "params": {
+        "percentiles": [
+          10,
+          90
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "div": 0,
+      "L1_whole": -7.10947685281759
+    },
+    {
+      "key": "x1_q1_99",
+      "mu": 0.01875,
+      "params": {
+        "percentiles": [
+          1,
+          99
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "div": 0,
+      "L1_whole": -7.871888053567242
+    },
+    {
+      "key": "x1_q5_95",
+      "mu": 0.01875,
+      "params": {
+        "percentiles": [
+          5,
+          95
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "div": 0,
+      "L1_whole": -7.802887519035766
+    },
+    {
+      "key": "x1_q10_90",
+      "mu": 0.01875,
+      "params": {
+        "percentiles": [
+          10,
+          90
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "div": 0,
+      "L1_whole": -7.7350016226986815
+    },
+    {
+      "key": "x2_q1_99",
+      "mu": 0.0375,
+      "params": {
+        "percentiles": [
+          1,
+          99
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "div": 9,
+      "L1_whole": -6.7167779311317055
+    },
+    {
+      "key": "x2_q5_95",
+      "mu": 0.0375,
+      "params": {
+        "percentiles": [
+          5,
+          95
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "div": 10,
+      "L1_whole": -8.57122479812896
+    },
+    {
+      "key": "x2_q10_90",
+      "mu": 0.0375,
+      "params": {
+        "percentiles": [
+          10,
+          90
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "div": 10,
+      "L1_whole": -8.696497520846892
+    },
+    {
+      "key": "x4_q1_99",
+      "mu": 0.075,
+      "params": {
+        "percentiles": [
+          1,
+          99
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "div": 30,
+      "L1_whole": -9.405382328503112
+    },
+    {
+      "key": "x4_q5_95",
+      "mu": 0.075,
+      "params": {
+        "percentiles": [
+          5,
+          95
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "div": 26,
+      "L1_whole": -9.33149213414122
+    },
+    {
+      "key": "x4_q10_90",
+      "mu": 0.075,
+      "params": {
+        "percentiles": [
+          10,
+          90
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "div": 22,
+      "L1_whole": -9.00786663334343
+    },
+    {
+      "key": "x8_q1_99",
+      "mu": 0.15,
+      "params": {
+        "percentiles": [
+          1,
+          99
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "div": 52,
+      "L1_whole": -8.501830232799813
+    },
+    {
+      "key": "x8_q5_95",
+      "mu": 0.15,
+      "params": {
+        "percentiles": [
+          5,
+          95
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "div": 50,
+      "L1_whole": -8.543169476017809
+    },
+    {
+      "key": "x8_q10_90",
+      "mu": 0.15,
+      "params": {
+        "percentiles": [
+          10,
+          90
+        ],
+        "window": 8000,
+        "interval": 128,
+        "eps": 0.001
+      },
+      "div": 50,
+      "L1_whole": -8.510856787529049
+    }
+  ],
+  "classes": [
+    "G",
+    "a145",
+    "II300",
+    "machinegun",
+    "factory1",
+    "destroyerengine",
+    "volvo",
+    "valve",
+    "jackhammer"
+  ],
+  "seeds": [
+    10,
+    11,
+    12,
+    13,
+    14
+  ],
+  "scen": [
+    "stat",
+    "RS-far"
+  ],
+  "note": "Normalized online variant; 8000 past samples, 128 update; exact linear quantiles. Original window/update unverified."
+}

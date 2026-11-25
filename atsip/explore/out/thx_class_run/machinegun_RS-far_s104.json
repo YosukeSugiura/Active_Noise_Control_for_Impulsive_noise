@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "settings": {
+    "key": "x0.25_q1_99",
+    "mu": 0.0046875,
+    "params": {
+      "percentiles": [
+        1,
+        99
+      ],
+      "window": 8000,
+      "interval": 128,
+      "eps": 0.001
+    }
+  },
+  "rows": [
+    {
+      "method": "Th2_FxNLMS",
+      "cls": "machinegun",
+      "scen": "RS-far",
+      "seed": 104,
+      "kind": "base",
+      "variant": "class",
+      "key": "x0.25_q1_99",
+      "mu": 0.0046875,
+      "div": 0,
+      "seconds": 1.51,
+      "L1_whole": -3.2552859440884,
+      "L1_last10": -4.391734272285031,
+      "L2_last5": -7.94873187076106,
+      "L1_ev": -3.315383781368232,
+      "L1_pre": -3.2574620484184647,
+      "rec_target": 0.0014367449310008344,
+      "rec_blocks": 225,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "clip_x": 14438,
+      "clip_e": 18019,
+      "clip_n": 480000,
+      "post_div": 0,
+      "sweep_rec_limit": 1751,
+      "L1_pre5": -2.58560382628218
+    }
+  ]
+}

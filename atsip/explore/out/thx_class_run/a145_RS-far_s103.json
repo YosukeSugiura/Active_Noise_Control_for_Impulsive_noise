@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "settings": {
+    "key": "x2_q1_99",
+    "mu": 0.0375,
+    "params": {
+      "percentiles": [
+        1,
+        99
+      ],
+      "window": 8000,
+      "interval": 128,
+      "eps": 0.001
+    }
+  },
+  "rows": [
+    {
+      "method": "Th2_FxNLMS",
+      "cls": "a145",
+      "scen": "RS-far",
+      "seed": 103,
+      "kind": "base",
+      "variant": "class",
+      "key": "x2_q1_99",
+      "mu": 0.0375,
+      "div": 0,
+      "seconds": 2.01,
+      "L1_whole": -10.412518918853516,
+      "L1_last10": -12.482813853609969,
+      "L2_last5": -15.240498937698053,
+      "L1_ev": -5.145048766053326,
+      "L1_pre": -8.910164815013212,
+      "rec_target": 0.03755954663803567,
+      "rec_blocks": 922,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "clip_x": 10059,
+      "clip_e": 14829,
+      "clip_n": 480000,
+      "post_div": 0,
+      "sweep_rec_limit": 1751,
+      "L1_pre5": -9.977035968055285
+    }
+  ]
+}

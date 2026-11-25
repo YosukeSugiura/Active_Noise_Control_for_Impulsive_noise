@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "settings": {
+    "key": "x1_q1_99",
+    "mu": 0.01875,
+    "params": {
+      "percentiles": [
+        1,
+        99
+      ],
+      "window": 8000,
+      "interval": 128,
+      "eps": 0.001
+    }
+  },
+  "rows": [
+    {
+      "method": "Th2_FxNLMS",
+      "cls": "destroyerengine",
+      "scen": "RS-near",
+      "seed": 105,
+      "kind": "base",
+      "variant": "main",
+      "key": "x1_q1_99",
+      "mu": 0.01875,
+      "div": 0,
+      "seconds": 2.15,
+      "L1_whole": -9.032056497528588,
+      "L1_last10": -10.766231960491123,
+      "L2_last5": -10.519167700928387,
+      "L1_ev": -4.474333322363311,
+      "L1_pre": -9.583149777689282,
+      "rec_target": 0.0004798338283658115,
+      "rec_blocks": 510,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "clip_x": 10342,
+      "clip_e": 9361,
+      "clip_n": 480000,
+      "post_div": 0,
+      "sweep_rec_limit": 1751,
+      "L1_pre5": -9.572481206529071,
+      "same_as_fx_metrics": 0,
+      "same_as_fx_waveform": 0,
+      "same_as_fx_waveform_tol": 0
+    }
+  ]
+}
