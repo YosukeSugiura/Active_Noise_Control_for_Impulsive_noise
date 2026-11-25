@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "settings": {
+    "key": "mu0.05",
+    "mu": 0.05,
+    "params": {
+      "eps": 0.001
+    },
+    "div": 0,
+    "L1_whole": -8.7306860108009,
+    "L1_last10": -9.011752929558114,
+    "L1_ev": -5.920040989622184
+  },
+  "rows": [
+    {
+      "method": "MFxNLMS",
+      "cls": "jackhammer",
+      "scen": "stat",
+      "seed": 102,
+      "variant": "class",
+      "kind": "base",
+      "div": 0,
+      "seconds": 0.44,
+      "L1_whole": -8.568899072272215,
+      "L1_last10": -8.134658632569163,
+      "L2_last5": -10.012604334611524,
+      "reused": true,
+      "key": "mu0.05"
+    }
+  ]
+}

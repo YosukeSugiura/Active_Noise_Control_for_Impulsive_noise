@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "settings": {
+    "key": "mu0.01",
+    "mu": 0.01,
+    "params": {
+      "eps": 0.001
+    },
+    "div": 0,
+    "L1_whole": -2.6791948898537408,
+    "L1_last10": -3.239557512926633,
+    "L1_ev": -2.056619795795236
+  },
+  "rows": [
+    {
+      "method": "MFxNLMS",
+      "cls": "machinegun",
+      "scen": "stat",
+      "seed": 103,
+      "variant": "class",
+      "kind": "base",
+      "div": 0,
+      "seconds": 0.63,
+      "L1_whole": -1.1951472822793623,
+      "L1_last10": -1.4283201929457523,
+      "L2_last5": -2.9768497479118934,
+      "reused": false,
+      "key": "mu0.01"
+    }
+  ]
+}
