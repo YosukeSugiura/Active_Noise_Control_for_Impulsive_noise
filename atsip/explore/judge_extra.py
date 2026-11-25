@@ -185,10 +185,12 @@ def verify_measures(sim, dd, ref, label):
         equal(k in got, k in ref, label + "/" + k + " presence")
         if k in ref:
             if label.endswith("/" + cc.NAME):
-                # C_FXLMS was first evaluated on another machine. Its mixing rule amplifies rounding differences
-                # (0.027 dB observed), so the stored value is checked within 0.1 dB and the deviation is recorded.
+                # C_FXLMS is sensitive to rounding for car interior noise (volvo): cc_repro.py shows that a relative
+                # perturbation of 1e-12 in d changes L1 by 0.02-0.06 dB and 1e-9 by up to 0.25 dB, while a rerun on
+                # the same runner reproduces the stored value exactly. The stored value is therefore checked within
+                # 0.5 dB and the deviation is recorded.
                 diff = abs(float(got[k]) - float(ref[k]))
-                if not diff <= 0.1:
+                if not diff <= 0.5:
                     raise ValueError(f"{label}/{k}: expected {ref[k]!r}, actual {got[k]!r}")
                 maximum = max(maximum, diff)
             else:
