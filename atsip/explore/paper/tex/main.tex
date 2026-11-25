@@ -6,6 +6,7 @@
 \newunicodechar{μ}{\ensuremath{\mu}}
 \providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 \raggedbottom\emergencystretch=2em
+\renewcommand{\topfraction}{0.9}\renewcommand{\bottomfraction}{0.8}\renewcommand{\textfraction}{0.07}\renewcommand{\floatpagefraction}{0.75}\renewcommand{\dbltopfraction}{0.9}\renewcommand{\dblfloatpagefraction}{0.75}\setcounter{topnumber}{3}\setcounter{bottomnumber}{2}\setcounter{totalnumber}{5}\setcounter{dbltopnumber}{3}
 \title{Fast Reconvergence in Active Impulsive Noise Control Using a Background Trial Filter}
 \author[1*]{Sugiura,Yosuke}
 \affil[1]{School of Science and Technology, Meiji University, Kawasaki, Japan}
@@ -78,7 +79,7 @@ Elliott and Rafaely \cite{elliott1997,elliott2000} showed that the bin-normalize
 \hypertarget{sec:3.1}{%
 \subsection{Signal model}\label{sec:3.1}}
 
-\begin{figure}[t]\centering\includegraphics[width=0.8\linewidth]{../fig/fig1.pdf}\caption{Single-channel feedforward ANC system.}\label{fig:system}\end{figure}
+\begin{figure}[tbp]\centering\includegraphics[width=0.8\linewidth]{../fig/fig1.pdf}\caption{Single-channel feedforward ANC system.}\label{fig:system}\end{figure}
 
 Fig.~\ref{fig:system} shows the single-channel feedforward ANC system considered in this paper. The reference microphone observes the noise \(x(k)\) at sample \(k\). The noise reaches the error microphone through the primary path \(p(k)\) and produces the primary noise \(d(k) = p(k) * x(k)\), where \(*\) denotes convolution. The control filter has \(M\) coefficients \(\mathbf{w}(k) = [w_0(k), \ldots, w_{M-1}(k)]^{\mathsf T}\) and generates the control signal
 
@@ -132,7 +133,7 @@ The first requirement calls for a large update after \(k_c\), and the other two 
 \hypertarget{sec:4.1}{%
 \subsection{Overview}\label{sec:4.1}}
 
-\begin{figure}[t]\centering\includegraphics[width=0.8\linewidth]{../fig/fig2.pdf}\caption{Structure of the proposed algorithm. The foreground filter generates the control signal. The background filter is adapted only during a trial, and its coefficients are transferred to the foreground filter or discarded according to the reconstructed errors of the two filters.}\label{fig:structure}\end{figure}
+\begin{figure}[tbp]\centering\includegraphics[width=0.8\linewidth]{../fig/fig2.pdf}\caption{Structure of the proposed algorithm. The foreground filter generates the control signal. The background filter is adapted only during a trial, and its coefficients are transferred to the foreground filter or discarded according to the reconstructed errors of the two filters.}\label{fig:structure}\end{figure}
 
 Fig.~\ref{fig:structure} shows the structure of the proposed algorithm. The foreground filter \(\mathbf{w}_{\mathrm f}\) generates the control signal, and the background filter \(\mathbf{w}_{\mathrm b}\) exists only during a trial. Both filters use the update
 
@@ -174,7 +175,7 @@ An isolated impulse therefore produces the same update for any amplitude as long
 
 \[\left\| \boldsymbol{\delta}_n / g_n \right\|_2 \le \frac{\left\| \mathcal{F}^{-1}\{\mathbf{R}^{(1)*} \odot \mathbf{E}^{(1)}\} \right\|_2}{\epsilon\, p}\]
 
-for every \(z\). This bound is loose. In a numerical example with an autoregressive past spectrum (pole at 0.95), the norm of \(\boldsymbol{\delta}_n/g_n\) changed by a factor of two between small and large \(z\) and was within 4\% of its limit for \(z\) 100 times the background level. When a frame also contains background noise, we rely on the simulations.
+for every \(z\). This bound is loose. In a numerical example with an autoregressive past spectrum (pole at 0.95), the norm of \(\boldsymbol{\delta}_n/g_n\) changed by a factor of two between small and large \(z\). When a frame also contains background noise, we rely on the simulations.
 
 \hypertarget{sec:4.4}{%
 \subsection{Early phase with recomputed error frames}\label{sec:4.4}}
@@ -294,9 +295,9 @@ Differences are paired over runs with the same noise and paths, and they are giv
 \subsection{Overall results}\label{sec:6.1}}
 
 \input{../tab/table2.tex}
-\begin{figure}[t]\centering\includegraphics[width=\linewidth]{../fig/fig_anr_common.pdf}\caption{Time course of the noise reduction for the $\alpha$-stable signal with $\alpha = 1.45$ (median over 20 seeds of the ratio of the error power to the primary-noise power, both smoothed by an exponential average with a forgetting factor of 0.9995). The noise source switches at 15 s. Each algorithm uses its common setting.}\label{fig:anr}\end{figure}
-\begin{figure}[t]\centering\includegraphics[width=\linewidth]{../fig/fig3.pdf}\caption{Noise reduction with the coefficients frozen at each time after the switch of the noise source (median over 200 runs). The bands show the interquartile range for the proposed algorithm and CohVSS-FxNLMS. The time axis is linear up to 0.55 s and logarithmic thereafter. The vertical dotted lines mark 0.13 s and 0.51 s.}\label{fig:frozen}\end{figure}
-\begin{figure}[t]\centering\includegraphics[width=\linewidth]{../fig/fig_stepsweep.pdf}\caption{Median recovery time and percentage of diverged runs of two comparison algorithms with step sizes from 0.5 to 16 times the common setting (200 runs each). The median is computed over the runs without divergence. CohVSS-FxNLMS diverged in all runs at 16 times. The star marks the proposed algorithm with its common setting.}\label{fig:stepsweep}\end{figure}
+\begin{figure}[tbp]\centering\includegraphics[width=\linewidth]{../fig/fig_anr_common.pdf}\caption{Time course of the noise reduction for the $\alpha$-stable signal with $\alpha = 1.45$ (median over 20 seeds of the ratio of the error power to the primary-noise power, both smoothed by an exponential average with a forgetting factor of 0.9995). The noise source switches at 15 s. Each algorithm uses its common setting.}\label{fig:anr}\end{figure}
+\begin{figure}[tbp]\centering\includegraphics[width=\linewidth]{../fig/fig3.pdf}\caption{Noise reduction with the coefficients frozen at each time after the switch of the noise source (median over 200 runs). The bands show the interquartile range for the proposed algorithm and CohVSS-FxNLMS. The time axis is linear up to 0.55 s and logarithmic thereafter. The vertical dotted lines mark 0.13 s and 0.51 s.}\label{fig:frozen}\end{figure}
+\begin{figure}[tbp]\centering\includegraphics[width=\linewidth]{../fig/fig_stepsweep.pdf}\caption{Median recovery time and percentage of diverged runs of two comparison algorithms with step sizes from 0.5 to 16 times the common setting (200 runs each). The median is computed over the runs without divergence. CohVSS-FxNLMS diverged in all runs at 16 times. The star marks the proposed algorithm with its common setting.}\label{fig:stepsweep}\end{figure}
 
 No run of the proposed algorithm diverged in the 1000 runs. Compared with CohVSS-FxNLMS, the fastest of the ten comparison algorithms, the proposed algorithm shortened the median recovery time by 63\% with the close source and by 68\% with the far source (Table~\ref{tab:atsip-2}). The convex combination did not shorten the recovery, because the mixing parameter of C-FXLMS stayed above 0.96 and its fast filter set the recovery time.
 
@@ -309,7 +310,7 @@ The frozen coefficients show the same result on a common scale (Fig.~\ref{fig:fr
 \hypertarget{sec:6.2}{%
 \subsection{Results for each noise type}\label{sec:6.2}}
 
-\begin{figure}[t]\centering\includegraphics[width=0.75\linewidth]{../fig/fig4.pdf}\caption{Difference in the noise reduction with frozen coefficients between the proposed algorithm and CohVSS-FxNLMS for each noise type (mean of the paired differences over 20 seeds). Negative values indicate a larger noise reduction for the proposed algorithm. A dagger marks a 95\% confidence interval that includes zero.}\label{fig:classes}\end{figure}
+\begin{figure}[tbp]\centering\includegraphics[width=0.75\linewidth]{../fig/fig4.pdf}\caption{Difference in the noise reduction with frozen coefficients between the proposed algorithm and CohVSS-FxNLMS for each noise type (mean of the paired differences over 20 seeds). Negative values indicate a larger noise reduction for the proposed algorithm. A dagger marks a 95\% confidence interval that includes zero.}\label{fig:classes}\end{figure}
 
 Fig.~\ref{fig:classes} shows the paired difference of the noise reduction with frozen coefficients for each noise type. The proposed algorithm was better in 31 of the 40 comparisons, CohVSS-FxNLMS was better in six, and the interval included zero in three. The six exceptions were the four comparisons for machine gun noise and the two for car interior noise with the close source. These two noise types accounted for 37 of the 60 runs without a transfer after the change with the close source and for 13 of the 20 such runs with the far source. In such a run, no transfer occurred before the change either, and the proposed algorithm produced the same control signal as the algorithm without the trials (Proposition 3).
 
@@ -379,9 +380,7 @@ For the transfer thresholds \((\rho_1, \rho_2)\) of \((0.18, 0.35)\) and \((0.35
 
 \input{../tab/table7.tex}
 
-The proposed algorithm uses the model \(\hat{s}(k)\) for the filtered reference, for the recomputed error, and for the decision of a trial. In addition to the truncation error of about −24 dB (Section~\ref{sec:5.1}), we added white Gaussian noise to the coefficients of \(\hat{s}(k)\) at −40 dB, −30 dB, and −20 dB relative to their energy and repeated the no-change and source-switch conditions (Table~\ref{tab:atsip-7}). The actual secondary path was unchanged.
-
-With an error of −40 dB, no run diverged, and the median recovery times changed by at most 0.01 s. With −30 dB, the proposed algorithm diverged in nine of the 600 runs, and CohVSS-FxNLMS diverged in three. With −20 dB, the proposed algorithm and C-FXLMS diverged in 54 runs each, and CohVSS-FxNLMS diverged in 21. The proposed algorithm is therefore more sensitive to the model error than CohVSS-FxNLMS. Most of this sensitivity originates in the update of the foreground filter, because the algorithm without the trials diverged in six and 51 runs. At each of these two levels, the proposed algorithm diverged in three more runs, within 2 s after a transfer. These three runs were the three conditions of one noise sequence. With a model error, a transfer can thus cause divergence in rare cases.
+In addition to the truncation error of about −24 dB (Section~\ref{sec:5.1}), we added white Gaussian noise to the coefficients of \(\hat{s}(k)\) at −40 dB, −30 dB, and −20 dB relative to their energy and repeated the no-change and source-switch conditions (Table~\ref{tab:atsip-7}). The actual secondary path was unchanged. With an error of −40 dB, no run diverged, and the median recovery times changed by at most 0.01 s. With −30 dB, the proposed algorithm diverged in nine of the 600 runs, and CohVSS-FxNLMS diverged in three. With −20 dB, the proposed algorithm and C-FXLMS diverged in 54 runs each, and CohVSS-FxNLMS diverged in 21. The proposed algorithm is therefore more sensitive to the model error than CohVSS-FxNLMS. Most of this sensitivity originates in the update of the foreground filter, because the algorithm without the trials diverged in six and 51 runs. At each of these two levels, the proposed algorithm diverged in three more runs, within 2 s after a transfer. These three runs were the three conditions of one noise sequence. With a model error, a transfer can thus cause divergence in rare cases.
 
 In the runs without divergence, the advantage in the recovery time remained. With −20 dB, the median recovery time of the proposed algorithm was 0.44 s and 0.51 s, compared with 1.03 s and 1.33 s for CohVSS-FxNLMS. With −30 dB and without a change, the noise reduction of the proposed algorithm over the last 10 s was smaller than that of CohVSS-FxNLMS by 0.3 dB ({[}0.06, 0.78{]} dB).
 
@@ -398,5 +397,6 @@ The trial mechanism and the foreground filter have different limitations. The me
 
 The results apply to noise that is present continuously and contains impulses, with a fixed secondary path and an accurate model of it. The evaluation used simulations with paths from one room and no acoustic feedback. Future work includes a start condition for intermittent noise, an update that is less sensitive to errors in the secondary-path model, the evaluation in other rooms, and a real-time implementation.
 
+\clearpage
 \printbibliography
 \end{document}

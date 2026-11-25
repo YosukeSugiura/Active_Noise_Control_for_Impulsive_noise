@@ -204,7 +204,7 @@ def output_table(number, title, panels, notes):
     def esc_tex(s):
         return re.sub(r"(?<![\w.])-(?=\d)|(?<= )-(?= )", "$-$", esc(s))
     md = [f"# Table {number}. {title}",""]
-    tex = [r"\begin{table*}[t]",r"\centering",r"\small",r"\setlength{\tabcolsep}{4pt}",r"\caption{"+esc(title)+"}",
+    tex = [r"\begin{table*}[tbp]",r"\centering",r"\small",r"\setlength{\tabcolsep}{4pt}",r"\caption{"+esc(title)+"}",
            rf"\label{{tab:atsip-{number}}}"]
     for heading,header,rows in panels:
         md.extend([f"## {heading}",""] if heading else [])

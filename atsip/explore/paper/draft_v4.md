@@ -155,7 +155,7 @@ An isolated impulse therefore produces the same update for any amplitude as long
 
 $$\left\| \boldsymbol{\delta}_n / g_n \right\|_2 \le \frac{\left\| \mathcal{F}^{-1}\{\mathbf{R}^{(1)*} \odot \mathbf{E}^{(1)}\} \right\|_2}{\epsilon\, p}$$
 
-for every $z$. This bound is loose. In a numerical example with an autoregressive past spectrum (pole at 0.95), the norm of $\boldsymbol{\delta}_n/g_n$ changed by a factor of two between small and large $z$ and was within 4% of its limit for $z$ 100 times the background level. When a frame also contains background noise, we rely on the simulations.
+for every $z$. This bound is loose. In a numerical example with an autoregressive past spectrum (pole at 0.95), the norm of $\boldsymbol{\delta}_n/g_n$ changed by a factor of two between small and large $z$. When a frame also contains background noise, we rely on the simulations.
 
 ### 4.4 Early phase with recomputed error frames
 
@@ -338,9 +338,7 @@ For the transfer thresholds $(\rho_1, \rho_2)$ of $(0.18, 0.35)$ and $(0.35, 0.7
 
 ### 7.6 Error in the secondary-path model
 
-The proposed algorithm uses the model $\hat{s}(k)$ for the filtered reference, for the recomputed error, and for the decision of a trial. In addition to the truncation error of about −24 dB (Section 5.1), we added white Gaussian noise to the coefficients of $\hat{s}(k)$ at −40 dB, −30 dB, and −20 dB relative to their energy and repeated the no-change and source-switch conditions (Table 7). The actual secondary path was unchanged.
-
-With an error of −40 dB, no run diverged, and the median recovery times changed by at most 0.01 s. With −30 dB, the proposed algorithm diverged in nine of the 600 runs, and CohVSS-FxNLMS diverged in three. With −20 dB, the proposed algorithm and C-FXLMS diverged in 54 runs each, and CohVSS-FxNLMS diverged in 21. The proposed algorithm is therefore more sensitive to the model error than CohVSS-FxNLMS. Most of this sensitivity originates in the update of the foreground filter, because the algorithm without the trials diverged in six and 51 runs. At each of these two levels, the proposed algorithm diverged in three more runs, within 2 s after a transfer. These three runs were the three conditions of one noise sequence. With a model error, a transfer can thus cause divergence in rare cases.
+In addition to the truncation error of about −24 dB (Section 5.1), we added white Gaussian noise to the coefficients of $\hat{s}(k)$ at −40 dB, −30 dB, and −20 dB relative to their energy and repeated the no-change and source-switch conditions (Table 7). The actual secondary path was unchanged. With an error of −40 dB, no run diverged, and the median recovery times changed by at most 0.01 s. With −30 dB, the proposed algorithm diverged in nine of the 600 runs, and CohVSS-FxNLMS diverged in three. With −20 dB, the proposed algorithm and C-FXLMS diverged in 54 runs each, and CohVSS-FxNLMS diverged in 21. The proposed algorithm is therefore more sensitive to the model error than CohVSS-FxNLMS. Most of this sensitivity originates in the update of the foreground filter, because the algorithm without the trials diverged in six and 51 runs. At each of these two levels, the proposed algorithm diverged in three more runs, within 2 s after a transfer. These three runs were the three conditions of one noise sequence. With a model error, a transfer can thus cause divergence in rare cases.
 
 In the runs without divergence, the advantage in the recovery time remained. With −20 dB, the median recovery time of the proposed algorithm was 0.44 s and 0.51 s, compared with 1.03 s and 1.33 s for CohVSS-FxNLMS. With −30 dB and without a change, the noise reduction of the proposed algorithm over the last 10 s was smaller than that of CohVSS-FxNLMS by 0.3 dB ([0.06, 0.78] dB). 
 
