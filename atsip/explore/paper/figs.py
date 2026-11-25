@@ -1,6 +1,6 @@
 """Generate paper figures and tables from archived JSON, without running ANC.
 
-Extract results/final2_run, coef2_run and cc_run (.tar.gz) into atsip/explore/out before running this script.
+Extract results/final2_run, coef2_run and cc_run (.tar.gz; cc_run.tar.gz also holds cc_coef); out/mfx_run and out/mfx_coef are tracked (from branch atsip/mfx) into atsip/explore/out before running this script.
 Use --refresh-reports to recompute the paper intervals and the change audit
 before rendering. Without that option, verify against the committed reports.
 """
@@ -25,7 +25,8 @@ sys.path.insert(0, str(ROOT))
 from paired_ci import paired
 P, A, N = "P5-early-cap", "Freq_FxNLMS_CohVSS", "nors-cap"
 C = "C_FXLMS"                                   # convex combination (Ferrer et al. 2013), results in out/cc_run and out/cc_coef
-EXTERNAL_NAMES = {"Th_FxNLMS": "Th-FxNLMS", "EVSS_FxeLMS": "EVSS-FxeLMS", C: "C-FXLMS"}
+M = "MFxNLMS"                                   # normalized modified FxLMS (Bjarnason 1992), results in out/mfx_run and out/mfx_coef
+EXTERNAL_NAMES = {"Th_FxNLMS": "Th-FxNLMS", "EVSS_FxeLMS": "EVSS-FxeLMS", C: "C-FXLMS", M: "MFxNLMS"}
 NAMES = {P: "Proposed", A: "CohVSS-FxNLMS", N: "Without trials",
          "P5-early-noG": "Proposed without 1/g", "P4-cap": "Immediate restart",
          "TP-always-cap": "Always-on background trial", "ND-always-cap": "Always reconstructed error",
@@ -245,13 +246,15 @@ def table1():
     cc=json.loads((ROOT/"TUNE_cc.json").read_text())["chosen"][C]
     baselines.append((EXTERNAL_NAMES[C],f"{cc['mu']:g} (fast), {cc['mu']*cc['params']['ratio']:g} (slow)",
                       "Normalized component filters" if cc["params"]["norm"] else "LMS component filters"))
+    mfx=json.loads((ROOT/"TUNE_mfx.json").read_text())["chosen"][M]
+    baselines.append((EXTERNAL_NAMES[M],f"{mfx['mu']:g}",f"Regularization {mfx['params']['eps']:g}"))
     output_table(1,"Settings of the proposed algorithm and selected step sizes of the comparison algorithms",[
         ("Proposed algorithm",("Parameter","Value"),settings),
         ("Comparison algorithms",("Algorithm","Step size μ","Other setting"),baselines)],
         ["The comparison algorithms use one setting for all noise types and conditions (Section 5.3)."])
 
 
-def table2(final,coef,cr,final_text,ccf,ccc):
+def table2(final,coef,cr,final_text,ccf,ccc,mf,mc):
     result=[]
     extra=[]
     for s in SWITCHES:
@@ -272,7 +275,8 @@ def table2(final,coef,cr,final_text,ccf,ccc):
             intervals.append(ci_text(v,BLOCK_SECONDS))
         result.append((SCEN[s],"Recovery time [s]",*cells,*intervals))
         v=paired(final[s,P],ccf[s,C],lambda r:r.get("rec_blocks"))
-        extra.append((shown(recovery(ccf[s,C])*BLOCK_SECONDS),ci_text(v,BLOCK_SECONDS)))
+        vm=paired(final[s,P],mf[s,M],lambda r:r.get("rec_blocks"))
+        extra.append((shown(recovery(ccf[s,C])*BLOCK_SECONDS),ci_text(v,BLOCK_SECONDS),shown(recovery(mf[s,M])*BLOCK_SECONDS),ci_text(vm,BLOCK_SECONDS)))
         for k in KS:
             t=shown(k*BLOCK_SECONDS,2)
             cells=[shown(np.median(values(coef[s,m],j(k))),2) for m in methods]
@@ -284,19 +288,20 @@ def table2(final,coef,cr,final_text,ccf,ccc):
                 verify(ci_display(v,2),r[6],(s,k,m))
                 intervals.append(ci_display(v,2,count=True))
             result.append((SCEN[s],f"NR at {t} s [dB]",*cells,*intervals))
-            extra.append((shown(np.median(values(ccc[s,C],j(k))),2),ci_display(paired(coef[s,P],ccc[s,C],j(k)),2,count=True)))
+            extra.append((shown(np.median(values(ccc[s,C],j(k))),2),ci_display(paired(coef[s,P],ccc[s,C],j(k)),2,count=True),
+                          shown(np.median(values(mc[s,M],j(k))),2),ci_display(paired(coef[s,P],mc[s,M],j(k)),2,count=True)))
     # Keep the customary paper table compact by separating levels and paired differences.
     output_table(2,"Reconvergence after a source switch",[
-        ("Median levels",("Switch","Metric",NAMES[P],NAMES[A],EXTERNAL_NAMES[C],NAMES[N]),
-         [(*r[:4],x[0],r[4]) for r,x in zip(result,extra)]),
-        ("Paired differences",("Switch","Metric",f"Proposed - {NAMES[A]}",f"Proposed - {EXTERNAL_NAMES[C]}",f"Proposed - {NAMES[N]}"),
-         [(*r[:2],r[5],x[1],r[6]) for r,x in zip(result,extra)])],
+        ("Median levels",("Switch","Metric",NAMES[P],NAMES[A],EXTERNAL_NAMES[C],EXTERNAL_NAMES[M],NAMES[N]),
+         [(*r[:4],x[0],x[2],r[4]) for r,x in zip(result,extra)]),
+        ("Paired differences",("Switch","Metric",f"Proposed - {NAMES[A]}",f"Proposed - {EXTERNAL_NAMES[C]}",f"Proposed - {EXTERNAL_NAMES[M]}",f"Proposed - {NAMES[N]}"),
+         [(*r[:2],r[5],x[1],x[3],r[6]) for r,x in zip(result,extra)])],
         ["Recovery uses each algorithm's post-change reference level +3 dB and a Kaplan-Meier median. Runs without recovery, including all runs with the isolated impulses, are censored.",
          "NR at 0.13 s and 0.51 s is the noise reduction with the coefficients frozen at that time after the switch (residual-to-primary power ratio, first 256 ms excluded).",
          "Differences are paired means with seed-bootstrap 95% intervals and pair counts in parentheses. Recovery differences use pairs with recovery observed in both runs."])
 
 
-def table3(final, final_text, fast, ccf):
+def table3(final, final_text, fast, ccf, mf):
     statements=[]
     internal=defaultdict(list)
     names=tuple(NAMES)
@@ -316,6 +321,7 @@ def table3(final, final_text, fast, ccf):
                 statements.append((SCEN[s],NAMES[m],*(shown(v,2) for v in vals),transfers,match))
                 if m==A:
                     statements.append((SCEN[s],EXTERNAL_NAMES[C],*(shown(l1(ccf[s,C],k),2) for k in ("L1_whole","L1_last10","L1_ev")),"--","--"))
+                    statements.append((SCEN[s],EXTERNAL_NAMES[M],*(shown(l1(mf[s,M],k),2) for k in ("L1_whole","L1_last10","L1_ev")),"--","--"))
         for m in names:
             if m==A:
                 continue
@@ -332,6 +338,7 @@ def table3(final, final_text, fast, ccf):
         differences.append((SCEN[s],NAMES[m],title,ci_text(v)))
         if m==A:
             differences.append((SCEN[s],EXTERNAL_NAMES[C],title,ci_text(paired(final[s,P],ccf[s,C],lambda row: row.get(key)))))
+            differences.append((SCEN[s],EXTERNAL_NAMES[M],title,ci_text(paired(final[s,P],mf[s,M],lambda row: row.get(key)))))
     FXNLMS_MULT=196608                                   # RESULTS_fast.md: time-domain FxNLMS, M = Ls = 512, per 128 samples
     assert "196,608" in fast
     costs=[]; tot=0; blocks=0
@@ -544,8 +551,9 @@ def main():
     figure4(coef,report)
     table1()
     ccf=load("cc_run",(*SWITCHES,*QUIET)); ccc=load("cc_coef",SWITCHES)
-    table2(final,coef,report,text,ccf,ccc)
-    table3(final,text,(ROOT/"RESULTS_fast.md").read_text(),ccf)
+    mf=load("mfx_run",(*SWITCHES,*QUIET)); mc=load("mfx_coef",SWITCHES)
+    table2(final,coef,report,text,ccf,ccc,mf,mc)
+    table3(final,text,(ROOT/"RESULTS_fast.md").read_text(),ccf,mf)
     print("Verified figure and table values against the regenerated reports.")
 
 

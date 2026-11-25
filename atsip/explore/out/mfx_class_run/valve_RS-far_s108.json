@@ -1,0 +1,38 @@
+{
+  "version": 2,
+  "settings": {
+    "key": "mu0.05",
+    "mu": 0.05,
+    "params": {
+      "eps": 0.001
+    },
+    "div": 0,
+    "L1_whole": -8.327003058727668,
+    "L1_last10": -10.142203905086493,
+    "L1_ev": -6.367998565667738
+  },
+  "rows": [
+    {
+      "method": "MFxNLMS",
+      "cls": "valve",
+      "scen": "RS-far",
+      "seed": 108,
+      "variant": "class",
+      "kind": "base",
+      "div": 0,
+      "seconds": 0.54,
+      "L1_whole": -8.882425831370297,
+      "L1_last10": -10.397727531820676,
+      "L2_last5": -11.719686482004285,
+      "L1_ev": -6.979764646927688,
+      "L1_pre": -9.247765684377026,
+      "rec_target": 0.0015936956386588858,
+      "rec_blocks": null,
+      "rec_cens": 1,
+      "rec_limit": 1751,
+      "post_div": 0,
+      "reused": true,
+      "key": "mu0.05"
+    }
+  ]
+}

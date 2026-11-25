@@ -1,0 +1,38 @@
+{
+  "version": 2,
+  "settings": {
+    "key": "mu0.1",
+    "mu": 0.1,
+    "params": {
+      "eps": 0.001
+    },
+    "div": 0,
+    "L1_whole": -11.605789070930289,
+    "L1_last10": -12.88748400778297,
+    "L1_ev": -9.387642568351955
+  },
+  "rows": [
+    {
+      "method": "MFxNLMS",
+      "cls": "destroyerengine",
+      "scen": "RS-far",
+      "seed": 106,
+      "variant": "class",
+      "kind": "base",
+      "div": 0,
+      "seconds": 0.56,
+      "L1_whole": -11.719223338978805,
+      "L1_last10": -14.350666309077647,
+      "L2_last5": -14.872126368584201,
+      "L1_ev": -9.381659905887874,
+      "L1_pre": -9.152317080136761,
+      "rec_target": 0.0005474172394320121,
+      "rec_blocks": 223,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "post_div": 0,
+      "reused": false,
+      "key": "mu0.1"
+    }
+  ]
+}

@@ -30,5 +30,6 @@
 | FreqFxLMS | 0.0225 | -- |
 | CohVSS-FxNLMS | 0.09 | -- |
 | C-FXLMS | 0.0375 (fast), 0.009375 (slow) | Normalized component filters |
+| MFxNLMS | 0.05 | Regularization 0.001 |
 
 The comparison algorithms use one setting for all noise types and conditions (Section 5.3).
