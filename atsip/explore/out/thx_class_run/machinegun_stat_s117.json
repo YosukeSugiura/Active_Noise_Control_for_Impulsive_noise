@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "settings": {
+    "key": "x0.25_q1_99",
+    "mu": 0.0046875,
+    "params": {
+      "percentiles": [
+        1,
+        99
+      ],
+      "window": 8000,
+      "interval": 128,
+      "eps": 0.001
+    }
+  },
+  "rows": [
+    {
+      "method": "Th2_FxNLMS",
+      "cls": "machinegun",
+      "scen": "stat",
+      "seed": 117,
+      "kind": "base",
+      "variant": "class",
+      "key": "x0.25_q1_99",
+      "mu": 0.0046875,
+      "div": 0,
+      "seconds": 1.59,
+      "L1_whole": -2.9895323335283557,
+      "L1_last10": -3.1876182154679666,
+      "L2_last5": -5.1669452487131595,
+      "clip_x": 14654,
+      "clip_e": 18571,
+      "clip_n": 480000,
+      "post_div": null
+    }
+  ]
+}

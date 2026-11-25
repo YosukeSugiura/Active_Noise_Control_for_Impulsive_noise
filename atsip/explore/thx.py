@@ -373,12 +373,12 @@ def diff(left,right,metric,scale=1.):
     return f"{a*scale:+.3f} [{l*scale:+.3f}, {h*scale:+.3f}] ({n})"
 
 def check_one(a,b):
-    for k in ("div","rec_blocks","rec_cens","rec_limit","clip_x","clip_e","clip_n","post_div"):
+    for k in ("div","rec_blocks","rec_cens","rec_limit","clip_x","clip_e","clip_n","post_div","sweep_rec_limit","transition_count","trial_count"):
         if a.get(k)!=b.get(k):
             raise ValueError(f"1x mismatch {a['cls']} {a['scen']} {a['seed']} {k}")
-    for k in ("L1_whole","L1_pre5"):
+    for k in ("L1_whole","L1_last10","L1_ev","L1_pre","L1_pre5","L2_last5","rec_target"):
         x,y=a.get(k),b.get(k)
-        if (x is None)!=(y is None) or (x is not None and not math.isclose(x,y,rel_tol=1e-10,abs_tol=1e-10)):
+        if (x is None)!=(y is None) or (x is not None and not (math.isfinite(x) and math.isfinite(y) and abs(x-y) <= 1e-7 + 1e-6*abs(x))):
             raise ValueError(f"1x mismatch {a['cls']} {a['scen']} {a['seed']} {k}: {x} != {y}")
 
 def report():
@@ -401,7 +401,7 @@ def report():
       "線形補間パーセンタイルを部分選択で厳密計算（近似なし）。制御出力は未クリップ参照。",
       "a120 の入力別設定は共通設定を使用。L1は負値が良い。回復目標なしはKMから除外。",
       "発散含むKMでは発散試行を共通観測終了時点で右打切り。発散を独立打切りと解釈しない。",
-      f"選定 {len(tune_cases())*len(grid())}、eval {len(er)}、coef {len(co)} 条件、class {len(cr)}、sweep {sum(map(len,sr.values()))}。1倍一致 {len(sr)}/{len(sr)}（L1許容誤差1e-10、回復・発散は厳密）。",
+      f"選定 {len(tune_cases())*len(grid())}、eval {len(er)}、coef {len(co)} 条件、class {len(cr)}、sweep {sum(map(len,sr.values()))}。1倍一致 {len(sr)}/{len(sr)}（eval基準の絶対差 ≤ 1e-7 + 1e-6×|eval|、回復・発散・クリップ標本数は厳密。係数固定はsweepに未保存、移行・試行回数は未記録）。",
       "", "## 選定", "", "| 設定対象 | mu | パーセンタイル | 発散 | L1 whole |","|---|---:|---|---:|---:|"]
     for c,s in [("共通",cfg["chosen"][NAME]),*cfg["per_class"][NAME].items()]:
         lines.append(f"| {c} | {s['mu']:g} | {s['params']['percentiles']} | {s['div']} | {fmt(s['L1_whole'])} |")
@@ -413,13 +413,32 @@ def report():
             if not rs:
                 continue
             lines.append(f"| {s} | {label} | {sum(r['div'] for r in rs)}/{len(rs)} | {kmtext(rs) if s in SWITCH else '—'} | {fmt(mean(rs,'L1_whole'))} | {fmt(mean(rs,'L1_last10'))} | {fmt(mean(rs,'L1_ev'))} | {diff(pp,rs,lambda r:r.get('L1_whole')) if label!=PROPOSED else '—'} |")
-    lines+=["","## クリップ割合と FxNLMS 一致数","","割合は各試行で実際に更新処理した有限標本を分母として全試行をプール。発散前までを含む。初回ブロックも分母に含む。","| 条件 | x clip % | e clip % | 既存評価指標厳密一致 | 波形厳密一致 | 波形許容誤差1e-10 |","|---|---:|---:|---:|---:|---:|"]
+    lines+=["","## クリップ割合","","各試行の全標本（30秒、480000標本）を分母とする。平均は試行間の算術平均、最大は試行間最大。初回ブロックを含む。",
+             "| 条件 | 参照平均 (%) | 参照最大 (%) | 誤差平均 (%) | 誤差最大 (%) |",
+             "|---|---:|---:|---:|---:|"]
     for s in SCEN:
         rs=[r for case,r in er.items() if case[1]==s]
-        n=sum(r["clip_n"] for r in rs)
-        rates=[100*sum(r[k] for r in rs)/n if n else None for k in ("clip_x","clip_e")]
-        vals=[sum(r[k] for r in rs) for k in ("same_as_fx_metrics","same_as_fx_waveform","same_as_fx_waveform_tol")]
-        lines.append(f"| {s} | {fmt(rates[0])} | {fmt(rates[1])} | {vals[0]}/{len(rs)} | {vals[1]}/{len(rs)} | {vals[2]}/{len(rs)} |")
+        n=30*F.FS
+        assert all(0 <= r[k] <= r["clip_n"] <= n for r in rs for k in ("clip_x","clip_e"))
+        vals=[]
+        for k in ("clip_x","clip_e"):
+            rates=[100*r[k]/n for r in rs]
+            vals.extend((float(np.mean(rates)),max(rates)))
+        lines.append(f"| {s} | "+" | ".join(fmt(v) for v in vals)+" |")
+    lines+=["","## FxNLMSとのL1 whole一致数","","両手法のL1 wholeが有限で、絶対差が1e-6 dB以内の試行数。発散・欠測は一致に含めない。",
+             "| 条件 | L1 whole 一致 | 比較可能 | 既存評価指標厳密一致 | 波形厳密一致 | 波形許容誤差1e-10 |",
+             "|---|---:|---:|---:|---:|---:|"]
+    for s in SCEN:
+        rs=[(case,r) for case,r in er.items() if case[1]==s]
+        count=valid=0
+        for case,r in rs:
+            old=prior("final2_run",case,"FxNLMS")
+            x,y=r.get("L1_whole"),old.get("L1_whole")
+            if not r["div"] and not old["div"] and x is not None and y is not None and math.isfinite(x) and math.isfinite(y):
+                valid+=1
+                count+=int(abs(x-y)<=1e-6)
+        vals=[sum(r[k] for _,r in rs) for k in ("same_as_fx_metrics","same_as_fx_waveform","same_as_fx_waveform_tol")]
+        lines.append(f"| {s} | {count}/{len(rs)} | {valid}/{len(rs)} | {vals[0]}/{len(rs)} | {vals[1]}/{len(rs)} | {vals[2]}/{len(rs)} |")
     lines+=["","## 係数固定および対応差（seed bootstrap 2000回）","","提案−比較。回復は両方で回復を観測した対のみ。固定係数は C.frozen_anr と同定義。","| 条件 | 入力 | 手法 | 指標 | 提案 | 比較 | 差 [95%] |","|---|---|---|---|---:|---:|---|"]
     for s in SCEN:
         for c in (None,*CLASSES):

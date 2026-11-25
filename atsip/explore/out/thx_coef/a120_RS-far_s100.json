@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "settings": {
+    "key": "x1_q1_99",
+    "mu": 0.01875,
+    "params": {
+      "percentiles": [
+        1,
+        99
+      ],
+      "window": 8000,
+      "interval": 128,
+      "eps": 0.001
+    }
+  },
+  "rows": [
+    {
+      "method": "Th2_FxNLMS",
+      "cls": "a120",
+      "scen": "RS-far",
+      "seed": 100,
+      "variant": "main",
+      "kind": "base",
+      "div": 0,
+      "J": {
+        "16": 0.47901549140949784,
+        "64": -2.0880557046754
+      }
+    }
+  ]
+}

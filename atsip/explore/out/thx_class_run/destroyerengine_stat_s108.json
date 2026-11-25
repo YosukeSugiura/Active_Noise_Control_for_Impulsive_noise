@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "settings": {
+    "key": "x2_q1_99",
+    "mu": 0.0375,
+    "params": {
+      "percentiles": [
+        1,
+        99
+      ],
+      "window": 8000,
+      "interval": 128,
+      "eps": 0.001
+    }
+  },
+  "rows": [
+    {
+      "method": "Th2_FxNLMS",
+      "cls": "destroyerengine",
+      "scen": "stat",
+      "seed": 108,
+      "kind": "base",
+      "variant": "class",
+      "key": "x2_q1_99",
+      "mu": 0.0375,
+      "div": 0,
+      "seconds": 1.15,
+      "L1_whole": -11.02043986089148,
+      "L1_last10": -12.67230365199472,
+      "L2_last5": -13.346154781961339,
+      "clip_x": 10197,
+      "clip_e": 9601,
+      "clip_n": 480000,
+      "post_div": null
+    }
+  ]
+}
