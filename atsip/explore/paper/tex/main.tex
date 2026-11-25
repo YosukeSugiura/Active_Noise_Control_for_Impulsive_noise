@@ -267,11 +267,11 @@ In the two source-switch conditions, the primary path changed at 15 s to the res
 
 \input{../tab/table1.tex}
 
-Table~\ref{tab:atsip-1} lists the settings of the proposed algorithm, which were the same in all runs. We also evaluated it with the trials disabled, which the tables list as ``Without trials.''
+Table~\ref{tab:atsip-1} lists the settings of the proposed algorithm, which were the same in all runs. These settings were fixed before the evaluation, and the evaluation seeds 100 to 119 were not used to choose them. We also evaluated it with the trials disabled, which the tables list as ``Without trials.''
 
 The ten comparison algorithms were FxNLMS, the threshold-based algorithm of Akhtar and Mitsuhashi (Th-FxNLMS) \cite{akhtar2008,akhtar2009}, FxlogNLMS \cite{wu2011}, MFxLMM \cite{sun2015}, FxNFLOC \cite{feng2024}, EVSS-FxeLMS \cite{cheng2023}, the block frequency-domain FxLMS algorithm (FreqFxLMS) \cite{das2007}, our previous algorithm (CohVSS-FxNLMS) \cite{sugiura2026}, the convex combination algorithm (C-FXLMS) \cite{ferrer2013}, and a normalized version of the modified FxLMS algorithm (MFxNLMS) \cite{bjarnason1992}. MFxNLMS uses the same reconstruction of the error as the early phase of the proposed algorithm, with a single filter and a fixed step size. Th-FxNLMS clipped the reference and error signals used in the update at percentiles of their last 0.5 s, updated in every block. The window length and the update interval are our choice, because we could not confirm those of the original algorithm. The clipping acted on 2\% to 4\% of the samples.
 
-All algorithms used 512 coefficients. For each algorithm, we selected the step size from seven values between 1/32 and 2 times the published value, together with the percentiles of Th-FxNLMS and the step-size ratio and component filters of C-FXLMS. The selection used five seeds separate from the evaluation, the no-change and far-source conditions, and nine noise types. The criterion was the smallest number of diverged runs, followed by the largest noise reduction over 30 s. One setting per algorithm was used for all noise types and conditions.
+All algorithms used 512 coefficients. For each algorithm, we selected the step size from seven values between 1/32 and 2 times the published value, together with the percentiles of Th-FxNLMS and the step-size ratio and component filters of C-FXLMS. The selection used the seeds 10 to 14, separate from the evaluation seeds, the no-change and far-source conditions, and nine noise types. The criterion was the smallest number of diverged runs, followed by the largest noise reduction over 30 s. One setting per algorithm was used for all noise types and conditions.
 
 \hypertarget{sec:5.4}{%
 \subsection{Metrics}\label{sec:5.4}}
