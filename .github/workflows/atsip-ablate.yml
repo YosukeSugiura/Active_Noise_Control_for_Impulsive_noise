@@ -1,0 +1,366 @@
+{
+  "name": "ATSIP update ablations",
+  "on": {
+    "push": {
+      "branches": [
+        "atsip/ablate"
+      ],
+      "paths": [
+        "atsip/explore/ablate_updates.py"
+      ]
+    },
+    "workflow_dispatch": {}
+  },
+  "permissions": {
+    "contents": "write"
+  },
+  "concurrency": {
+    "group": "atsip-ablate",
+    "cancel-in-progress": false
+  },
+  "env": {
+    "OPENBLAS_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1",
+    "NUMBA_NUM_THREADS": "1"
+  },
+  "jobs": {
+    "data": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 350,
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "fetch-depth": 0
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "name": "Install dependencies",
+          "run": "python -m pip install -r requirements.txt scipy\npython -m pip freeze"
+        },
+        {
+          "name": "Verify base and compile",
+          "run": "git merge-base --is-ancestor 98140cbf63d2c9c0bae92ac2c4f3f4156f1ef4c1 HEAD\npython -m py_compile atsip/explore/ablate_updates.py"
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "ablate-data",
+            "path": "atsip/explore/data/prepared"
+          },
+          "continue-on-error": true,
+          "name": "Restore prior attempt"
+        },
+        {
+          "name": "Prepare data once",
+          "working-directory": "atsip/explore",
+          "run": "if ! python -c 'from pathlib import Path; from scipy.io import wavfile; p=Path(\"data/prepared\"); assert all((lambda z:z[0]==16000 and z[1].ndim==1 and len(z[1])>=608000)(wavfile.read(p/(c+\".wav\"))) for c in (\"machinegun\",\"factory1\",\"destroyerengine\",\"volvo\",\"valve\",\"jackhammer\"))'; then\npython data/fetch.py mimii noisex sonyc\npython data/make_noise.py\nfi"
+        },
+        {
+          "name": "Extract frozen references",
+          "working-directory": "atsip/explore",
+          "run": "mkdir -p out\ntar -xzf results/final2_run.tar.gz -C out\ntar -xzf results/coef2_run.tar.gz -C out"
+        },
+        {
+          "name": "Frozen proposed identity gate and variant smoke tests",
+          "working-directory": "atsip/explore",
+          "run": "python ablate_updates.py check"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "ablate-data",
+            "path": "atsip/explore/data/prepared/",
+            "overwrite": true,
+            "if-no-files-found": "warn"
+          }
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "ablate-gate",
+            "path": "atsip/explore/out/ablate_gate.json",
+            "overwrite": true,
+            "if-no-files-found": "warn"
+          }
+        }
+      ]
+    },
+    "tune": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 350,
+      "needs": "data",
+      "strategy": {
+        "fail-fast": false,
+        "matrix": {
+          "variant": [
+            "noSF",
+            "noRecon",
+            "bgCoh"
+          ],
+          "noise": [
+            "G",
+            "a145",
+            "II300",
+            "machinegun",
+            "factory1",
+            "destroyerengine",
+            "volvo",
+            "valve",
+            "jackhammer"
+          ]
+        }
+      },
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "fetch-depth": 0
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "name": "Install dependencies",
+          "run": "python -m pip install -r requirements.txt scipy\npython -m pip freeze"
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "ablate-data",
+            "path": "atsip/explore/data/prepared"
+          }
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "ablate-tune-${{ matrix.variant }}-${{ matrix.noise }}",
+            "path": "atsip/explore/out/ablate_tune"
+          },
+          "continue-on-error": true,
+          "name": "Restore prior attempt"
+        },
+        {
+          "name": "Tune variant and noise",
+          "working-directory": "atsip/explore",
+          "run": "python ablate_updates.py tune --variant '${{ matrix.variant }}' --noise '${{ matrix.noise }}' --procs 4"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "ablate-tune-${{ matrix.variant }}-${{ matrix.noise }}",
+            "path": "atsip/explore/out/ablate_tune/",
+            "overwrite": true,
+            "if-no-files-found": "warn"
+          }
+        }
+      ]
+    },
+    "tune-merge": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 350,
+      "needs": "tune",
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "fetch-depth": 0
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "name": "Install dependencies",
+          "run": "python -m pip install -r requirements.txt scipy\npython -m pip freeze"
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "pattern": "ablate-tune-*",
+            "path": "atsip/explore/out/ablate_tune",
+            "merge-multiple": true
+          }
+        },
+        {
+          "name": "Aggregate complete tuning grid",
+          "working-directory": "atsip/explore",
+          "run": "python ablate_updates.py tune-merge"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "ablate-settings",
+            "path": "atsip/explore/TUNE_ablate.json",
+            "overwrite": true,
+            "if-no-files-found": "warn"
+          }
+        }
+      ]
+    },
+    "eval": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 350,
+      "needs": "tune-merge",
+      "strategy": {
+        "fail-fast": false,
+        "matrix": {
+          "variant": [
+            "noSF",
+            "noRecon",
+            "bgCoh"
+          ],
+          "scen": [
+            "stat",
+            "RS-near",
+            "RS-far",
+            "EN0"
+          ]
+        }
+      },
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "fetch-depth": 0
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "name": "Install dependencies",
+          "run": "python -m pip install -r requirements.txt scipy\npython -m pip freeze"
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "ablate-data",
+            "path": "atsip/explore/data/prepared"
+          }
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "ablate-settings",
+            "path": "atsip/explore"
+          }
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "ablate-eval-${{ matrix.variant }}-${{ matrix.scen }}",
+            "path": "atsip/explore/out"
+          },
+          "continue-on-error": true,
+          "name": "Restore prior attempt"
+        },
+        {
+          "name": "Evaluate selected and fixed configurations",
+          "working-directory": "atsip/explore",
+          "run": "python ablate_updates.py eval --variant '${{ matrix.variant }}' --scen '${{ matrix.scen }}' --procs 4"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "ablate-eval-${{ matrix.variant }}-${{ matrix.scen }}",
+            "path": "atsip/explore/out/ablate_run/\natsip/explore/out/ablate_coef/",
+            "overwrite": true,
+            "if-no-files-found": "warn"
+          }
+        }
+      ]
+    },
+    "report": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 350,
+      "needs": "eval",
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "fetch-depth": 0
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "name": "Install dependencies",
+          "run": "python -m pip install -r requirements.txt scipy\npython -m pip freeze"
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "ablate-settings",
+            "path": "atsip/explore"
+          }
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "ablate-gate",
+            "path": "atsip/explore/out"
+          }
+        },
+        {
+          "name": "Extract frozen references",
+          "working-directory": "atsip/explore",
+          "run": "mkdir -p out\ntar -xzf results/final2_run.tar.gz -C out\ntar -xzf results/coef2_run.tar.gz -C out"
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "pattern": "ablate-eval-*",
+            "path": "atsip/explore/out",
+            "merge-multiple": true
+          }
+        },
+        {
+          "name": "Verify completeness and report",
+          "working-directory": "atsip/explore",
+          "run": "python ablate_updates.py report\ncat RESULTS_ablate.md"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "ablate-final",
+            "path": "atsip/explore/RESULTS_ablate.md\natsip/explore/TUNE_ablate.json\natsip/explore/out/ablate_gate.json",
+            "overwrite": true,
+            "if-no-files-found": "warn"
+          }
+        },
+        {
+          "name": "Commit verified results",
+          "run": "git config user.name 'github-actions[bot]'\ngit config user.email '41898282+github-actions[bot]@users.noreply.github.com'\ngit add atsip/explore/TUNE_ablate.json atsip/explore/out/ablate_run atsip/explore/out/ablate_coef atsip/explore/out/ablate_gate.json atsip/explore/RESULTS_ablate.md\ngit commit -m 'Record complete update ablation results'\ngit fetch origin atsip/ablate\nif ! git merge-base --is-ancestor origin/atsip/ablate HEAD; then\n  git rebase origin/atsip/ablate\nfi\ngit merge-base --is-ancestor origin/atsip/ablate HEAD\ngit push origin HEAD:atsip/ablate\ngit rev-parse HEAD"
+        }
+      ]
+    }
+  }
+}
