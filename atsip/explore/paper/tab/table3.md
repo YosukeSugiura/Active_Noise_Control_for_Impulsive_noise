@@ -27,9 +27,6 @@
 | No change | CohVSS-FxNLMS | 30 s | -0.053 [-0.081, -0.025] (200) |
 | No change | C-FXLMS | 30 s | -0.983 [-1.029, -0.935] (200) |
 | No change | MFxNLMS | 30 s | -0.999 [-1.071, -0.928] (200) |
-| No change | CohVSS-FxNLMS | Last 10 s | +0.072 [+0.039, +0.106] (200) |
-| No change | C-FXLMS | Last 10 s | -0.619 [-0.665, -0.567] (200) |
-| No change | MFxNLMS | Last 10 s | -0.769 [-0.842, -0.695] (200) |
 | Disturbance (0 dB) | CohVSS-FxNLMS | 2 s after disturbance | +0.622 [+0.533, +0.715] (200) |
 | Disturbance (0 dB) | C-FXLMS | 2 s after disturbance | +0.265 [+0.141, +0.395] (200) |
 | Disturbance (0 dB) | MFxNLMS | 2 s after disturbance | -0.371 [-0.490, -0.244] (200) |

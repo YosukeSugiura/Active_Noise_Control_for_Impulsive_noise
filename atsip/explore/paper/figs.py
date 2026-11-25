@@ -359,7 +359,7 @@ def table3(final, final_text, fast, ccf, mf):
          ("Condition","Algorithm","30 s","Last 10 s","2 s after disturbance","Transfers","Identical runs"),statements),
         ("Paired differences (proposed minus the other algorithm) [dB]",
          ("Condition","Other algorithm","Window","Difference [95% CI]"),
-         [(c,m,{"30 s":"30 s","Last 10 s":"Last 10 s","Post-event 2 s":"2 s after disturbance"}.get(w,w),d) for c,m,w,d in differences])],
+         [(c,m,{"30 s":"30 s","Last 10 s":"Last 10 s","Post-event 2 s":"2 s after disturbance"}.get(w,w),d) for c,m,w,d in differences if w!="Last 10 s"])],
         ["Transfers count events in 200 runs. Identical runs are those whose error and control signals equal those of the algorithm without the trials exactly."])
     output_table(4,"Variants of the proposed algorithm (200 runs per condition)",[
         (title4,("Algorithm",*(SCEN[s] for s in (*QUIET,*SWITCHES))),
