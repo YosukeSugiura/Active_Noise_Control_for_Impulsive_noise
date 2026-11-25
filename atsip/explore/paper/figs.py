@@ -364,7 +364,7 @@ def table3(final, final_text, fast, ccf, mf):
     output_table(4,"Variants of the proposed algorithm (200 runs per condition)",[
         (title4,("Algorithm",*(SCEN[s] for s in (*QUIET,*SWITCHES))),
          [(NAMES[m],*(c.split("/")[i] for c in counts)) for m,counts in internal.items() if m not in ("ND-always-cap","SF-fix")])
-        for i,title4 in enumerate(("Diverged runs","Transfers","Runs with a control signal different from that without the trials"))],[])
+        for i,title4 in enumerate(("Diverged runs","Transfers (total over 200 runs)","Transfers without a path change (total over 200 runs)"))],[])
     output_table(5,"Real multiplications per block of 128 samples",[
         ("",("State","Multiplications","Relative to FxNLMS","Blocks"),costs)],
         ["Multiplications are the maximum over the blocks of each state and include the sample-by-sample filtering for the control signal. Blocks are those of the eight runs used for the count."])

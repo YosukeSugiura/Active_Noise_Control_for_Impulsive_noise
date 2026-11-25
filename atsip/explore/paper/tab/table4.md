@@ -10,7 +10,7 @@
 | Immediate restart | 0 | 0 | 0 | 0 | 0 |
 | Always-on background trial | 0 | 0 | 0 | 0 | 0 |
 
-## Transfers
+## Transfers (total over 200 runs)
 
 | Algorithm | No change | Disturbance (0 dB) | Disturbance (-10 dB) | Close | Far |
 | --- | --- | --- | --- | --- | --- |
@@ -20,7 +20,7 @@
 | Immediate restart | 71 | 85 | 72 | 221 | 259 |
 | Always-on background trial | 96 | 248 | 148 | 324 | 354 |
 
-## Runs with a control signal different from that without the trials
+## Transfers without a path change (total over 200 runs)
 
 | Algorithm | No change | Disturbance (0 dB) | Disturbance (-10 dB) | Close | Far |
 | --- | --- | --- | --- | --- | --- |
