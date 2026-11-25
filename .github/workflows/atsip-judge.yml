@@ -235,7 +235,7 @@
         {
           "name": "Measure all decisions",
           "working-directory": "atsip/explore",
-          "run": "timeout --signal=TERM 310m python judge.py run --level '${{ matrix.level }}' --scen '${{ matrix.scen }}' --group '${{ matrix.group }}' --procs 4"
+          "run": "timeout --signal=TERM 310m python judge.py run --level='${{ matrix.level }}' --scen '${{ matrix.scen }}' --group '${{ matrix.group }}' --procs 4"
         },
         {
           "uses": "actions/upload-artifact@v4",
