@@ -1,0 +1,122 @@
+{
+  "name": "ATSIP Th2 saved-artifact report only",
+  "on": {
+    "push": {
+      "branches": [
+        "atsip/thx"
+      ],
+      "paths": [
+        ".github/workflows/atsip-thx-report.yml"
+      ]
+    },
+    "workflow_dispatch": {}
+  },
+  "permissions": {
+    "contents": "write",
+    "actions": "read"
+  },
+  "concurrency": {
+    "group": "atsip-thx",
+    "cancel-in-progress": false
+  },
+  "env": {
+    "OPENBLAS_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1",
+    "NUMBA_NUM_THREADS": "1"
+  },
+  "jobs": {
+    "report": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 30,
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "fetch-depth": 0,
+            "ref": "atsip/thx"
+          }
+        },
+        {
+          "name": "Synchronize branch",
+          "run": "git pull --rebase origin atsip/thx"
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "name": "Install reporting dependencies",
+          "run": "python -m pip install -r requirements.txt scipy"
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "thx-settings",
+            "path": "atsip/explore",
+            "github-token": "${{ github.token }}",
+            "run-id": 45505836189
+          }
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "pattern": "thx-eval-*",
+            "path": "atsip/explore/out",
+            "github-token": "${{ github.token }}",
+            "run-id": 45505836189,
+            "merge-multiple": true
+          }
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "pattern": "thx-class-*",
+            "path": "atsip/explore/out/thx_class_run",
+            "github-token": "${{ github.token }}",
+            "run-id": 45505836189,
+            "merge-multiple": true
+          }
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "pattern": "thx-sweep-*",
+            "path": "atsip/explore/out/thx_sweep_run",
+            "github-token": "${{ github.token }}",
+            "run-id": 45505836189,
+            "merge-multiple": true
+          }
+        },
+        {
+          "name": "Extract frozen references",
+          "working-directory": "atsip/explore",
+          "run": "mkdir -p out\ntar -xzf results/final2_run.tar.gz -C out\ntar -xzf results/coef2_run.tar.gz -C out"
+        },
+        {
+          "name": "Update verification and report tables",
+          "run": "python - <<'PY'\nfrom pathlib import Path\np=Path(\"atsip/explore/thx.py\")\ns=p.read_text()\ndef replace(a,b):\n    global s\n    assert s.count(a)==1, (a,s.count(a))\n    s=s.replace(a,b)\nreplace('(\"div\",\"rec_blocks\",\"rec_cens\",\"rec_limit\",\"clip_x\",\"clip_e\",\"clip_n\",\"post_div\")','(\"div\",\"rec_blocks\",\"rec_cens\",\"rec_limit\",\"clip_x\",\"clip_e\",\"clip_n\",\"post_div\",\"sweep_rec_limit\",\"transition_count\",\"trial_count\")')\nreplace('for k in (\"L1_whole\",\"L1_pre5\"):', 'for k in (\"L1_whole\",\"L1_last10\",\"L1_ev\",\"L1_pre\",\"L1_pre5\",\"L2_last5\",\"rec_target\"):')\nreplace('not math.isclose(x,y,rel_tol=1e-10,abs_tol=1e-10)', 'not (math.isfinite(x) and math.isfinite(y) and abs(x-y) <= 1e-7 + 1e-6*abs(x))')\nreplace('L1許容誤差1e-10、回復・発散は厳密','eval基準の絶対差 ≤ 1e-7 + 1e-6×|eval|、回復・発散・クリップ標本数は厳密。係数固定はsweepに未保存、移行・試行回数は未記録')\na=s.index('    lines+=[\"\",\"## クリップ割合と FxNLMS 一致数\"')\nb=s.index('    lines+=[\"\",\"## 係数固定',a)\ns=s[:a]+'''    lines+=[\"\",\"## クリップ割合\",\"\",\"各試行の全標本（30秒、480000標本）を分母とする。平均は試行間の算術平均、最大は試行間最大。初回ブロックを含む。\",\n             \"| 条件 | 参照平均 (%) | 参照最大 (%) | 誤差平均 (%) | 誤差最大 (%) |\",\n             \"|---|---:|---:|---:|---:|\"]\n    for s in SCEN:\n        rs=[r for case,r in er.items() if case[1]==s]\n        n=30*F.FS\n        assert all(0 <= r[k] <= r[\"clip_n\"] <= n for r in rs for k in (\"clip_x\",\"clip_e\"))\n        vals=[]\n        for k in (\"clip_x\",\"clip_e\"):\n            rates=[100*r[k]/n for r in rs]\n            vals.extend((float(np.mean(rates)),max(rates)))\n        lines.append(f\"| {s} | \"+\" | \".join(fmt(v) for v in vals)+\" |\")\n    lines+=[\"\",\"## FxNLMSとのL1 whole一致数\",\"\",\"両手法のL1 wholeが有限で、絶対差が1e-6 dB以内の試行数。発散・欠測は一致に含めない。\",\n             \"| 条件 | L1 whole 一致 | 比較可能 | 既存評価指標厳密一致 | 波形厳密一致 | 波形許容誤差1e-10 |\",\n             \"|---|---:|---:|---:|---:|---:|\"]\n    for s in SCEN:\n        rs=[(case,r) for case,r in er.items() if case[1]==s]\n        count=valid=0\n        for case,r in rs:\n            old=prior(\"final2_run\",case,\"FxNLMS\")\n            x,y=r.get(\"L1_whole\"),old.get(\"L1_whole\")\n            if not r[\"div\"] and not old[\"div\"] and x is not None and y is not None and math.isfinite(x) and math.isfinite(y):\n                valid+=1\n                count+=int(abs(x-y)<=1e-6)\n        vals=[sum(r[k] for _,r in rs) for k in (\"same_as_fx_metrics\",\"same_as_fx_waveform\",\"same_as_fx_waveform_tol\")]\n        lines.append(f\"| {s} | {count}/{len(rs)} | {valid}/{len(rs)} | {vals[0]}/{len(rs)} | {vals[1]}/{len(rs)} | {vals[2]}/{len(rs)} |\")\n'''+s[b:]\np.write_text(s)\n\nPY\npython -m py_compile atsip/explore/thx.py"
+        },
+        {
+          "name": "Verify and report saved results only",
+          "working-directory": "atsip/explore",
+          "run": "python thx.py report\ncat RESULTS_thx.md"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "thx-final-report",
+            "path": "atsip/explore/RESULTS_thx.md\natsip/explore/TUNE_thx.json\natsip/explore/thx.py"
+          }
+        },
+        {
+          "name": "Commit verified results",
+          "run": "git config user.name 'github-actions[bot]'\ngit config user.email '41898282+github-actions[bot]@users.noreply.github.com'\ngit add atsip/explore/thx.py atsip/explore/TUNE_thx.json atsip/explore/out/thx_run atsip/explore/out/thx_coef atsip/explore/out/thx_class_run atsip/explore/out/thx_sweep_run atsip/explore/RESULTS_thx.md\ngit commit -m 'Finalize Th2 comparison from saved artifacts with approved tolerance'\ngit fetch origin atsip/thx\nif ! git merge-base --is-ancestor origin/atsip/thx HEAD; then\n  git rebase origin/atsip/thx\nfi\ngit merge-base --is-ancestor origin/atsip/thx HEAD\ngit push origin HEAD:atsip/thx\ngit rev-parse HEAD"
+        }
+      ]
+    }
+  }
+}
