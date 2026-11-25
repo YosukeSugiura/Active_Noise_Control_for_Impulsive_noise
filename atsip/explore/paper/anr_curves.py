@@ -110,7 +110,7 @@ def main():
             ax.axvline(15, color="0.7", lw=0.6, ls=":", zorder=0); ax.set_xlim(a, b); ax.grid(axis="y", color=".9", lw=.6)
             sub = "close" if scen == "RS-near" else "far"
             ax.set_xlabel(f"Time [s]\n({'abcd'[2 * row + col]}) Switch to a {sub} source" + (", around the switch" if col else ""), linespacing=1.6)
-        axes[row, 0].set_ylabel("ANR [dB]")
+        axes[row, 0].set_ylabel("Power ratio [dB]")
     axes[0, 0].set_ylim(-17, 3)
     h, l = axes[0, 0].get_legend_handles_labels()
     fig.legend(h[::-1], l[::-1], loc="outside upper center", ncol=4, fontsize=7.5, frameon=False)
