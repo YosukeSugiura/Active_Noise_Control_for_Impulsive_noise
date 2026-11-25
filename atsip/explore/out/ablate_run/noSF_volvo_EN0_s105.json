@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "settings": {
+    "selected": {
+      "e": 0.5,
+      "l": 1.0
+    },
+    "fixed": {
+      "e": 1.0,
+      "l": 1.0
+    }
+  },
+  "rows": [
+    {
+      "method": "noSF",
+      "cls": "volvo",
+      "scen": "EN0",
+      "seed": 105,
+      "kind": "rule",
+      "setting": {
+        "e": 0.5,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 1.06,
+      "L1_whole": -4.985346227921495,
+      "L1_last10": -4.832765699736202,
+      "L2_last5": -4.566789238125534,
+      "L1_ev": -4.005248049522367,
+      "L1_pre": -5.352481113699615,
+      "trials": [],
+      "n_trial": 0,
+      "n_confirm": 0,
+      "false_confirm": 0,
+      "missed": 0,
+      "detection_blocks": [],
+      "decide_blocks": [],
+      "post_div": null,
+      "label": "selected"
+    },
+    {
+      "method": "noSF",
+      "cls": "volvo",
+      "scen": "EN0",
+      "seed": 105,
+      "kind": "rule",
+      "setting": {
+        "e": 1.0,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 1.34,
+      "L1_whole": -5.023827517588367,
+      "L1_last10": -4.887279284733784,
+      "L2_last5": -4.628469044285019,
+      "L1_ev": -4.063318497536795,
+      "L1_pre": -5.447023610379259,
+      "trials": [],
+      "n_trial": 0,
+      "n_confirm": 0,
+      "false_confirm": 0,
+      "missed": 0,
+      "detection_blocks": [],
+      "decide_blocks": [],
+      "post_div": null,
+      "label": "fixed"
+    }
+  ]
+}

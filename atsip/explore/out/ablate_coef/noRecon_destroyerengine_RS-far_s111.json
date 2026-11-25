@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "settings": {
+    "selected": {
+      "e": 0.25,
+      "l": 1.0
+    },
+    "fixed": {
+      "e": 1.0,
+      "l": 1.0
+    }
+  },
+  "rows": [
+    {
+      "method": "noRecon",
+      "cls": "destroyerengine",
+      "scen": "RS-far",
+      "seed": 111,
+      "setting": {
+        "e": 0.25,
+        "l": 1.0
+      },
+      "div": 0,
+      "J": {
+        "16": 1.0897840367684295,
+        "64": -4.9705702991305385
+      },
+      "label": "selected"
+    },
+    {
+      "method": "noRecon",
+      "cls": "destroyerengine",
+      "scen": "RS-far",
+      "seed": 111,
+      "setting": {
+        "e": 1.0,
+        "l": 1.0
+      },
+      "div": 0,
+      "J": {
+        "16": 1.088490609346971,
+        "64": -1.2611635027234307
+      },
+      "label": "fixed"
+    }
+  ]
+}

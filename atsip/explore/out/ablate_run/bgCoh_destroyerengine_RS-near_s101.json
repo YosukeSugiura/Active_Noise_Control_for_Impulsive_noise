@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "settings": {
+    "selected": {
+      "k": 8
+    }
+  },
+  "rows": [
+    {
+      "method": "bgCoh",
+      "cls": "destroyerengine",
+      "scen": "RS-near",
+      "seed": 101,
+      "kind": "rule",
+      "setting": {
+        "k": 8
+      },
+      "div": 0,
+      "seconds": 1.29,
+      "L1_whole": -10.428771036336874,
+      "L1_last10": -13.133015838774009,
+      "L2_last5": -12.54915171263364,
+      "L1_ev": -8.570696980660115,
+      "L1_pre": -5.257854500250963,
+      "rec_target": 0.0004656036732438013,
+      "rec_blocks": 186,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "trials": [
+        {
+          "block": 1876,
+          "decide": 1880,
+          "status": "confirmed",
+          "rho": 0.20358361446046352,
+          "false": false
+        }
+      ],
+      "n_trial": 1,
+      "n_confirm": 1,
+      "false_confirm": 0,
+      "missed": 0,
+      "detection_blocks": [
+        1876
+      ],
+      "decide_blocks": [
+        4
+      ],
+      "post_div": 0,
+      "label": "selected"
+    }
+  ]
+}

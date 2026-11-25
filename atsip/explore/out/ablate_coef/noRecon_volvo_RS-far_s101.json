@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "settings": {
+    "selected": {
+      "e": 0.25,
+      "l": 1.0
+    },
+    "fixed": {
+      "e": 1.0,
+      "l": 1.0
+    }
+  },
+  "rows": [
+    {
+      "method": "noRecon",
+      "cls": "volvo",
+      "scen": "RS-far",
+      "seed": 101,
+      "setting": {
+        "e": 0.25,
+        "l": 1.0
+      },
+      "div": 0,
+      "J": {
+        "16": -0.36525447898902935,
+        "64": -8.505340090416997
+      },
+      "label": "selected"
+    },
+    {
+      "method": "noRecon",
+      "cls": "volvo",
+      "scen": "RS-far",
+      "seed": 101,
+      "setting": {
+        "e": 1.0,
+        "l": 1.0
+      },
+      "div": 0,
+      "J": {
+        "16": -0.3094102689687862,
+        "64": -4.476786427087242
+      },
+      "label": "fixed"
+    }
+  ]
+}

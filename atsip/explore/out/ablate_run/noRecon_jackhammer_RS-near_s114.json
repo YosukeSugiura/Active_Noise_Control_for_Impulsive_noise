@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "settings": {
+    "selected": {
+      "e": 0.25,
+      "l": 1.0
+    },
+    "fixed": {
+      "e": 1.0,
+      "l": 1.0
+    }
+  },
+  "rows": [
+    {
+      "method": "noRecon",
+      "cls": "jackhammer",
+      "scen": "RS-near",
+      "seed": 114,
+      "kind": "rule",
+      "setting": {
+        "e": 0.25,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 1.41,
+      "L1_whole": -8.307138237155424,
+      "L1_last10": -9.635740617476838,
+      "L2_last5": -10.334910677730457,
+      "L1_ev": -5.17776260746443,
+      "L1_pre": -6.2572916784513435,
+      "rec_target": 8.530620580359831e-05,
+      "rec_blocks": 15,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "trials": [
+        {
+          "block": 1507,
+          "decide": 1523,
+          "status": "rollback",
+          "rho": 1.0055924062429413,
+          "false": false
+        }
+      ],
+      "n_trial": 1,
+      "n_confirm": 0,
+      "false_confirm": 0,
+      "missed": 1,
+      "detection_blocks": [],
+      "decide_blocks": [],
+      "post_div": 0,
+      "label": "selected"
+    },
+    {
+      "method": "noRecon",
+      "cls": "jackhammer",
+      "scen": "RS-near",
+      "seed": 114,
+      "kind": "rule",
+      "setting": {
+        "e": 1.0,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 1.45,
+      "L1_whole": -8.218684684725952,
+      "L1_last10": -9.635813047928595,
+      "L2_last5": -10.335176115244378,
+      "L1_ev": -5.179631224737022,
+      "L1_pre": -6.257658100347684,
+      "rec_target": 8.530452612001547e-05,
+      "rec_blocks": 15,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "trials": [
+        {
+          "block": 1507,
+          "decide": 1523,
+          "status": "rollback",
+          "rho": 1.0487328326221568,
+          "false": false
+        }
+      ],
+      "n_trial": 1,
+      "n_confirm": 0,
+      "false_confirm": 0,
+      "missed": 1,
+      "detection_blocks": [],
+      "decide_blocks": [],
+      "post_div": 0,
+      "label": "fixed"
+    }
+  ]
+}

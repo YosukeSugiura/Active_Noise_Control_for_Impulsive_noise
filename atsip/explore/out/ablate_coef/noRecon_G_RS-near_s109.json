@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "settings": {
+    "selected": {
+      "e": 0.25,
+      "l": 1.0
+    },
+    "fixed": {
+      "e": 1.0,
+      "l": 1.0
+    }
+  },
+  "rows": [
+    {
+      "method": "noRecon",
+      "cls": "G",
+      "scen": "RS-near",
+      "seed": 109,
+      "setting": {
+        "e": 0.25,
+        "l": 1.0
+      },
+      "div": 0,
+      "J": {
+        "16": -4.8953114769658495,
+        "64": -12.985934283730842
+      },
+      "label": "selected"
+    },
+    {
+      "method": "noRecon",
+      "cls": "G",
+      "scen": "RS-near",
+      "seed": 109,
+      "setting": {
+        "e": 1.0,
+        "l": 1.0
+      },
+      "div": 0,
+      "J": {
+        "16": 0.6974584168301313,
+        "64": -4.821618272882785
+      },
+      "label": "fixed"
+    }
+  ]
+}

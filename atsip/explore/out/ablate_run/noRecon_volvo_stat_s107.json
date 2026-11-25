@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "settings": {
+    "selected": {
+      "e": 0.25,
+      "l": 1.0
+    },
+    "fixed": {
+      "e": 1.0,
+      "l": 1.0
+    }
+  },
+  "rows": [
+    {
+      "method": "noRecon",
+      "cls": "volvo",
+      "scen": "stat",
+      "seed": 107,
+      "kind": "rule",
+      "setting": {
+        "e": 0.25,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 1.4,
+      "L1_whole": -5.8347330641572865,
+      "L1_last10": -6.026792266613053,
+      "L2_last5": -5.798043294910295,
+      "trials": [],
+      "n_trial": 0,
+      "n_confirm": 0,
+      "false_confirm": 0,
+      "missed": 0,
+      "detection_blocks": [],
+      "decide_blocks": [],
+      "post_div": null,
+      "label": "selected"
+    },
+    {
+      "method": "noRecon",
+      "cls": "volvo",
+      "scen": "stat",
+      "seed": 107,
+      "kind": "rule",
+      "setting": {
+        "e": 1.0,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 1.43,
+      "L1_whole": -5.141833330894435,
+      "L1_last10": -6.099877195366018,
+      "L2_last5": -5.885635959401911,
+      "trials": [
+        {
+          "block": 20,
+          "decide": 36,
+          "status": "rollback",
+          "rho": 2.3261711975146606,
+          "false": false
+        }
+      ],
+      "n_trial": 1,
+      "n_confirm": 0,
+      "false_confirm": 0,
+      "missed": 0,
+      "detection_blocks": [],
+      "decide_blocks": [],
+      "post_div": null,
+      "label": "fixed"
+    }
+  ]
+}

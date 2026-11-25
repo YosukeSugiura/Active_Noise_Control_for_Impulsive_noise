@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "settings": {
+    "selected": {
+      "e": 0.25,
+      "l": 1.0
+    },
+    "fixed": {
+      "e": 1.0,
+      "l": 1.0
+    }
+  },
+  "rows": [
+    {
+      "method": "noRecon",
+      "cls": "G",
+      "scen": "stat",
+      "seed": 101,
+      "kind": "rule",
+      "setting": {
+        "e": 0.25,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 1.42,
+      "L1_whole": -12.0895057111921,
+      "L1_last10": -12.155483709628204,
+      "L2_last5": -12.106452934819602,
+      "trials": [],
+      "n_trial": 0,
+      "n_confirm": 0,
+      "false_confirm": 0,
+      "missed": 0,
+      "detection_blocks": [],
+      "decide_blocks": [],
+      "post_div": null,
+      "label": "selected"
+    },
+    {
+      "method": "noRecon",
+      "cls": "G",
+      "scen": "stat",
+      "seed": 101,
+      "kind": "rule",
+      "setting": {
+        "e": 1.0,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 1.41,
+      "L1_whole": -12.021667318210454,
+      "L1_last10": -12.15557021098348,
+      "L2_last5": -12.106526117847443,
+      "trials": [],
+      "n_trial": 0,
+      "n_confirm": 0,
+      "false_confirm": 0,
+      "missed": 0,
+      "detection_blocks": [],
+      "decide_blocks": [],
+      "post_div": null,
+      "label": "fixed"
+    }
+  ]
+}

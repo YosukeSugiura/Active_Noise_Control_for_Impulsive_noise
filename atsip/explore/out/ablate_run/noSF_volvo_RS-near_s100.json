@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "settings": {
+    "selected": {
+      "e": 0.5,
+      "l": 1.0
+    },
+    "fixed": {
+      "e": 1.0,
+      "l": 1.0
+    }
+  },
+  "rows": [
+    {
+      "method": "noSF",
+      "cls": "volvo",
+      "scen": "RS-near",
+      "seed": 100,
+      "kind": "rule",
+      "setting": {
+        "e": 0.5,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 0.42,
+      "L1_whole": -5.34905375307477,
+      "L1_last10": -5.142863000966531,
+      "L2_last5": -4.860190594699293,
+      "L1_ev": -3.3578581659303466,
+      "L1_pre": -6.130304613467199,
+      "rec_target": 0.00030959207653853725,
+      "rec_blocks": 50,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "trials": [],
+      "n_trial": 0,
+      "n_confirm": 0,
+      "false_confirm": 0,
+      "missed": 1,
+      "detection_blocks": [],
+      "decide_blocks": [],
+      "post_div": 0,
+      "label": "selected"
+    },
+    {
+      "method": "noSF",
+      "cls": "volvo",
+      "scen": "RS-near",
+      "seed": 100,
+      "kind": "rule",
+      "setting": {
+        "e": 1.0,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 0.46,
+      "L1_whole": -5.315332920323807,
+      "L1_last10": -5.131135523158927,
+      "L2_last5": -4.846403875890013,
+      "L1_ev": -3.355203247741472,
+      "L1_pre": -6.130894492939678,
+      "rec_target": 0.00031174020666781315,
+      "rec_blocks": 48,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "trials": [],
+      "n_trial": 0,
+      "n_confirm": 0,
+      "false_confirm": 0,
+      "missed": 1,
+      "detection_blocks": [],
+      "decide_blocks": [],
+      "post_div": 0,
+      "label": "fixed"
+    }
+  ]
+}

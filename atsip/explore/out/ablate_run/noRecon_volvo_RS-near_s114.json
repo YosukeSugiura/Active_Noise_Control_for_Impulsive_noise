@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "settings": {
+    "selected": {
+      "e": 0.25,
+      "l": 1.0
+    },
+    "fixed": {
+      "e": 1.0,
+      "l": 1.0
+    }
+  },
+  "rows": [
+    {
+      "method": "noRecon",
+      "cls": "volvo",
+      "scen": "RS-near",
+      "seed": 114,
+      "kind": "rule",
+      "setting": {
+        "e": 0.25,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 1.45,
+      "L1_whole": -5.648815597791806,
+      "L1_last10": -6.281740969531983,
+      "L2_last5": -6.268309918937007,
+      "L1_ev": -5.175709706323204,
+      "L1_pre": -5.330813872218169,
+      "rec_target": 0.00025065753686683657,
+      "rec_blocks": 30,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "trials": [],
+      "n_trial": 0,
+      "n_confirm": 0,
+      "false_confirm": 0,
+      "missed": 1,
+      "detection_blocks": [],
+      "decide_blocks": [],
+      "post_div": 0,
+      "label": "selected"
+    },
+    {
+      "method": "noRecon",
+      "cls": "volvo",
+      "scen": "RS-near",
+      "seed": 114,
+      "kind": "rule",
+      "setting": {
+        "e": 1.0,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 1.52,
+      "L1_whole": -4.303680716919107,
+      "L1_last10": -5.930730336524149,
+      "L2_last5": -5.900637681371852,
+      "L1_ev": -4.998462096871966,
+      "L1_pre": -4.662750135467571,
+      "rec_target": 0.00027368507526918766,
+      "rec_blocks": 30,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "trials": [
+        {
+          "block": 4,
+          "decide": 15,
+          "status": "abort",
+          "rho": 4.888839344595356,
+          "false": false
+        },
+        {
+          "block": 69,
+          "decide": 74,
+          "status": "abort",
+          "rho": 5.703804887788097,
+          "false": false
+        }
+      ],
+      "n_trial": 2,
+      "n_confirm": 0,
+      "false_confirm": 0,
+      "missed": 1,
+      "detection_blocks": [],
+      "decide_blocks": [],
+      "post_div": 0,
+      "label": "fixed"
+    }
+  ]
+}

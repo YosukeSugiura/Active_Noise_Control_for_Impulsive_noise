@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "settings": {
+    "selected": {
+      "e": 0.5,
+      "l": 1.0
+    },
+    "fixed": {
+      "e": 1.0,
+      "l": 1.0
+    }
+  },
+  "rows": [
+    {
+      "method": "noSF",
+      "cls": "valve",
+      "scen": "RS-far",
+      "seed": 103,
+      "kind": "rule",
+      "setting": {
+        "e": 0.5,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 1.25,
+      "L1_whole": -9.284610440958629,
+      "L1_last10": -10.91879668132216,
+      "L2_last5": -12.230279798440582,
+      "L1_ev": -11.525073180107613,
+      "L1_pre": -7.811496266974745,
+      "rec_target": 0.0013771398885503163,
+      "rec_blocks": null,
+      "rec_cens": 1,
+      "rec_limit": 1751,
+      "trials": [
+        {
+          "block": 1876,
+          "decide": 1882,
+          "status": "confirmed",
+          "rho": 0.24317380783323,
+          "false": false
+        }
+      ],
+      "n_trial": 1,
+      "n_confirm": 1,
+      "false_confirm": 0,
+      "missed": 0,
+      "detection_blocks": [
+        1876
+      ],
+      "decide_blocks": [
+        6
+      ],
+      "post_div": 0,
+      "label": "selected"
+    },
+    {
+      "method": "noSF",
+      "cls": "valve",
+      "scen": "RS-far",
+      "seed": 103,
+      "kind": "rule",
+      "setting": {
+        "e": 1.0,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 1.17,
+      "L1_whole": -9.332102222759671,
+      "L1_last10": -10.951300171170683,
+      "L2_last5": -12.232447374386764,
+      "L1_ev": -11.879668844285872,
+      "L1_pre": -7.803469973542976,
+      "rec_target": 0.001376930181319495,
+      "rec_blocks": null,
+      "rec_cens": 1,
+      "rec_limit": 1751,
+      "trials": [
+        {
+          "block": 1876,
+          "decide": 1881,
+          "status": "confirmed",
+          "rho": 0.1295375550583295,
+          "false": false
+        }
+      ],
+      "n_trial": 1,
+      "n_confirm": 1,
+      "false_confirm": 0,
+      "missed": 0,
+      "detection_blocks": [
+        1876
+      ],
+      "decide_blocks": [
+        5
+      ],
+      "post_div": 0,
+      "label": "fixed"
+    }
+  ]
+}

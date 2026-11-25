@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "settings": {
+    "selected": {
+      "e": 0.5,
+      "l": 1.0
+    },
+    "fixed": {
+      "e": 1.0,
+      "l": 1.0
+    }
+  },
+  "rows": [
+    {
+      "method": "noSF",
+      "cls": "factory1",
+      "scen": "EN0",
+      "seed": 107,
+      "kind": "rule",
+      "setting": {
+        "e": 0.5,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 1.06,
+      "L1_whole": -8.375441259318508,
+      "L1_last10": -8.266110583889748,
+      "L2_last5": -8.667377799094721,
+      "L1_ev": -7.018242847736992,
+      "L1_pre": -8.856460387208642,
+      "trials": [
+        {
+          "block": 2,
+          "decide": 18,
+          "status": "rollback",
+          "rho": 1.037473918379528,
+          "false": false
+        },
+        {
+          "block": 1252,
+          "decide": 1268,
+          "status": "rollback",
+          "rho": 1.2653416269533067,
+          "false": false
+        }
+      ],
+      "n_trial": 2,
+      "n_confirm": 0,
+      "false_confirm": 0,
+      "missed": 0,
+      "detection_blocks": [],
+      "decide_blocks": [],
+      "post_div": null,
+      "label": "selected"
+    },
+    {
+      "method": "noSF",
+      "cls": "factory1",
+      "scen": "EN0",
+      "seed": 107,
+      "kind": "rule",
+      "setting": {
+        "e": 1.0,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 1.17,
+      "L1_whole": -8.365619259490538,
+      "L1_last10": -8.266333823649745,
+      "L2_last5": -8.667502797660429,
+      "L1_ev": -7.018823128578392,
+      "L1_pre": -8.857180419850813,
+      "trials": [
+        {
+          "block": 2,
+          "decide": 18,
+          "status": "rollback",
+          "rho": 1.01286805150571,
+          "false": false
+        },
+        {
+          "block": 1252,
+          "decide": 1268,
+          "status": "rollback",
+          "rho": 1.5390174665778282,
+          "false": false
+        }
+      ],
+      "n_trial": 2,
+      "n_confirm": 0,
+      "false_confirm": 0,
+      "missed": 0,
+      "detection_blocks": [],
+      "decide_blocks": [],
+      "post_div": null,
+      "label": "fixed"
+    }
+  ]
+}

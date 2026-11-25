@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "settings": {
+    "selected": {
+      "k": 8
+    }
+  },
+  "rows": [
+    {
+      "method": "bgCoh",
+      "cls": "jackhammer",
+      "scen": "stat",
+      "seed": 113,
+      "kind": "rule",
+      "setting": {
+        "k": 8
+      },
+      "div": 0,
+      "seconds": 2.3,
+      "L1_whole": -8.95098488842647,
+      "L1_last10": -8.766495469935364,
+      "L2_last5": -10.43928569067791,
+      "trials": [
+        {
+          "block": 2,
+          "decide": 6,
+          "status": "abort",
+          "rho": 12.783105142768898,
+          "false": false
+        },
+        {
+          "block": 1757,
+          "decide": 1773,
+          "status": "rollback",
+          "rho": 1.0160222649736053,
+          "false": false
+        }
+      ],
+      "n_trial": 2,
+      "n_confirm": 0,
+      "false_confirm": 0,
+      "missed": 0,
+      "detection_blocks": [],
+      "decide_blocks": [],
+      "post_div": null,
+      "label": "selected"
+    }
+  ]
+}

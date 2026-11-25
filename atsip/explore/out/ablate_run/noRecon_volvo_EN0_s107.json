@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "settings": {
+    "selected": {
+      "e": 0.25,
+      "l": 1.0
+    },
+    "fixed": {
+      "e": 1.0,
+      "l": 1.0
+    }
+  },
+  "rows": [
+    {
+      "method": "noRecon",
+      "cls": "volvo",
+      "scen": "EN0",
+      "seed": 107,
+      "kind": "rule",
+      "setting": {
+        "e": 0.25,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 1.5,
+      "L1_whole": -5.6931597724584995,
+      "L1_last10": -5.755765586765825,
+      "L2_last5": -5.785100319784638,
+      "L1_ev": -4.639629414137339,
+      "L1_pre": -5.741070400024718,
+      "trials": [
+        {
+          "block": 2503,
+          "decide": 2519,
+          "status": "rollback",
+          "rho": 1.0449053808454536,
+          "false": false
+        }
+      ],
+      "n_trial": 1,
+      "n_confirm": 0,
+      "false_confirm": 0,
+      "missed": 0,
+      "detection_blocks": [],
+      "decide_blocks": [],
+      "post_div": null,
+      "label": "selected"
+    },
+    {
+      "method": "noRecon",
+      "cls": "volvo",
+      "scen": "EN0",
+      "seed": 107,
+      "kind": "rule",
+      "setting": {
+        "e": 1.0,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 1.41,
+      "L1_whole": -5.007703126121955,
+      "L1_last10": -5.843490211948903,
+      "L2_last5": -5.880725466435546,
+      "L1_ev": -4.58517486997555,
+      "L1_pre": -5.6789596447249755,
+      "trials": [
+        {
+          "block": 20,
+          "decide": 36,
+          "status": "rollback",
+          "rho": 2.3261711975146606,
+          "false": false
+        },
+        {
+          "block": 2503,
+          "decide": 2519,
+          "status": "rollback",
+          "rho": 2.056135839712921,
+          "false": false
+        }
+      ],
+      "n_trial": 2,
+      "n_confirm": 0,
+      "false_confirm": 0,
+      "missed": 0,
+      "detection_blocks": [],
+      "decide_blocks": [],
+      "post_div": null,
+      "label": "fixed"
+    }
+  ]
+}

@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "settings": {
+    "selected": {
+      "e": 0.25,
+      "l": 1.0
+    },
+    "fixed": {
+      "e": 1.0,
+      "l": 1.0
+    }
+  },
+  "rows": [
+    {
+      "method": "noRecon",
+      "cls": "valve",
+      "scen": "EN0",
+      "seed": 110,
+      "kind": "rule",
+      "setting": {
+        "e": 0.25,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 1.49,
+      "L1_whole": -7.942259228198304,
+      "L1_last10": -8.804692485709722,
+      "L2_last5": -11.68944016182663,
+      "L1_ev": -5.853785653588195,
+      "L1_pre": -7.947962308526758,
+      "trials": [
+        {
+          "block": 1251,
+          "decide": 1267,
+          "status": "rollback",
+          "rho": 1.0837193028142629,
+          "false": false
+        },
+        {
+          "block": 2501,
+          "decide": 2517,
+          "status": "rollback",
+          "rho": 1.1487458547895035,
+          "false": false
+        }
+      ],
+      "n_trial": 2,
+      "n_confirm": 0,
+      "false_confirm": 0,
+      "missed": 0,
+      "detection_blocks": [],
+      "decide_blocks": [],
+      "post_div": null,
+      "label": "selected"
+    },
+    {
+      "method": "noRecon",
+      "cls": "valve",
+      "scen": "EN0",
+      "seed": 110,
+      "kind": "rule",
+      "setting": {
+        "e": 1.0,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 1.44,
+      "L1_whole": -6.714432456013207,
+      "L1_last10": -8.80184741866205,
+      "L2_last5": -11.658769879293907,
+      "L1_ev": -5.839907943128159,
+      "L1_pre": -7.75760167644923,
+      "trials": [
+        {
+          "block": 9,
+          "decide": 25,
+          "status": "rollback",
+          "rho": 0.9651995152283845,
+          "false": false
+        },
+        {
+          "block": 74,
+          "decide": 79,
+          "status": "abort",
+          "rho": 7.872058645701588,
+          "false": false
+        },
+        {
+          "block": 1251,
+          "decide": 1263,
+          "status": "abort",
+          "rho": 4.908434919798254,
+          "false": false
+        },
+        {
+          "block": 2501,
+          "decide": 2517,
+          "status": "rollback",
+          "rho": 2.9979516832740556,
+          "false": false
+        }
+      ],
+      "n_trial": 4,
+      "n_confirm": 0,
+      "false_confirm": 0,
+      "missed": 0,
+      "detection_blocks": [],
+      "decide_blocks": [],
+      "post_div": null,
+      "label": "fixed"
+    }
+  ]
+}

@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "settings": {
+    "selected": {
+      "e": 0.5,
+      "l": 1.0
+    },
+    "fixed": {
+      "e": 1.0,
+      "l": 1.0
+    }
+  },
+  "rows": [
+    {
+      "method": "noSF",
+      "cls": "volvo",
+      "scen": "RS-near",
+      "seed": 119,
+      "kind": "rule",
+      "setting": {
+        "e": 0.5,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 0.51,
+      "L1_whole": -4.349403200236867,
+      "L1_last10": -4.433458314405571,
+      "L2_last5": -4.295499230118507,
+      "L1_ev": -3.3626661461182907,
+      "L1_pre": -4.191811021130409,
+      "rec_target": 0.0003946322693953638,
+      "rec_blocks": 20,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "trials": [
+        {
+          "block": 5,
+          "decide": 21,
+          "status": "rollback",
+          "rho": 1.033599251787294,
+          "false": false
+        }
+      ],
+      "n_trial": 1,
+      "n_confirm": 0,
+      "false_confirm": 0,
+      "missed": 1,
+      "detection_blocks": [],
+      "decide_blocks": [],
+      "post_div": 0,
+      "label": "selected"
+    },
+    {
+      "method": "noSF",
+      "cls": "volvo",
+      "scen": "RS-near",
+      "seed": 119,
+      "kind": "rule",
+      "setting": {
+        "e": 1.0,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 0.61,
+      "L1_whole": -4.153660811262197,
+      "L1_last10": -4.247830982309924,
+      "L2_last5": -4.098231086197824,
+      "L1_ev": -3.2483794793494143,
+      "L1_pre": -4.186527376000115,
+      "rec_target": 0.00040144224866952774,
+      "rec_blocks": 20,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "trials": [
+        {
+          "block": 4,
+          "decide": 20,
+          "status": "rollback",
+          "rho": 0.9715139479614059,
+          "false": false
+        }
+      ],
+      "n_trial": 1,
+      "n_confirm": 0,
+      "false_confirm": 0,
+      "missed": 1,
+      "detection_blocks": [],
+      "decide_blocks": [],
+      "post_div": 0,
+      "label": "fixed"
+    }
+  ]
+}

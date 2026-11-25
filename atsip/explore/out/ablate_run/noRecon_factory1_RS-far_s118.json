@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "settings": {
+    "selected": {
+      "e": 0.25,
+      "l": 1.0
+    },
+    "fixed": {
+      "e": 1.0,
+      "l": 1.0
+    }
+  },
+  "rows": [
+    {
+      "method": "noRecon",
+      "cls": "factory1",
+      "scen": "RS-far",
+      "seed": 118,
+      "kind": "rule",
+      "setting": {
+        "e": 0.25,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 0.68,
+      "L1_whole": -9.000002659949997,
+      "L1_last10": -9.860620163263722,
+      "L2_last5": -9.951028761629825,
+      "L1_ev": -8.503157221786772,
+      "L1_pre": -8.40499988295515,
+      "rec_target": 0.0013030751575435148,
+      "rec_blocks": 34,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "trials": [
+        {
+          "block": 2,
+          "decide": 18,
+          "status": "rollback",
+          "rho": 1.1526985870008595,
+          "false": false
+        },
+        {
+          "block": 1877,
+          "decide": 1891,
+          "status": "confirmed",
+          "rho": 0.24876385978798227,
+          "false": false
+        }
+      ],
+      "n_trial": 2,
+      "n_confirm": 1,
+      "false_confirm": 0,
+      "missed": 0,
+      "detection_blocks": [
+        1877
+      ],
+      "decide_blocks": [
+        14
+      ],
+      "post_div": 0,
+      "label": "selected"
+    },
+    {
+      "method": "noRecon",
+      "cls": "factory1",
+      "scen": "RS-far",
+      "seed": 118,
+      "kind": "rule",
+      "setting": {
+        "e": 1.0,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 0.64,
+      "L1_whole": -8.785674030396011,
+      "L1_last10": -9.86055480658202,
+      "L2_last5": -9.951001995926541,
+      "L1_ev": -6.622573315533288,
+      "L1_pre": -8.41107442639681,
+      "rec_target": 0.0013032306586859483,
+      "rec_blocks": 186,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "trials": [
+        {
+          "block": 2,
+          "decide": 18,
+          "status": "rollback",
+          "rho": 1.1437113020359,
+          "false": false
+        },
+        {
+          "block": 1877,
+          "decide": 1888,
+          "status": "abort",
+          "rho": 4.445637774863036,
+          "false": false
+        }
+      ],
+      "n_trial": 2,
+      "n_confirm": 0,
+      "false_confirm": 0,
+      "missed": 1,
+      "detection_blocks": [
+        1877
+      ],
+      "decide_blocks": [],
+      "post_div": 0,
+      "label": "fixed"
+    }
+  ]
+}

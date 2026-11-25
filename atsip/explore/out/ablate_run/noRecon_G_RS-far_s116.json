@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "settings": {
+    "selected": {
+      "e": 0.25,
+      "l": 1.0
+    },
+    "fixed": {
+      "e": 1.0,
+      "l": 1.0
+    }
+  },
+  "rows": [
+    {
+      "method": "noRecon",
+      "cls": "G",
+      "scen": "RS-far",
+      "seed": 116,
+      "kind": "rule",
+      "setting": {
+        "e": 0.25,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 0.7,
+      "L1_whole": -14.329297086007443,
+      "L1_last10": -16.327455983099988,
+      "L2_last5": -16.30665486608766,
+      "L1_ev": -13.978674479155162,
+      "L1_pre": -12.800314937616408,
+      "rec_target": 0.0012529265897800767,
+      "rec_blocks": 47,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "trials": [
+        {
+          "block": 1876,
+          "decide": 1890,
+          "status": "confirmed",
+          "rho": 0.23160654930594632,
+          "false": false
+        }
+      ],
+      "n_trial": 1,
+      "n_confirm": 1,
+      "false_confirm": 0,
+      "missed": 0,
+      "detection_blocks": [
+        1876
+      ],
+      "decide_blocks": [
+        14
+      ],
+      "post_div": 0,
+      "label": "selected"
+    },
+    {
+      "method": "noRecon",
+      "cls": "G",
+      "scen": "RS-far",
+      "seed": 116,
+      "kind": "rule",
+      "setting": {
+        "e": 1.0,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 0.74,
+      "L1_whole": -13.985857325411235,
+      "L1_last10": -16.327624177953023,
+      "L2_last5": -16.30665301946423,
+      "L1_ev": -10.10980914586989,
+      "L1_pre": -12.80028940367568,
+      "rec_target": 0.001252904903840552,
+      "rec_blocks": 144,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "trials": [
+        {
+          "block": 1876,
+          "decide": 1886,
+          "status": "abort",
+          "rho": 4.064192798320774,
+          "false": false
+        },
+        {
+          "block": 1941,
+          "decide": 1952,
+          "status": "abort",
+          "rho": 6.27179223513159,
+          "false": false
+        }
+      ],
+      "n_trial": 2,
+      "n_confirm": 0,
+      "false_confirm": 0,
+      "missed": 1,
+      "detection_blocks": [
+        1876,
+        1941
+      ],
+      "decide_blocks": [],
+      "post_div": 0,
+      "label": "fixed"
+    }
+  ]
+}

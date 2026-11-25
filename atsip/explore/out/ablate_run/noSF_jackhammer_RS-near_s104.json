@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "settings": {
+    "selected": {
+      "e": 0.5,
+      "l": 1.0
+    },
+    "fixed": {
+      "e": 1.0,
+      "l": 1.0
+    }
+  },
+  "rows": [
+    {
+      "method": "noSF",
+      "cls": "jackhammer",
+      "scen": "RS-near",
+      "seed": 104,
+      "kind": "rule",
+      "setting": {
+        "e": 0.5,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 0.54,
+      "L1_whole": -8.349502483013307,
+      "L1_last10": -8.92427003932706,
+      "L2_last5": -9.607652764757667,
+      "L1_ev": -5.0202878075932,
+      "L1_pre": -6.370166969335471,
+      "rec_target": 9.260519240115806e-05,
+      "rec_blocks": 15,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "trials": [
+        {
+          "block": 1506,
+          "decide": 1522,
+          "status": "rollback",
+          "rho": 1.0267781699055263,
+          "false": false
+        }
+      ],
+      "n_trial": 1,
+      "n_confirm": 0,
+      "false_confirm": 0,
+      "missed": 1,
+      "detection_blocks": [],
+      "decide_blocks": [],
+      "post_div": 0,
+      "label": "selected"
+    },
+    {
+      "method": "noSF",
+      "cls": "jackhammer",
+      "scen": "RS-near",
+      "seed": 104,
+      "kind": "rule",
+      "setting": {
+        "e": 1.0,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 0.46,
+      "L1_whole": -8.34527608511041,
+      "L1_last10": -8.922760909268952,
+      "L2_last5": -9.606212468301198,
+      "L1_ev": -5.0184081044148,
+      "L1_pre": -6.3710759651049464,
+      "rec_target": 9.264055373697048e-05,
+      "rec_blocks": 15,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "trials": [
+        {
+          "block": 1506,
+          "decide": 1522,
+          "status": "rollback",
+          "rho": 1.0802306320155124,
+          "false": false
+        }
+      ],
+      "n_trial": 1,
+      "n_confirm": 0,
+      "false_confirm": 0,
+      "missed": 1,
+      "detection_blocks": [],
+      "decide_blocks": [],
+      "post_div": 0,
+      "label": "fixed"
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "settings": {
+    "selected": {
+      "k": 8
+    }
+  },
+  "rows": [
+    {
+      "method": "bgCoh",
+      "cls": "jackhammer",
+      "scen": "RS-far",
+      "seed": 119,
+      "kind": "rule",
+      "setting": {
+        "k": 8
+      },
+      "div": 0,
+      "seconds": 1.66,
+      "L1_whole": -8.89744444723705,
+      "L1_last10": -11.137235043684672,
+      "L2_last5": -11.68563498867212,
+      "L1_ev": -7.786019825112877,
+      "L1_pre": -5.3666817923562995,
+      "rec_target": 0.00015589181842325006,
+      "rec_blocks": 15,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "trials": [
+        {
+          "block": 1507,
+          "decide": 1523,
+          "status": "rollback",
+          "rho": 1.0174936187631158,
+          "false": false
+        },
+        {
+          "block": 1878,
+          "decide": 1886,
+          "status": "confirmed",
+          "rho": 0.20060853691047814,
+          "false": false
+        }
+      ],
+      "n_trial": 2,
+      "n_confirm": 1,
+      "false_confirm": 0,
+      "missed": 0,
+      "detection_blocks": [
+        1878
+      ],
+      "decide_blocks": [
+        8
+      ],
+      "post_div": 0,
+      "label": "selected"
+    }
+  ]
+}

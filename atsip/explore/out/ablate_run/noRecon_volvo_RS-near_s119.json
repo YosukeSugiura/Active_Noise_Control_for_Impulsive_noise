@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "settings": {
+    "selected": {
+      "e": 0.25,
+      "l": 1.0
+    },
+    "fixed": {
+      "e": 1.0,
+      "l": 1.0
+    }
+  },
+  "rows": [
+    {
+      "method": "noRecon",
+      "cls": "volvo",
+      "scen": "RS-near",
+      "seed": 119,
+      "kind": "rule",
+      "setting": {
+        "e": 0.25,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 1.5,
+      "L1_whole": -4.389664984017881,
+      "L1_last10": -4.5010489929916835,
+      "L2_last5": -4.400725202238828,
+      "L1_ev": -3.360415584143001,
+      "L1_pre": -4.234233904115974,
+      "rec_target": 0.00039349832799364,
+      "rec_blocks": 21,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "trials": [],
+      "n_trial": 0,
+      "n_confirm": 0,
+      "false_confirm": 0,
+      "missed": 1,
+      "detection_blocks": [],
+      "decide_blocks": [],
+      "post_div": 0,
+      "label": "selected"
+    },
+    {
+      "method": "noRecon",
+      "cls": "volvo",
+      "scen": "RS-near",
+      "seed": 119,
+      "kind": "rule",
+      "setting": {
+        "e": 1.0,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 1.49,
+      "L1_whole": -3.3495666752445636,
+      "L1_last10": -4.264095736284238,
+      "L2_last5": -4.1987133657980085,
+      "L1_ev": -3.129366182043009,
+      "L1_pre": -3.9200935807032034,
+      "rec_target": 0.0004035981690260167,
+      "rec_blocks": 21,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "trials": [
+        {
+          "block": 4,
+          "decide": 20,
+          "status": "rollback",
+          "rho": 1.3415829921427376,
+          "false": false
+        },
+        {
+          "block": 69,
+          "decide": 76,
+          "status": "abort",
+          "rho": 4.099854052850502,
+          "false": false
+        }
+      ],
+      "n_trial": 2,
+      "n_confirm": 0,
+      "false_confirm": 0,
+      "missed": 1,
+      "detection_blocks": [],
+      "decide_blocks": [],
+      "post_div": 0,
+      "label": "fixed"
+    }
+  ]
+}

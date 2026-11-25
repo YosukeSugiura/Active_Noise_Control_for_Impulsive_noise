@@ -1,0 +1,453 @@
+{
+  "version": 1,
+  "settings": {
+    "selected": {
+      "e": 0.5,
+      "l": 1.0
+    },
+    "fixed": {
+      "e": 1.0,
+      "l": 1.0
+    }
+  },
+  "rows": [
+    {
+      "method": "noSF",
+      "cls": "machinegun",
+      "scen": "RS-near",
+      "seed": 117,
+      "kind": "rule",
+      "setting": {
+        "e": 0.5,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 0.48,
+      "L1_whole": -4.793688180563698,
+      "L1_last10": -5.10013053258266,
+      "L2_last5": -4.379515412772695,
+      "L1_ev": -3.229054513128667,
+      "L1_pre": -6.008284422389682,
+      "rec_target": 0.0012777439297895542,
+      "rec_blocks": 148,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "trials": [
+        {
+          "block": 132,
+          "decide": 148,
+          "status": "rollback",
+          "rho": 0.999895598090322,
+          "false": false
+        },
+        {
+          "block": 303,
+          "decide": 319,
+          "status": "rollback",
+          "rho": 0.9758711502384507,
+          "false": false
+        },
+        {
+          "block": 416,
+          "decide": 432,
+          "status": "rollback",
+          "rho": 0.9737846248640032,
+          "false": false
+        },
+        {
+          "block": 491,
+          "decide": 507,
+          "status": "rollback",
+          "rho": 0.9539098960154778,
+          "false": false
+        },
+        {
+          "block": 607,
+          "decide": 623,
+          "status": "rollback",
+          "rho": 0.998931224972187,
+          "false": false
+        },
+        {
+          "block": 876,
+          "decide": 892,
+          "status": "rollback",
+          "rho": 0.999504967575785,
+          "false": false
+        },
+        {
+          "block": 1049,
+          "decide": 1065,
+          "status": "rollback",
+          "rho": 0.9998158291997165,
+          "false": false
+        },
+        {
+          "block": 1188,
+          "decide": 1204,
+          "status": "rollback",
+          "rho": 1.0001097931678593,
+          "false": false
+        },
+        {
+          "block": 1353,
+          "decide": 1369,
+          "status": "rollback",
+          "rho": 0.9998340016969339,
+          "false": false
+        },
+        {
+          "block": 1535,
+          "decide": 1551,
+          "status": "rollback",
+          "rho": 1.0001318487041557,
+          "false": false
+        },
+        {
+          "block": 1732,
+          "decide": 1748,
+          "status": "rollback",
+          "rho": 0.8020188729524287,
+          "false": false
+        },
+        {
+          "block": 1876,
+          "decide": 1892,
+          "status": "confirmed",
+          "rho": 0.3791311992866658,
+          "false": false
+        },
+        {
+          "block": 1941,
+          "decide": 1957,
+          "status": "rollback",
+          "rho": 0.9658071721883822,
+          "false": false
+        },
+        {
+          "block": 2015,
+          "decide": 2031,
+          "status": "rollback",
+          "rho": 1.607114482644239,
+          "false": false
+        },
+        {
+          "block": 2080,
+          "decide": 2096,
+          "status": "rollback",
+          "rho": 0.9939347024554833,
+          "false": false
+        },
+        {
+          "block": 2233,
+          "decide": 2249,
+          "status": "rollback",
+          "rho": 0.9994304914684401,
+          "false": false
+        },
+        {
+          "block": 2656,
+          "decide": 2672,
+          "status": "rollback",
+          "rho": 0.999860665021509,
+          "false": false
+        },
+        {
+          "block": 2862,
+          "decide": 2878,
+          "status": "rollback",
+          "rho": 1.0614374526322499,
+          "false": false
+        },
+        {
+          "block": 2927,
+          "decide": 2943,
+          "status": "rollback",
+          "rho": 1.185973284050163,
+          "false": false
+        },
+        {
+          "block": 3007,
+          "decide": 3023,
+          "status": "rollback",
+          "rho": 0.930471323022977,
+          "false": false
+        },
+        {
+          "block": 3155,
+          "decide": 3171,
+          "status": "rollback",
+          "rho": 1.25515461080639,
+          "false": false
+        },
+        {
+          "block": 3228,
+          "decide": 3244,
+          "status": "rollback",
+          "rho": 1.03886323113894,
+          "false": false
+        },
+        {
+          "block": 3293,
+          "decide": 3309,
+          "status": "rollback",
+          "rho": 1.0013605053498416,
+          "false": false
+        },
+        {
+          "block": 3428,
+          "decide": 3444,
+          "status": "rollback",
+          "rho": 0.999772415003846,
+          "false": false
+        },
+        {
+          "block": 3562,
+          "decide": 3578,
+          "status": "rollback",
+          "rho": 0.9998554900526785,
+          "false": false
+        },
+        {
+          "block": 3747,
+          "decide": null,
+          "status": "pending",
+          "rho": null,
+          "false": false
+        }
+      ],
+      "n_trial": 26,
+      "n_confirm": 1,
+      "false_confirm": 0,
+      "missed": 0,
+      "detection_blocks": [
+        1876,
+        1941
+      ],
+      "decide_blocks": [
+        16
+      ],
+      "post_div": 0,
+      "label": "selected"
+    },
+    {
+      "method": "noSF",
+      "cls": "machinegun",
+      "scen": "RS-near",
+      "seed": 117,
+      "kind": "rule",
+      "setting": {
+        "e": 1.0,
+        "l": 1.0
+      },
+      "div": 0,
+      "seconds": 0.54,
+      "L1_whole": -4.796885062831457,
+      "L1_last10": -5.097230961234886,
+      "L2_last5": -4.378825712455777,
+      "L1_ev": -3.4444567724063306,
+      "L1_pre": -6.008930507780527,
+      "rec_target": 0.001280265564294904,
+      "rec_blocks": 148,
+      "rec_cens": 0,
+      "rec_limit": 1751,
+      "trials": [
+        {
+          "block": 132,
+          "decide": 148,
+          "status": "rollback",
+          "rho": 0.9993399297359788,
+          "false": false
+        },
+        {
+          "block": 303,
+          "decide": 319,
+          "status": "rollback",
+          "rho": 0.9040488233341839,
+          "false": false
+        },
+        {
+          "block": 416,
+          "decide": 424,
+          "status": "abort",
+          "rho": 4.108685029233069,
+          "false": false
+        },
+        {
+          "block": 491,
+          "decide": 507,
+          "status": "rollback",
+          "rho": 0.9165258746758068,
+          "false": false
+        },
+        {
+          "block": 607,
+          "decide": 623,
+          "status": "rollback",
+          "rho": 0.9976290002385475,
+          "false": false
+        },
+        {
+          "block": 876,
+          "decide": 892,
+          "status": "rollback",
+          "rho": 0.9990568219277403,
+          "false": false
+        },
+        {
+          "block": 1049,
+          "decide": 1065,
+          "status": "rollback",
+          "rho": 0.9996070175163702,
+          "false": false
+        },
+        {
+          "block": 1188,
+          "decide": 1204,
+          "status": "rollback",
+          "rho": 1.0002505725229216,
+          "false": false
+        },
+        {
+          "block": 1353,
+          "decide": 1369,
+          "status": "rollback",
+          "rho": 0.9996774928256039,
+          "false": false
+        },
+        {
+          "block": 1535,
+          "decide": 1551,
+          "status": "rollback",
+          "rho": 1.000162668856775,
+          "false": false
+        },
+        {
+          "block": 1732,
+          "decide": 1748,
+          "status": "rollback",
+          "rho": 0.8521704458672358,
+          "false": false
+        },
+        {
+          "block": 1876,
+          "decide": 1888,
+          "status": "confirmed",
+          "rho": 0.23545155446697172,
+          "false": false
+        },
+        {
+          "block": 1941,
+          "decide": 1957,
+          "status": "rollback",
+          "rho": 0.8773156222112285,
+          "false": false
+        },
+        {
+          "block": 2015,
+          "decide": 2031,
+          "status": "rollback",
+          "rho": 2.2193283386936367,
+          "false": false
+        },
+        {
+          "block": 2080,
+          "decide": 2096,
+          "status": "rollback",
+          "rho": 0.9870132592226505,
+          "false": false
+        },
+        {
+          "block": 2233,
+          "decide": 2249,
+          "status": "rollback",
+          "rho": 0.9987341690381334,
+          "false": false
+        },
+        {
+          "block": 2656,
+          "decide": 2672,
+          "status": "rollback",
+          "rho": 0.9996473878890462,
+          "false": false
+        },
+        {
+          "block": 2862,
+          "decide": 2874,
+          "status": "abort",
+          "rho": 4.101315233766969,
+          "false": false
+        },
+        {
+          "block": 2927,
+          "decide": 2943,
+          "status": "rollback",
+          "rho": 1.3997056136444512,
+          "false": false
+        },
+        {
+          "block": 3007,
+          "decide": 3023,
+          "status": "rollback",
+          "rho": 0.9364684562639184,
+          "false": false
+        },
+        {
+          "block": 3155,
+          "decide": 3162,
+          "status": "abort",
+          "rho": 8.570570076103072,
+          "false": false
+        },
+        {
+          "block": 3228,
+          "decide": 3244,
+          "status": "rollback",
+          "rho": 1.11320573025649,
+          "false": false
+        },
+        {
+          "block": 3293,
+          "decide": 3309,
+          "status": "rollback",
+          "rho": 1.0033681402951622,
+          "false": false
+        },
+        {
+          "block": 3428,
+          "decide": 3444,
+          "status": "rollback",
+          "rho": 0.9994910632496485,
+          "false": false
+        },
+        {
+          "block": 3562,
+          "decide": 3578,
+          "status": "rollback",
+          "rho": 0.9996644004251715,
+          "false": false
+        },
+        {
+          "block": 3747,
+          "decide": null,
+          "status": "pending",
+          "rho": null,
+          "false": false
+        }
+      ],
+      "n_trial": 26,
+      "n_confirm": 1,
+      "false_confirm": 0,
+      "missed": 0,
+      "detection_blocks": [
+        1876,
+        1941
+      ],
+      "decide_blocks": [
+        12
+      ],
+      "post_div": 0,
+      "label": "fixed"
+    }
+  ]
+}
