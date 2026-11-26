@@ -1,0 +1,189 @@
+{
+  "name": "ATSIP frozen coefficients for five baselines",
+  "on": {
+    "push": {
+      "branches": [
+        "atsip/frozen5"
+      ],
+      "paths": [
+        "atsip/explore/frozen5.py"
+      ]
+    },
+    "workflow_dispatch": {}
+  },
+  "permissions": {
+    "contents": "write",
+    "actions": "read"
+  },
+  "concurrency": {
+    "group": "atsip-frozen5",
+    "cancel-in-progress": false
+  },
+  "env": {
+    "OPENBLAS_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1",
+    "NUMBA_NUM_THREADS": "1"
+  },
+  "jobs": {
+    "data": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 350,
+      "if": "github.ref == 'refs/heads/atsip/frozen5'",
+      "steps": [
+        {
+          "uses": "actions/checkout@v4"
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "run": "python -m pip install -r requirements.txt scipy"
+        },
+        {
+          "name": "Restore prior artifact",
+          "run": "run=$(gh api \"repos/$GITHUB_REPOSITORY/actions/artifacts?name=$CACHE&per_page=100\" --jq '[.artifacts[] | select(.expired|not)][0].workflow_run.id // empty')\nif [ -n \"$run\" ]; then\n  gh run download \"$run\" -n \"$CACHE\" -D \"$DEST\" || true\nfi\n\nif [ ! -f \"$DEST/machinegun.wav\" ]; then\n  gh run download 45505836189 -n thx-data -D \"$DEST\" || true\nfi\n",
+          "env": {
+            "GH_TOKEN": "${{ github.token }}",
+            "CACHE": "frozen5-data",
+            "DEST": "atsip/explore/data/prepared"
+          }
+        },
+        {
+          "name": "Validate or prepare all six recordings",
+          "run": "check() {\n  python -c 'from pathlib import Path; from scipy.io import wavfile; p=Path(\"data/prepared\"); assert all((lambda z: z[0]==16000 and z[1].ndim==1 and len(z[1])>=608000)(wavfile.read(p/(c+\".wav\"))) for c in (\"machinegun\",\"factory1\",\"destroyerengine\",\"volvo\",\"valve\",\"jackhammer\"))'\n}\nif ! check; then\n  python data/fetch.py mimii noisex sonyc\n  python data/make_noise.py\n  check\nfi",
+          "working-directory": "atsip/explore"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "with": {
+            "name": "frozen5-data",
+            "path": "atsip/explore/data/prepared/*.wav",
+            "overwrite": true,
+            "if-no-files-found": "error"
+          }
+        }
+      ]
+    },
+    "run": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 350,
+      "needs": "data",
+      "strategy": {
+        "fail-fast": false,
+        "matrix": {
+          "method": [
+            "FxNLMS",
+            "FxlogNLMS",
+            "MFxLMM",
+            "FxNFLOC",
+            "EVSS_FxeLMS"
+          ],
+          "shard": [
+            0,
+            1,
+            2,
+            3
+          ]
+        }
+      },
+      "steps": [
+        {
+          "uses": "actions/checkout@v4"
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "run": "python -m pip install -r requirements.txt scipy"
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "frozen5-data",
+            "path": "atsip/explore/data/prepared"
+          }
+        },
+        {
+          "name": "Restore prior artifact",
+          "run": "run=$(gh api \"repos/$GITHUB_REPOSITORY/actions/artifacts?name=$CACHE&per_page=100\" --jq '[.artifacts[] | select(.expired|not)][0].workflow_run.id // empty')\nif [ -n \"$run\" ]; then\n  gh run download \"$run\" -n \"$CACHE\" -D \"$DEST\" || true\nfi\n",
+          "env": {
+            "GH_TOKEN": "${{ github.token }}",
+            "CACHE": "frozen5-coef-${{ matrix.method }}-${{ matrix.shard }}",
+            "DEST": "atsip/explore/out/frozen5_parts"
+          }
+        },
+        {
+          "name": "Evaluate and verify prefixes",
+          "run": "tar -xzf results/final2_run.tar.gz -C out\npython frozen5.py run --method '${{ matrix.method }}' --shard '${{ matrix.shard }}/4' --procs 4",
+          "working-directory": "atsip/explore"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "with": {
+            "name": "frozen5-coef-${{ matrix.method }}-${{ matrix.shard }}",
+            "path": "atsip/explore/out/frozen5_parts/*/*.json",
+            "overwrite": true,
+            "if-no-files-found": "warn"
+          },
+          "if": "always()"
+        }
+      ]
+    },
+    "report": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 30,
+      "needs": "run",
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "ref": "atsip/frozen5",
+            "fetch-depth": 0
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "run": "python -m pip install -r requirements.txt scipy"
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "pattern": "frozen5-coef-*",
+            "path": "atsip/explore/out/frozen5_parts",
+            "merge-multiple": true
+          }
+        },
+        {
+          "name": "Report and regenerate Table 4",
+          "run": "for archive in final2_run coef2_run cc_run; do\n  tar -xzf \"results/$archive.tar.gz\" -C out\ndone\npython frozen5.py report\npython paper/table_all.py",
+          "working-directory": "atsip/explore"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "with": {
+            "name": "frozen5-report",
+            "path": "atsip/explore/RESULTS_frozen5.md\natsip/explore/paper/tab/table10.tex",
+            "overwrite": true,
+            "if-no-files-found": "error"
+          }
+        },
+        {
+          "name": "Commit and push results",
+          "run": "git config user.name 'github-actions[bot]'\ngit config user.email '41898282+github-actions[bot]@users.noreply.github.com'\ngit add atsip/explore/out/frozen5_coef atsip/explore/RESULTS_frozen5.md atsip/explore/paper/tab/table10.tex\nif git diff --cached --quiet; then exit 0; fi\ngit commit -m 'Fill frozen-coefficient results in ATSIP Table 4'\nfor attempt in 1 2 3; do\n  git fetch origin +refs/heads/atsip/frozen5:refs/remotes/origin/atsip/frozen5\n  git rebase origin/atsip/frozen5\n  if git push origin HEAD:atsip/frozen5; then exit 0; fi\ndone\nexit 1"
+        }
+      ]
+    }
+  }
+}
