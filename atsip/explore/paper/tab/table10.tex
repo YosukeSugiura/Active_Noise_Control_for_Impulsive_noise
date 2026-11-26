@@ -1,33 +1,33 @@
 \begin{table*}[tbp]
 \centering
 \small
-\setlength{\tabcolsep}{6pt}
+\setlength{\tabcolsep}{4pt}
 \caption{All algorithms with the common setting}
 \label{tab:atsip-10}
 \par\smallskip
 \resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%
-\begin{tabular}{llllllll}
+\begin{tabular}{llllllllll}
 \toprule
- & Diverged & \multicolumn{2}{l}{Median recovery time [s]} & \multicolumn{2}{l}{Frozen at 0.51\,s [dB]} & No change & 2\,s after 0\,dB \\
-Algorithm & runs & Close & Far & Close & Far & 30\,s [dB] & disturbance [dB] \\
+ & Diverged & \multicolumn{2}{l}{Median recovery time [s]} & \multicolumn{2}{l}{Frozen at 0.13 s [dB]} & \multicolumn{2}{l}{Frozen at 0.51 s [dB]} & No change & 2 s after 0 dB \\
+Algorithm & runs & Close & Far & Close & Far & Close & Far & 30 s [dB] & disturbance [dB] \\
 \midrule
-Proposed & 0 & 0.36 & 0.40 & $-$7.9 & $-$10.9 & $-$9.03 & $-$5.60 \\
-Without trials & 0 & 1.05 & 1.13 & $-$3.3 & $-$4.5 & $-$9.03 & $-$5.59 \\
-FxNLMS & 0 & 3.32 & 4.30 & -- & -- & $-$7.84 & $-$5.66 \\
-Th-FxNLMS & 0 & 3.58 & 4.29 & $-$0.3 & $-$1.4 & $-$7.96 & $-$5.51 \\
-FxlogNLMS & 0 & 4.31 & 1.48 & -- & -- & $-$2.31 & $-$2.04 \\
-MFxLMM & 0 & 2.71 & 3.37 & -- & -- & $-$6.59 & $-$5.37 \\
-FxNFLOC & 9 & 2.30 & 2.66 & -- & -- & $-$7.60 & $-$5.85 \\
-EVSS-FxeLMS & 0 & 4.30 & 4.29 & -- & -- & $-$6.43 & $-$5.31 \\
-FreqFxLMS & 0 & 4.83 & 5.30 & 0.7 & $-$0.4 & $-$7.68 & $-$5.56 \\
-CohVSS-FxNLMS & 0 & 0.98 & 1.26 & $-$5.0 & $-$6.8 & $-$8.98 & $-$6.22 \\
-C-FXLMS & 0 & 2.54 & 2.78 & $-$1.9 & $-$3.2 & $-$8.05 & $-$5.87 \\
-MFxNLMS & 0 & 1.97 & 2.43 & $-$2.8 & $-$4.3 & $-$8.03 & $-$5.23 \\
+Proposed & 0 & 0.36 & 0.40 & $-$2.6 & $-$6.7 & $-$7.9 & $-$10.9 & $-$9.03 & $-$5.60 \\
+Without trials & 0 & 1.05 & 1.13 & 1.1 & 0.2 & $-$3.3 & $-$4.5 & $-$9.03 & $-$5.59 \\
+FxNLMS & 0 & 3.32 & 4.30 & 1.8 & 0.6 & $-$0.2 & $-$1.3 & $-$7.84 & $-$5.66 \\
+Th-FxNLMS & 0 & 3.58 & 4.29 & 1.9 & 0.7 & $-$0.3 & $-$1.4 & $-$7.96 & $-$5.51 \\
+FxlogNLMS & 0 & 4.31 & 1.48 & 0.9 & 0.6 & 0.6 & 0.2 & $-$2.31 & $-$2.04 \\
+MFxLMM & 0 & 2.71 & 3.37 & 1.5 & 1.2 & 0.4 & 0.3 & $-$6.59 & $-$5.37 \\
+FxNFLOC & 9 & 2.30 & 2.66 & 1.0 & 0.4 & $-$1.8 & $-$3.5 & $-$7.60 & $-$5.85 \\
+EVSS-FxeLMS & 0 & 4.30 & 4.29 & 1.7 & 1.0 & 0.5 & 0.1 & $-$6.43 & $-$5.31 \\
+FreqFxLMS & 0 & 4.83 & 5.30 & 2.0 & 0.9 & 0.7 & $-$0.4 & $-$7.68 & $-$5.56 \\
+CohVSS-FxNLMS & 0 & 0.98 & 1.26 & $-$0.0 & $-$0.9 & $-$5.0 & $-$6.8 & $-$8.98 & $-$6.22 \\
+C-FXLMS & 0 & 2.54 & 2.78 & 1.2 & 0.0 & $-$1.9 & $-$3.2 & $-$8.05 & $-$5.87 \\
+MFxNLMS & 0 & 1.97 & 2.43 & 0.9 & $-$0.4 & $-$2.8 & $-$4.3 & $-$8.03 & $-$5.23 \\
 \bottomrule
 \end{tabular}}
 \par\medskip
 \begin{minipage}{0.98\textwidth}
 \footnotesize
-Diverged runs are counted over the 1000 runs of the five conditions. The noise reduction values are averaged over the runs without divergence. The frozen values are medians over the runs, as in Table 2. "--": frozen coefficients were not evaluated for this algorithm.\par
+Diverged runs are counted over the 1000 runs of the five conditions. The noise reduction values are averaged over the runs without divergence. The frozen values are medians over the runs, as in Table 2.\par
 \end{minipage}
 \end{table*}
