@@ -48,6 +48,11 @@ def clean(md):
     return "\n".join(out)
 
 
+def join_after_display(md):
+    """A paragraph that continues the sentence of a display equation ("where ...", "for ...") is not indented."""
+    return re.sub(r"(\$\$[^\n]*\$\$)\n\n(?=[a-z])", r"\1\n", md)
+
+
 def cites(md):
     def one(m):
         keys = [k.strip() for k in m.group(1).split(",")]
@@ -84,7 +89,7 @@ def xref(tex, stats):
 
 
 def main():
-    md = cites(clean((HERE / "draft_v4.md").read_text()))
+    md = join_after_display(cites(clean((HERE / "draft_v4.md").read_text())))
     abstract, body = md.split("## 1. Introduction", 1)
     abstract = abstract.replace("## Abstract", "").strip()
     body = "## 1. Introduction" + body
