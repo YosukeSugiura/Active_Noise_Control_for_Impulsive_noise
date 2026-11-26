@@ -107,6 +107,7 @@ def main():
 \title{""" + TITLE + r"""}
 \author[1*]{Sugiura,Yosuke}
 \affil[1]{School of Science and Technology, Meiji University, Kawasaki, Japan}
+\ExecuteBibliographyOptions{sorting=none}
 \addbibresource{refs.bib}
 \issuevolumeyear{2027}
 \issuevolumenumber{xx}

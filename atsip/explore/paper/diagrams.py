@@ -21,8 +21,8 @@ def setup():
 
 
 def box(ax, x, y, w, h, text, dashed=False, size=9):
-    ax.add_patch(Rectangle((x - w / 2, y - h / 2), w, h, fill=False, lw=LW, ls="--" if dashed else "-"))
-    ax.text(x, y, text, ha="center", va="center", fontsize=size, linespacing=1.15)
+    ax.add_patch(Rectangle((x - w / 2, y - h / 2), w, h, facecolor="w", edgecolor="k", zorder=3, lw=LW, ls="--" if dashed else "-"))
+    ax.text(x, y, text, ha="center", va="center", fontsize=size, linespacing=1.15, zorder=4)
 
 
 def line(ax, pts, arrow=True, dashed=False):
@@ -51,7 +51,8 @@ def finish(fig, ax, name, xlim, ylim):
 
 
 def figure1():
-    fig, ax = plt.subplots(figsize=(5.6, 2.75))
+    fig, ax = plt.subplots(figsize=(5.9, 2.75))
+    line(ax, [(2.95, 0.25), (2.95, 0.5), (0.8, 0.5), (1.8, 1.5)])          # adaptation arrow, drawn below the blocks
     ax.text(-0.05, 1.08, "$x(k)$", ha="left", va="bottom")
     line(ax, [(-0.05, 1.0), (0.4, 1.0)], arrow=False); dot(ax, 0.4, 1.0)
     line(ax, [(0.4, 1.0), (0.4, 2.0), (1.6, 2.0)])                       # to primary path
@@ -63,16 +64,17 @@ def figure1():
     box(ax, 2.95, 1.0, 1.0, 0.5, "Secondary path\n$s(k)$", size=8)
     line(ax, [(3.45, 1.0), (4.17, 1.0)])
     summer(ax, 4.3, 1.0)
-    line(ax, [(5.0, 1.55), (4.39, 1.09)]); ax.text(5.02, 1.57, "$v(k)$", ha="left", va="bottom")
-    line(ax, [(4.43, 1.0), (5.2, 1.0)]); ax.text(5.2, 1.08, "$e(k)$", ha="right", va="bottom")
-    dot(ax, 4.8, 1.0)
+    line(ax, [(4.43, 1.0), (4.82, 1.0)])
+    summer(ax, 4.95, 1.0)
+    line(ax, [(4.95, 1.6), (4.95, 1.13)]); ax.text(4.95, 1.63, "$v(k)$", ha="center", va="bottom")
+    line(ax, [(5.08, 1.0), (5.85, 1.0)]); ax.text(5.85, 1.08, "$e(k)$", ha="right", va="bottom")
+    dot(ax, 5.4, 1.0)
     line(ax, [(0.4, 1.0), (0.4, 0.0), (0.85, 0.0)])                      # filtered reference
     box(ax, 1.3, 0.0, 0.9, 0.5, "Model\n$\\hat{s}(k)$")
     line(ax, [(1.75, 0.0), (2.45, 0.0)]); ax.text(2.1, 0.08, "$r(k)$", ha="center", va="bottom")
     box(ax, 2.95, 0.0, 1.0, 0.5, "Adaptive\nalgorithm")
-    line(ax, [(4.8, 1.0), (4.8, 0.0), (3.45, 0.0)])
-    line(ax, [(2.55, 0.25), (0.9, 1.42)])                   # adaptation arrow through the control filter
-    finish(fig, ax, "fig1", (-0.1, 5.45), (-0.35, 2.35))
+    line(ax, [(5.4, 1.0), (5.4, 0.0), (3.45, 0.0)])
+    finish(fig, ax, "fig1", (-0.1, 6.0), (-0.35, 2.35))
 
 
 def figure2():
