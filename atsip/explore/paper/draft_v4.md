@@ -45,7 +45,7 @@ Foreground and background filters were introduced for echo cancellation [Ochiai 
 
 This paper makes three contributions. First, we design a short trial with a background filter that isolates a large step size from the control signal under impulsive noise. We show that a discarded trial leaves the control signal unchanged (Proposition 2), and we bound the error of the transfer decision caused by an inaccurate secondary-path model (Proposition 3). Second, we combine the three elements above in the update used for the trial. We show that, for a white input, the update caused by an isolated impulse does not depend on its amplitude (Proposition 1). An ablation study shows how each element contributes to the speed of reconvergence, to the stability, and to the converged noise reduction. Third, we compare the proposed algorithm with ten algorithms for ten noise types. The evaluation includes the cases in which no transfer occurred, the case in which comparison algorithms recovered better from a disturbance, and the effect of an error in the secondary-path model.
 
-Section 2 reviews related work, Section 3 formulates the problem, and Section 4 describes the proposed algorithm. Section 5 describes the evaluation framework, Sections 6 and 7 report the results, and Section 8 concludes the paper.
+Section 2 reviews related work, Section 3 formulates the problem, and Section 4 describes the proposed algorithm. Section 5 describes the evaluation framework, and Section 6 reports the results for the three requirements. Section 7 analyzes the design of the algorithm, Section 8 examines the effect of an error in the secondary-path model, and Section 9 concludes the paper.
 
 ## 2. Related work
 
@@ -201,7 +201,7 @@ After a transfer, the foreground filter continues in the early phase for the rem
 
 *Proof.* The control signal and the update of $\mathbf{w}_{\mathrm f}$ depend on $x(k)$, $e(k)$, and $\mathbf{w}_{\mathrm f}$. The background filter and the quantities $z_n$, $\bar{z}_n$, and $\rho_n$ are computed from these signals and affect $\mathbf{w}_{\mathrm f}$ only through a transfer. Without a transfer, the recursions of $\mathbf{w}_{\mathrm f}$ and $y(k)$ in the two runs are the same, and their initial states are the same. $\blacksquare$
 
-Proposition 2 is a structural property. It requires no assumption on the signals or on the accuracy of $\hat{s}(k)$. However, it does not cover a transfer, and Section 7 reports how often a transfer occurred without a path change.
+Proposition 2 is a structural property. It requires no assumption on the signals or on the accuracy of $\hat{s}(k)$. However, it does not cover a transfer, and Sections 6.4 and 6.5 report how often a transfer occurred without a path change.
 
 The decision uses the reconstructed errors. Proposition 3 relates it to the errors that the two filters would actually produce. For fixed coefficients $\mathbf{w}$, let $e_{\mathbf{w}}(k) = d(k) + v(k) + s(k) * [\mathbf{w}^{\mathsf T}\mathbf{x}(k)]$ be this error, and let $\rho^{\star}_n$ be the ratio (11) computed with $e_{\mathbf{w}_{\mathrm b}}$ and $e_{\mathbf{w}_{\mathrm f}}$. Let $u(k) = (\mathbf{w}_{\mathrm b} - \mathbf{w}_{\mathrm f})^{\mathsf T}\mathbf{x}(k)$ be the difference of the two filter outputs, and let
 
@@ -248,9 +248,9 @@ The reference level of the recovery time depends on the algorithm. We therefore 
 
 Differences are means of paired differences over runs with the same noise and paths. They are given as the value of the proposed algorithm minus that of the other algorithm. The 95% confidence interval was obtained by resampling the 20 seeds 2000 times, and we call one algorithm better only when the interval excludes zero. The 20 seeds share eight sets of paths. When the eight sets were resampled instead of the seeds, the limits of the intervals in Table 2 changed by at most 0.14 dB and 0.05 s.
 
-## 6. Reconvergence after a primary path change
+## 6. Results for the three requirements
 
-This section reports the overall results (Section 6.1), the results for each noise type with the two exceptions (Section 6.2), and the comparison with settings selected for each noise type (Section 6.3).
+Sections 6.1 to 6.3 examine the reconvergence after a change in the primary path, and Sections 6.4 and 6.5 examine the cases without a change.
 
 ### 6.1 Overall results
 
@@ -272,7 +272,7 @@ Table 10 summarizes all algorithms. FxNFLOC diverged in nine of its 1000 runs, a
 
 Fig. 6 shows the paired difference of the noise reduction with frozen coefficients for each noise type. Of the 40 comparisons, the proposed algorithm was better in 31, CohVSS-FxNLMS was better in six, and the interval included zero in three. The six exceptions were the four comparisons for machine gun noise and the two for car interior noise with the close source. In these two noise types, transfers after the change were rare. These noise types accounted for 37 of the 60 runs without a transfer after the change with the close source and for 13 of the 20 such runs with the far source. In such a run, no transfer occurred before the change either, and the control signal was the same as without the trials (Proposition 2).
 
-For machine gun noise, a transfer occurred in three of the 20 runs with the close source and in nine with the far source. The coefficients of CohVSS-FxNLMS at 0.51 s reduced the noise by 1.1 dB and 2.6 dB more than those of the proposed algorithm. The variant that runs a trial in every block without the detector (Section 7.3) transferred the coefficients in all runs. With the far source, its difference from CohVSS-FxNLMS was 0.3 dB with an interval that included zero, and the missed transfers thus account for most of the gap. With the close source, this variant remained worse by 0.8 dB, and the gap originates mainly in the update of the foreground filter. The recovery time did not separate the algorithms for this noise, because the error power varied over about 55 dB between bursts and pauses.
+For machine gun noise, a transfer occurred in three of the 20 runs with the close source and in nine with the far source. The coefficients of CohVSS-FxNLMS at 0.51 s reduced the noise by 1.1 dB and 2.6 dB more than those of the proposed algorithm. The variant that runs a trial in every block without the detector (Section 7.1) transferred the coefficients in all runs. With the far source, its difference from CohVSS-FxNLMS was 0.3 dB with an interval that included zero, and the missed transfers thus account for most of the gap. With the close source, this variant remained worse by 0.8 dB, and the gap originates mainly in the update of the foreground filter. The recovery time did not separate the algorithms for this noise, because the error power varied over about 55 dB between bursts and pauses.
 
 For car interior noise, the switch to the close source raised the error power by only 1.1 dB. This rise is below the 6 dB needed to start a trial. The variant without the detector gave no improvement either. The power ratio over the 2 s after the change differed from that of CohVSS-FxNLMS by 0.04 dB with an interval that included zero.
 
@@ -302,21 +302,19 @@ For the signal of Fig. 3, the setting of C-FXLMS had an eight times larger step 
 - 6.2 節の回復時間（クラス別）：提案法 22〜44 ブロック、CohVSS-FxNLMS 93〜204 ブロック（G、a145、a120、factory1、destroyerengine）。valve は両者 538、jackhammer は 148。
 - 変化なしの条件では 2494 回の試行が始まり、移行は 0 回（7 章で使う）。
 
-## 7. Fixed primary path, design choices, and robustness
-
-This section examines the second and third requirements of Section 3.4 (Sections 7.1 and 7.2), the contribution of each element (Section 7.3), the computational cost (Section 7.4), the sensitivity to the parameters (Section 7.5), and the effect of an error in the secondary-path model (Sections 7.6 and 7.7).
-
-### 7.1 No change in the primary path
+### 6.4 No change in the primary path
 
 Without a path change, the trials left the control signal unchanged. In the no-change condition, all 2494 trials were discarded, about one every 2.4 s, and the control signal was identical to that obtained without the trials in every run. Table 3 lists the noise reduction. Over the whole run, the mean noise reduction was 0.05 dB larger than that of CohVSS-FxNLMS ([−0.08, −0.03] dB), and over the last 10 s it was 0.07 dB smaller ([0.04, 0.11] dB). It exceeded that of C-FXLMS by about 1.0 dB. For destroyer engine noise, C-FXLMS was better by 0.4 dB.
 
-### 7.2 Disturbance at the error microphone
+### 6.5 Disturbance at the error microphone
 
 With a disturbance, the trials rarely led to a transfer and did not reduce the noise reduction. Fewer than 0.5% of the trials ended with a transfer, and only the runs with such a transfer differed from those without the trials. Over the 2 s after each disturbance, the difference from the algorithm without the trials was about 0.01 dB or less, and both intervals included zero.
 
 However, two comparison algorithms recovered better from the 0 dB disturbance. After this disturbance, CohVSS-FxNLMS and C-FXLMS reduced the noise by 0.62 dB and 0.27 dB more than the proposed algorithm. The algorithm without the trials showed the same gap. The gap therefore comes from the late-phase update of the foreground filter and not from the trials. C-FXLMS switched to its slow filter during the disturbance (mixing parameter 0.04). With the −10 dB disturbance, CohVSS-FxNLMS was better by 0.20 dB, and C-FXLMS was worse by 0.27 dB.
 
-### 7.3 Contribution of each element
+## 7. Analysis of the design
+
+### 7.1 Contribution of each element
 
 Each element of the trial and of its update had a distinct role. Table 4 lists three variants of the trial. Without the division by $g_n$, seven to nine of the 200 runs diverged in each condition. When the coefficients with the larger step size controlled the noise from the start of a trial, the recovery time was the same within 0.02 s. However, the control signal changed in 71 of the 200 runs without a change. Thus, the background filter keeps the output unchanged at no cost in speed. When a trial ran in every block without the detector, the recovery took 10% to 17% less time, and the noise reduction after the 0 dB disturbance was 0.50 dB larger ([0.37, 0.64] dB). However, this variant made 96 transfers without a change and had 1.9 times the average cost, with the same peak cost. The detector trades this speed-up for an unchanged output and a lower average cost.
 
@@ -324,25 +322,27 @@ We also removed the other two elements of the update, with parameters either equ
 
 Finally, we applied the trial to our previous algorithm. The foreground filter used the update of CohVSS-FxNLMS, and the background filter used the same update with a step size eight times larger, selected from 2 to 16 times. The median recovery time was 0.74 s and 0.89 s, and the coefficients frozen at 0.51 s reduced the noise by 1.4 dB and 2.1 dB less than those of the proposed algorithm. Compared with CohVSS-FxNLMS, the trial therefore shortened the recovery by 25% to 29%. The proposed algorithm uses the update of Section 4 in both filters, and it recovered in less than half of the time of this variant. This variant recovered better from the 0 dB disturbance, by 0.62 dB, as CohVSS-FxNLMS did.
 
-### 7.4 Computational cost
+### 7.2 Computational cost
 
 Table 5 lists the cost per block of 128 samples. The late phase requires 0.60 times the real multiplications of the time-domain FxNLMS algorithm, and a block with a trial requires 1.23 times. A trial was active in 7% of the blocks, and the average cost was 0.65 times that of the FxNLMS algorithm. Thus, the average cost stays below that of the FxNLMS algorithm. However, a real-time implementation must provide for the peak during a trial. By the same count, CohVSS-FxNLMS requires about 0.63 times the multiplications of the FxNLMS algorithm, close to the late phase of the proposed algorithm. The counts exclude the logarithm and the complex exponential that the spectral factor requires for each bin once per block, and the three power functions and one exponential per bin of CohVSS-FxNLMS.
 
-### 7.5 Sensitivity to the parameters
+### 7.3 Sensitivity to the parameters
 
 The threshold $\gamma$ trades missed changes against transfers without a path change, and the other parameters had small effects. We varied four parameters of the proposed algorithm one at a time. Table 6 shows the result for the threshold $\gamma$ in (10). For $\gamma$ between 2 and 4, the median recovery time stayed within 0.04 s of the default, and with $\gamma = 8$, it was about twice as long.
 
 For the transfer thresholds $(\rho_1, \rho_2)$ of $(0.18, 0.35)$ and $(0.35, 0.7)$ and for the final decision at 8 or 32 blocks, the median recovery time stayed within 0.05 s of the default, and the noise reduction over the whole run stayed within 0.04 dB. The looser thresholds increased the transfers without a path change from 0 to 18 in the no-change condition and from 13 to 32 with the 0 dB disturbance. The step size $\sigma_{\mathrm E} = 0.5$ gave median recovery times of 0.42 s and 0.37 s without divergence, and $\sigma_{\mathrm E} = 1.5$ caused divergence in three of the 200 runs in each condition. This value corresponds to $a \le 0.68$. This range exceeds the range in which the error decayed in Section 4.4.
 
-### 7.6 Error in the secondary-path model
+## 8. Error in the secondary-path model
+
+### 8.1 Divergence and recovery
 
 The proposed algorithm tolerated an added model error of −40 dB, but it diverged more often than CohVSS-FxNLMS with an added error of −30 dB or more. In addition to the truncation error of about −24 dB (Section 5.1), we added white Gaussian noise to the coefficients of $\hat{s}(k)$ at −40 dB, −30 dB, and −20 dB relative to their energy and repeated the no-change and source-switch conditions. Table 7 lists the results. The actual secondary path was unchanged. With −40 dB, no run diverged, and the median recovery times changed by at most 0.01 s. With −30 dB, the proposed algorithm diverged in nine of the 600 runs, and CohVSS-FxNLMS diverged in three. With −20 dB, the proposed algorithm and C-FXLMS diverged in 54 runs each, and CohVSS-FxNLMS diverged in 21.
 
-Most of this sensitivity originates in the update of the foreground filter, because the algorithm without the trials also diverged in six and 51 runs. At each of these two levels, the proposed algorithm diverged in three more runs, within 2 s after a transfer. These three runs were the three conditions of one noise sequence, and Section 7.7 examines their transfers.
+Most of this sensitivity originates in the update of the foreground filter, because the algorithm without the trials also diverged in six and 51 runs. At each of these two levels, the proposed algorithm diverged in three more runs, within 2 s after a transfer. These three runs were the three conditions of one noise sequence, and Section 8.2 examines their transfers.
 
 However, in the runs without divergence, the advantage in the recovery time remained. With −20 dB, the median recovery time of the proposed algorithm was 0.44 s and 0.51 s, compared with 1.03 s and 1.33 s for CohVSS-FxNLMS. With −30 dB and without a change, the noise reduction of the proposed algorithm over the last 10 s was smaller than that of CohVSS-FxNLMS by 0.3 dB ([0.06, 0.78] dB).
 
-### 7.7 Check of the transfer decisions
+### 8.2 Check of the transfer decisions
 
 The decisions based on the reconstructed errors agreed with those based on the actual errors, and every reversed transfer violated the sufficient condition of Proposition 3. For all 364,970 decisions, we computed $\rho^{\star}_n$ and $\kappa_n$ with the true secondary path. Table 9 summarizes the result. We call a transfer reversed when $\rho^{\star}_n \ge 1$. The bound of Proposition 3 with $\eta_n = 0$ held in all but six decisions. In these six decisions, the foreground coefficients had changed within the memory of the secondary path.
 
@@ -350,7 +350,7 @@ Without an added model error, using $\rho^{\star}_n$ instead of $\rho_n$ changed
 
 In contrast, the agreement decreased with an added error of −20 dB. Of the transfers after a change, 17 of 311 were reversed, and 19 of the 23 transfers without a change were reversed. No transfer that met the sufficient condition was reversed, and every reversed transfer had $\kappa_n > 0.9$. All six runs in which only the proposed algorithm diverged contained a reversed transfer before the divergence, with $\rho_n$ between 0.14 and 0.19 and $\rho^{\star}_n$ between 3.5 and 4.6.
 
-## 8. Conclusion
+## 9. Conclusion
 
 We proposed a frequency-domain filtered-x algorithm for impulsive noise. The algorithm tests a larger step size on a background filter during a short trial and transfers the result to the foreground filter only when it reduces the reconstructed error. A discarded trial leaves the control signal unchanged. In simulations with ten noise types, the trials shortened the median recovery time after a switch of the noise source by about two thirds compared with the fastest of ten comparison algorithms, without divergence. None of the tested step sizes of three comparison algorithms gave this recovery time without divergence.
 

@@ -24,12 +24,12 @@ FLOATS = {  # inserted after the heading that starts with the key
     "5.3 ": r"\input{../tab/table1.tex}",
     "6.1 ": r"\input{../tab/table2.tex}" "\n" r"\begin{figure}[tbp]\centering\includegraphics[width=\linewidth]{../fig/fig_anr_common.pdf}\caption{Time course of the noise reduction for the $\alpha$-stable signal with $\alpha = 1.45$ (median over 20 seeds of the ratio of the error power to the primary-noise power, both smoothed by an exponential average with a forgetting factor of 0.9995). The noise source switches at 15 s. Each algorithm uses its common setting.}\label{fig:anr}\end{figure}" "\n" r"\begin{figure}[tbp]\centering\includegraphics[width=\linewidth]{../fig/fig3.pdf}\caption{Noise reduction with the coefficients frozen at each time after the switch of the noise source (median over 200 runs). The bands show the interquartile range for the proposed algorithm and CohVSS-FxNLMS. The time axis is linear up to 0.55 s and logarithmic thereafter. The vertical dotted lines mark 0.13 s and 0.51 s.}\label{fig:frozen}\end{figure}" "\n" r"\begin{figure}[tbp]\centering\includegraphics[width=\linewidth]{../fig/fig_stepsweep.pdf}\caption{Median recovery time and percentage of diverged runs of two comparison algorithms with step sizes from 0.5 to 16 times the common setting (200 runs each). The median is computed over the runs without divergence. CohVSS-FxNLMS diverged in all runs at 16 times. The star marks the proposed algorithm with its common setting.}\label{fig:stepsweep}\end{figure}" "\n" r"\input{../tab/table8.tex}" "\n" r"\input{../tab/table10.tex}",
     "6.2 ": r"\begin{figure}[tbp]\centering\includegraphics[width=0.75\linewidth]{../fig/fig4.pdf}\caption{Difference in the noise reduction with frozen coefficients between the proposed algorithm and CohVSS-FxNLMS for each noise type (mean of the paired differences over 20 seeds). Negative values indicate a larger noise reduction for the proposed algorithm. A dagger marks a 95\% confidence interval that includes zero.}\label{fig:classes}\end{figure}",
-    "7.1 ": r"\input{../tab/table3.tex}",
-    "7.3 ": r"\input{../tab/table4.tex}",
-    "7.4 ": r"\input{../tab/table5.tex}",
-    "7.5 ": r"\input{../tab/table6.tex}",
-    "7.6 ": r"\input{../tab/table7.tex}",
-    "7.7 ": r"\input{../tab/table9.tex}",
+    "6.4 ": r"\input{../tab/table3.tex}",
+    "7.1 ": r"\input{../tab/table4.tex}",
+    "7.2 ": r"\input{../tab/table5.tex}",
+    "7.3 ": r"\input{../tab/table6.tex}",
+    "8.1 ": r"\input{../tab/table7.tex}",
+    "8.2 ": r"\input{../tab/table9.tex}",
 }
 
 
