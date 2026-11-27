@@ -15,7 +15,8 @@ ROWS = [("Proposed", "final2_run", "P5-early-cap", "coef2_run"),
         ("FreqFxLMS", "final2_run", "FreqFxLMS", "coef2_run"),
         ("CohVSS-FxNLMS", "final2_run", "Freq_FxNLMS_CohVSS", "coef2_run"),
         ("C-FXLMS", "cc_run", "C_FXLMS", "cc_coef"),
-        ("MFxNLMS", "mfx_run", "MFxNLMS", "mfx_coef")]
+        ("MFxNLMS", "mfx_run", "MFxNLMS", "mfx_coef"),
+        ("APFM", "apfm_eval:APFM_2", "APFM", "apfm_eval:APFM_2")]
 
 cache = {}
 def grp(folder, scen):
@@ -24,8 +25,14 @@ def grp(folder, scen):
         g = {}
         for c in F.CLASSES:
             for i in range(100, 120):
-                f = F.ROOT / "out" / folder / f"{c}_{scen}_s{i}.json"
-                for r in F.json.loads(f.read_text())["rows"]:
+                if ":" in folder:
+                    d, pre = folder.split(":")
+                    f = F.ROOT / "out" / d / f"{pre}_{c}_{scen}_s{i}.json"
+                    rows = [F.json.loads(f.read_text())]
+                else:
+                    f = F.ROOT / "out" / folder / f"{c}_{scen}_s{i}.json"
+                    rows = F.json.loads(f.read_text())["rows"]
+                for r in rows:
                     if r.get("variant", "main") == "main":
                         g.setdefault((scen, r["method"]), []).append(r)
         assert all(len(v) == 200 for v in g.values()), (folder, scen)
@@ -75,7 +82,7 @@ Algorithm & runs & Close & Far & Close & Far & Close & Far & Whole run [dB] & di
 \par\medskip
 \begin{minipage}{0.98\textwidth}
 \footnotesize
-Diverged runs are counted over the 1000 runs of the five conditions. The noise reduction values are averaged over the runs without divergence. The frozen values are medians over the runs, as in Table 2.""" + footnote + r"""\par
+Diverged runs are counted over the 1000 runs of the five conditions. The noise reduction values are averaged over the runs without divergence. The frozen values are medians over the runs, as in Table 2. APFM uses one filter trained for the primary path before the switch.""" + footnote + r"""\par
 \end{minipage}
 \end{table*}
 """
