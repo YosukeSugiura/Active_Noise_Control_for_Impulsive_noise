@@ -1,0 +1,34 @@
+{
+  "version": 2,
+  "settings": {
+    "key": "nx0.125|r0.25",
+    "mu": 0.0375,
+    "params": {
+      "ratio": 0.25,
+      "mu_a": 1.0,
+      "beta": 0.9,
+      "a_max": 4.0,
+      "norm": 1.0
+    },
+    "div": 0,
+    "L1_whole": -8.167106714803028,
+    "L1_last10": -9.339965311239498,
+    "L1_ev": -4.505801883418828
+  },
+  "rows": [
+    {
+      "method": "C_FXLMS",
+      "cls": "destroyerengine",
+      "scen": "stat",
+      "seed": 115,
+      "variant": "main",
+      "kind": "base",
+      "div": 0,
+      "seconds": 0.41,
+      "L1_whole": -10.611163167441415,
+      "L1_last10": -11.658956478296595,
+      "L2_last5": -11.6948608818494,
+      "lam": {}
+    }
+  ]
+}
