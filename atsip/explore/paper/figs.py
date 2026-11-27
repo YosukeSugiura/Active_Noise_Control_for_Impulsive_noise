@@ -132,7 +132,7 @@ def save(fig, name):
 
 def figure3(coef, report):
     methods = (P,A,N)
-    styles = (("0.04","-","o"), ("0.32","--","s"), ("0.54","-.","^"))
+    styles = (("#D55E00","-","o"), ("#0072B2","--","s"), ("#009E73","-.","^"))
     fig, axes = plt.subplots(1,2,figsize=(7.2,2.95),sharey=True,layout="constrained")
     for ax,s in zip(axes,SWITCHES):
         for m,(color,ls,mark) in zip(methods,styles):
@@ -148,8 +148,7 @@ def figure3(coef, report):
                 ax.fill_between(time,series[:,0],series[:,2],color=color,alpha=.12,linewidth=0)
                 for q in (0,2):
                     ax.plot(time,series[:,q],color=color,linestyle=ls,linewidth=.5)
-            ax.plot(time,series[:,1],color=color,linestyle=ls,linewidth=1.65,marker=mark,
-                    markersize=3.1,markevery=3,label=NAMES.get(m,m))
+            ax.plot(time,series[:,1],color=color,linestyle=ls,linewidth=1.65,label=NAMES.get(m,m))
         for k in KS:
             ax.axvline(k*BLOCK_SECONDS,color="0.68",ls=":",lw=.95,zorder=0)
         ax.set_xscale("symlog",linthresh=.55)

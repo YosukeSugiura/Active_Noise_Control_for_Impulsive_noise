@@ -96,9 +96,9 @@ def main():
     plt.rcParams.update({"font.family": fam, "font.size": 9, "pdf.fonttype": 42, "axes.spines.top": False, "axes.spines.right": False})
     label = {"P5-early-cap": "Proposed", "Freq_FxNLMS_CohVSS": "CohVSS-FxNLMS", "C_FXLMS": "C-FXLMS", "FxNLMS": "FxNLMS",
              "FxlogNLMS": "FxlogNLMS", "MFxLMM": "MFxLMM", "FxNFLOC": "FxNFLOC", "EVSS_FxeLMS": "EVSS-FxeLMS"}
-    style = {"P5-early-cap": ("0", "-", 1.8), "Freq_FxNLMS_CohVSS": ("0.25", "--", 1.3), "C_FXLMS": ("0.25", "-.", 1.1),
-             "FxNLMS": ("0.5", "-", 0.9), "FxlogNLMS": ("0.5", ":", 1.2), "MFxLMM": ("0.6", "--", 0.9),
-             "FxNFLOC": ("0.4", (0, (5, 1, 1, 1, 1, 1)), 0.9), "EVSS_FxeLMS": ("0.7", "-", 0.9)}
+    style = {"P5-early-cap": ("#D55E00", "-", 1.8), "Freq_FxNLMS_CohVSS": ("#0072B2", "--", 1.3), "C_FXLMS": ("#009E73", "-.", 1.1),
+             "FxNLMS": ("#000000", "-", 0.8), "FxlogNLMS": ("#CC79A7", ":", 1.2), "MFxLMM": ("#56B4E9", "--", 0.9),
+             "FxNFLOC": ("#E69F00", (0, (5, 1, 1, 1, 1, 1)), 0.9), "EVSS_FxeLMS": ("#999999", "-", 0.9)}
     fig, axes = plt.subplots(2, 2, figsize=(7.2, 4.6), layout="constrained", sharey=True, gridspec_kw={"width_ratios": [1.6, 1]})
     t = np.arange(z[f"{SCENS[0]}|d"].shape[1]) * 160 / 16000
     for row, scen in enumerate(SCENS):

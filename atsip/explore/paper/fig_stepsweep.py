@@ -11,7 +11,7 @@ from matplotlib import font_manager
 HERE = Path(__file__).resolve().parent
 S = json.loads((HERE.parent / "out/stepsweep_summary.json").read_text())
 names = {"FxNLMS": "FxNLMS", "Freq_FxNLMS_CohVSS": "CohVSS-FxNLMS"}
-style = {"FxNLMS": ("tab:gray", "s"), "Freq_FxNLMS_CohVSS": ("tab:blue", "o")}
+style = {"FxNLMS": ("#000000", "s"), "Freq_FxNLMS_CohVSS": ("#0072B2", "o")}
 prop = {"RS-near": 0.360, "RS-far": 0.400}
 fam = next((f.name for f in font_manager.fontManager.ttflist
             if f.name in ("Times New Roman", "TeX Gyre Termes", "Nimbus Roman", "Liberation Serif")), None)
@@ -27,7 +27,7 @@ for ax, (sc, sub) in zip(axes, (("RS-near", "(a) Close source"), ("RS-far", "(b)
         ax.plot([p[0] for p in pts], [p[1] for p in pts], color=c, marker=mk, ms=4, lw=1, label=lab)
         for x, y, f in pts:
             ax.annotate(f"×{f:g}", (x, y), textcoords="offset points", xytext=(4, 3), fontsize=7, color=c)
-    ax.plot([0], [prop[sc]], marker="*", ms=10, color="tab:red", ls="none", label="Proposed")
+    ax.plot([0], [prop[sc]], marker="*", ms=10, color="#D55E00", ls="none", label="Proposed")
     ax.set_yscale("log"); ax.set_xlim(-4, 104)
     ax.set_yticks([0.3, 0.5, 1, 2, 5]); ax.set_yticklabels(["0.3", "0.5", "1", "2", "5"])
     ax.yaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())

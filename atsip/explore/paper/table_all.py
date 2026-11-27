@@ -82,7 +82,7 @@ Algorithm & runs & Close & Far & Close & Far & Close & Far & Whole run [dB] & di
 \par\medskip
 \begin{minipage}{0.98\textwidth}
 \footnotesize
-Diverged runs are counted over the 1000 runs of the five conditions. The noise reduction values are averaged over the runs without divergence. The frozen values are medians over the runs, as in Table 2. APFM uses one filter trained for the primary path before the switch.""" + footnote + r"""\par
+Diverged runs are counted over the 1000 runs of the five conditions. The noise reduction values are averaged over the runs without divergence. The frozen values are medians over the runs. APFM uses one filter trained for the primary path before the switch.""" + footnote + r"""\par
 \end{minipage}
 \end{table*}
 """
