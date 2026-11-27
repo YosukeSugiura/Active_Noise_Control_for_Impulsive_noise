@@ -1,0 +1,340 @@
+{
+  "name": "ATSIP kappa and M7",
+  "on": {
+    "push": {
+      "branches": [
+        "atsip/judge"
+      ],
+      "paths": [
+        "atsip/explore/judge_extra.py"
+      ]
+    },
+    "workflow_dispatch": {}
+  },
+  "permissions": {
+    "contents": "write",
+    "actions": "read"
+  },
+  "concurrency": {
+    "group": "atsip-judge-extra",
+    "cancel-in-progress": false
+  },
+  "env": {
+    "OPENBLAS_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1",
+    "NUMBA_NUM_THREADS": "1",
+    "NUMEXPR_NUM_THREADS": "1"
+  },
+  "jobs": {
+    "data": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 350,
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "fetch-depth": 0
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "name": "Install dependencies",
+          "run": "python -m pip install -r requirements.txt scipy\npython -m pip freeze"
+        },
+        {
+          "name": "Check frozen base",
+          "run": "git merge-base --is-ancestor 483d1e5d38fa1f3fc5260ee2ecdbb9f39c51c38e HEAD\npython -m py_compile atsip/explore/judge_extra.py"
+        },
+        {
+          "name": "Restore previously prepared data",
+          "uses": "actions/download-artifact@v4",
+          "continue-on-error": true,
+          "with": {
+            "name": "judge-inputs",
+            "path": "${{ runner.temp }}/judge-previous",
+            "run-id": 45533617913,
+            "github-token": "${{ github.token }}"
+          }
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "continue-on-error": true,
+          "with": {
+            "name": "judge-extra-inputs",
+            "path": "atsip/explore/.judge_extra_inputs"
+          }
+        },
+        {
+          "name": "Prepare frozen MFxNLMS inputs",
+          "run": "git fetch origin +refs/heads/atsip/mfx:refs/remotes/origin/atsip/mfx\ngit cat-file -e 53a45658503f029ed82a1a0bff432c23826c88fc^{commit}\nmkdir -p atsip/explore/.judge_extra_inputs\ngit archive 53a45658503f029ed82a1a0bff432c23826c88fc -- atsip/explore/mfx.py atsip/explore/TUNE_mfx.json atsip/explore/out/mfx_run | tar -xf - --strip-components=2 -C atsip/explore/.judge_extra_inputs"
+        },
+        {
+          "name": "Prepare recordings once",
+          "working-directory": "atsip/explore",
+          "run": "mkdir -p data/prepared .judge_extra_inputs/prepared\nif test -d .judge_extra_inputs/prepared; then cp -a .judge_extra_inputs/prepared/. data/prepared/; fi\nif test -d \"$RUNNER_TEMP/judge-previous/data/prepared\"; then cp -a \"$RUNNER_TEMP/judge-previous/data/prepared/.\" data/prepared/; fi\nif ! python -c 'from pathlib import Path; from scipy.io import wavfile; p=Path(\"data/prepared\"); assert all((lambda z: z[0]==16000 and z[1].ndim==1 and len(z[1])>=608000)(wavfile.read(p/(c+\".wav\"))) for c in (\"machinegun\",\"factory1\",\"destroyerengine\",\"volvo\",\"valve\",\"jackhammer\"))'; then\n  python data/fetch.py mimii noisex sonyc\n  python data/make_noise.py\nfi\ncp -a data/prepared/. .judge_extra_inputs/prepared/"
+        },
+        {
+          "name": "Extract frozen reference tables",
+          "working-directory": "atsip/explore",
+          "run": "mkdir -p out\ntar -xzf results/final2_run.tar.gz -C out\ntar -xzf results/cc_run.tar.gz -C out"
+        },
+        {
+          "name": "Verify extra calculations against frozen runs",
+          "working-directory": "atsip/explore",
+          "run": "python judge_extra.py gate"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "judge-extra-inputs",
+            "path": "atsip/explore/.judge_extra_inputs/",
+            "overwrite": true,
+            "include-hidden-files": true,
+            "if-no-files-found": "warn"
+          }
+        }
+      ]
+    },
+    "run": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 350,
+      "needs": "data",
+      "strategy": {
+        "fail-fast": false,
+        "matrix": {
+          "include": [
+            {
+              "level": "nominal",
+              "scen": "stat",
+              "group": 0
+            },
+            {
+              "level": "nominal",
+              "scen": "stat",
+              "group": 1
+            },
+            {
+              "level": "nominal",
+              "scen": "RS-near",
+              "group": 0
+            },
+            {
+              "level": "nominal",
+              "scen": "RS-near",
+              "group": 1
+            },
+            {
+              "level": "nominal",
+              "scen": "RS-far",
+              "group": 0
+            },
+            {
+              "level": "nominal",
+              "scen": "RS-far",
+              "group": 1
+            },
+            {
+              "level": "nominal",
+              "scen": "EN0",
+              "group": 0
+            },
+            {
+              "level": "nominal",
+              "scen": "EN0",
+              "group": 1
+            },
+            {
+              "level": "-30dB",
+              "scen": "stat",
+              "group": 0
+            },
+            {
+              "level": "-30dB",
+              "scen": "stat",
+              "group": 1
+            },
+            {
+              "level": "-30dB",
+              "scen": "RS-near",
+              "group": 0
+            },
+            {
+              "level": "-30dB",
+              "scen": "RS-near",
+              "group": 1
+            },
+            {
+              "level": "-30dB",
+              "scen": "RS-far",
+              "group": 0
+            },
+            {
+              "level": "-30dB",
+              "scen": "RS-far",
+              "group": 1
+            },
+            {
+              "level": "-20dB",
+              "scen": "stat",
+              "group": 0
+            },
+            {
+              "level": "-20dB",
+              "scen": "stat",
+              "group": 1
+            },
+            {
+              "level": "-20dB",
+              "scen": "RS-near",
+              "group": 0
+            },
+            {
+              "level": "-20dB",
+              "scen": "RS-near",
+              "group": 1
+            },
+            {
+              "level": "-20dB",
+              "scen": "RS-far",
+              "group": 0
+            },
+            {
+              "level": "-20dB",
+              "scen": "RS-far",
+              "group": 1
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "fetch-depth": 0
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "name": "Install dependencies",
+          "run": "python -m pip install -r requirements.txt scipy\npython -m pip freeze"
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "judge-extra-inputs",
+            "path": "atsip/explore/.judge_extra_inputs"
+          }
+        },
+        {
+          "name": "Install prepared recordings",
+          "working-directory": "atsip/explore",
+          "run": "mkdir -p data/prepared\ncp -a .judge_extra_inputs/prepared/. data/prepared/"
+        },
+        {
+          "name": "Extract frozen reference tables",
+          "working-directory": "atsip/explore",
+          "run": "mkdir -p out\ntar -xzf results/final2_run.tar.gz -C out\ntar -xzf results/cc_run.tar.gz -C out"
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "continue-on-error": true,
+          "with": {
+            "name": "judge-extra-run-${{ matrix.level }}-${{ matrix.scen }}-${{ matrix.group }}",
+            "path": "atsip/explore/out/judge_extra_run/${{ matrix.level }}/${{ matrix.scen }}/g${{ matrix.group }}"
+          }
+        },
+        {
+          "name": "Compute kappa and M7",
+          "working-directory": "atsip/explore",
+          "run": "timeout --signal=TERM 310m python judge_extra.py run --level='${{ matrix.level }}' --scen '${{ matrix.scen }}' --group '${{ matrix.group }}' --procs 4"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "judge-extra-run-${{ matrix.level }}-${{ matrix.scen }}-${{ matrix.group }}",
+            "path": "atsip/explore/out/judge_extra_run/${{ matrix.level }}/${{ matrix.scen }}/g${{ matrix.group }}",
+            "overwrite": true,
+            "include-hidden-files": true,
+            "if-no-files-found": "warn"
+          }
+        }
+      ]
+    },
+    "report": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 350,
+      "needs": [
+        "data",
+        "run"
+      ],
+      "if": "${{ always() && !cancelled() && needs.data.result == 'success' }}",
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "ref": "atsip/judge",
+            "fetch-depth": 0
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "name": "Install dependencies",
+          "run": "python -m pip install -r requirements.txt scipy\npython -m pip freeze"
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "pattern": "judge-extra-run-*",
+            "path": "${{ runner.temp }}/judge-extra-runs"
+          }
+        },
+        {
+          "name": "Merge case checkpoints",
+          "run": "mkdir -p atsip/explore/out/judge_extra_run\nfor d in \"$RUNNER_TEMP\"/judge-extra-runs/judge-extra-run-*; do\n  test -d \"$d\" || continue\n  key=${d##*/judge-extra-run-}\n  group=${key##*-}\n  case \"$key\" in nominal-*) level=nominal;; -30dB-*) level=-30dB;; -20dB-*) level=-20dB;; *) exit 1;; esac\n  rest=${key#\"$level\"-}\n  scen=${rest%-*}\n  target=\"atsip/explore/out/judge_extra_run/$level/$scen/g$group\"\n  mkdir -p \"$target\"\n  cp -a \"$d/.\" \"$target/\"\ndone"
+        },
+        {
+          "name": "Checkpoint ATSIP kappa and M7 cases",
+          "run": "git config user.name 'github-actions[bot]'\ngit config user.email '41898282+github-actions[bot]@users.noreply.github.com'\ngit add -f atsip/explore/out/judge_extra_run\nif ! git diff --cached --quiet; then git commit -m 'Checkpoint ATSIP kappa and M7 cases'; fi\ngit fetch origin +refs/heads/atsip/judge:refs/remotes/origin/atsip/judge\nif ! git merge-base --is-ancestor origin/atsip/judge HEAD; then git rebase origin/atsip/judge; fi\ngit push origin HEAD:atsip/judge"
+        },
+        {
+          "name": "Aggregate all verified cases",
+          "working-directory": "atsip/explore",
+          "run": "python judge_extra.py report"
+        },
+        {
+          "name": "Record ATSIP kappa and M7 analysis",
+          "run": "git config user.name 'github-actions[bot]'\ngit config user.email '41898282+github-actions[bot]@users.noreply.github.com'\ngit add -f atsip/explore/RESULTS_judge.md atsip/explore/out/judge_scatter.npz\nif ! git diff --cached --quiet; then git commit -m 'Record ATSIP kappa and M7 analysis'; fi\ngit fetch origin +refs/heads/atsip/judge:refs/remotes/origin/atsip/judge\nif ! git merge-base --is-ancestor origin/atsip/judge HEAD; then git rebase origin/atsip/judge; fi\ngit push origin HEAD:atsip/judge"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "judge-extra-report",
+            "path": "atsip/explore/RESULTS_judge.md\natsip/explore/out/judge_scatter.npz",
+            "overwrite": true,
+            "include-hidden-files": true,
+            "if-no-files-found": "warn"
+          }
+        }
+      ]
+    }
+  }
+}

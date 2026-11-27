@@ -1,0 +1,316 @@
+{
+  "name": "ATSIP true-residual judgment",
+  "on": {
+    "push": {
+      "branches": [
+        "atsip/judge"
+      ],
+      "paths": [
+        "atsip/explore/judge.py"
+      ]
+    },
+    "workflow_dispatch": {}
+  },
+  "permissions": {
+    "contents": "write"
+  },
+  "concurrency": {
+    "group": "atsip-judge",
+    "cancel-in-progress": false
+  },
+  "env": {
+    "OPENBLAS_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1",
+    "NUMBA_NUM_THREADS": "1",
+    "NUMEXPR_NUM_THREADS": "1"
+  },
+  "jobs": {
+    "data": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 350,
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "fetch-depth": 0
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "name": "Install dependencies",
+          "run": "python -m pip install -r requirements.txt scipy\npython -m pip freeze"
+        },
+        {
+          "name": "Check frozen base",
+          "run": "git merge-base --is-ancestor 98140cbf63d2c9c0bae92ac2c4f3f4156f1ef4c1 HEAD\npython -m py_compile atsip/explore/judge.py"
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "continue-on-error": true,
+          "with": {
+            "name": "judge-inputs",
+            "path": "atsip/explore"
+          }
+        },
+        {
+          "name": "Restore pinned reference results",
+          "run": "git fetch origin +refs/heads/atsip/smodel:refs/remotes/origin/atsip/smodel\ngit cat-file -e 31d072c9adcf23e95889d5cf36a51c91aebf4c60^{commit}\ngit archive 31d072c9adcf23e95889d5cf36a51c91aebf4c60 -- atsip/explore/out/smodel_run/-30dB atsip/explore/out/smodel_run/-20dB | tar -xf -\nmkdir -p atsip/explore/out\ntar -xzf atsip/explore/results/final2_run.tar.gz -C atsip/explore/out"
+        },
+        {
+          "name": "Prepare recordings once",
+          "working-directory": "atsip/explore",
+          "run": "if ! python -c 'from pathlib import Path; from scipy.io import wavfile; p=Path(\"data/prepared\"); assert all((lambda z: z[0]==16000 and z[1].ndim==1 and len(z[1])>=608000)(wavfile.read(p/(c+\".wav\"))) for c in (\"machinegun\",\"factory1\",\"destroyerengine\",\"volvo\",\"valve\",\"jackhammer\"))'; then\n  python data/fetch.py mimii noisex sonyc\n  python data/make_noise.py\nfi"
+        },
+        {
+          "name": "Verify observational hook before all runs",
+          "working-directory": "atsip/explore",
+          "run": "python judge.py gate"
+        },
+        {
+          "name": "Stage inputs",
+          "if": "always()",
+          "run": "mkdir -p \"$RUNNER_TEMP/judge-inputs/data\" \"$RUNNER_TEMP/judge-inputs/out\"\nfor p in data/prepared out/final2_run out/smodel_run; do\n  if test -d \"atsip/explore/$p\"; then cp -a \"atsip/explore/$p\" \"$RUNNER_TEMP/judge-inputs/$(dirname \"$p\")/\"; fi\ndone"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "judge-inputs",
+            "path": "${{ runner.temp }}/judge-inputs/",
+            "overwrite": true,
+            "if-no-files-found": "warn"
+          }
+        }
+      ]
+    },
+    "run": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 350,
+      "needs": "data",
+      "strategy": {
+        "fail-fast": false,
+        "matrix": {
+          "include": [
+            {
+              "level": "nominal",
+              "scen": "stat",
+              "group": 0
+            },
+            {
+              "level": "nominal",
+              "scen": "stat",
+              "group": 1
+            },
+            {
+              "level": "nominal",
+              "scen": "RS-near",
+              "group": 0
+            },
+            {
+              "level": "nominal",
+              "scen": "RS-near",
+              "group": 1
+            },
+            {
+              "level": "nominal",
+              "scen": "RS-far",
+              "group": 0
+            },
+            {
+              "level": "nominal",
+              "scen": "RS-far",
+              "group": 1
+            },
+            {
+              "level": "nominal",
+              "scen": "EN0",
+              "group": 0
+            },
+            {
+              "level": "nominal",
+              "scen": "EN0",
+              "group": 1
+            },
+            {
+              "level": "-30dB",
+              "scen": "stat",
+              "group": 0
+            },
+            {
+              "level": "-30dB",
+              "scen": "stat",
+              "group": 1
+            },
+            {
+              "level": "-30dB",
+              "scen": "RS-near",
+              "group": 0
+            },
+            {
+              "level": "-30dB",
+              "scen": "RS-near",
+              "group": 1
+            },
+            {
+              "level": "-30dB",
+              "scen": "RS-far",
+              "group": 0
+            },
+            {
+              "level": "-30dB",
+              "scen": "RS-far",
+              "group": 1
+            },
+            {
+              "level": "-20dB",
+              "scen": "stat",
+              "group": 0
+            },
+            {
+              "level": "-20dB",
+              "scen": "stat",
+              "group": 1
+            },
+            {
+              "level": "-20dB",
+              "scen": "RS-near",
+              "group": 0
+            },
+            {
+              "level": "-20dB",
+              "scen": "RS-near",
+              "group": 1
+            },
+            {
+              "level": "-20dB",
+              "scen": "RS-far",
+              "group": 0
+            },
+            {
+              "level": "-20dB",
+              "scen": "RS-far",
+              "group": 1
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "fetch-depth": 0
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "name": "Install dependencies",
+          "run": "python -m pip install -r requirements.txt scipy\npython -m pip freeze"
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "judge-inputs",
+            "path": "atsip/explore"
+          }
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "continue-on-error": true,
+          "with": {
+            "name": "judge-run-${{ matrix.level }}-${{ matrix.scen }}-${{ matrix.group }}",
+            "path": "atsip/explore/out/judge_run/${{ matrix.level }}/${{ matrix.scen }}/g${{ matrix.group }}"
+          }
+        },
+        {
+          "name": "Measure all decisions",
+          "working-directory": "atsip/explore",
+          "run": "timeout --signal=TERM 310m python judge.py run --level='${{ matrix.level }}' --scen '${{ matrix.scen }}' --group '${{ matrix.group }}' --procs 4"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "judge-run-${{ matrix.level }}-${{ matrix.scen }}-${{ matrix.group }}",
+            "path": "atsip/explore/out/judge_run/${{ matrix.level }}/${{ matrix.scen }}/g${{ matrix.group }}",
+            "overwrite": true,
+            "if-no-files-found": "warn"
+          }
+        }
+      ]
+    },
+    "report": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 350,
+      "needs": [
+        "data",
+        "run"
+      ],
+      "if": "${{ always() && !cancelled() && needs.data.result == 'success' }}",
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "ref": "atsip/judge",
+            "fetch-depth": 0
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "name": "Install dependencies",
+          "run": "python -m pip install -r requirements.txt scipy\npython -m pip freeze"
+        },
+        {
+          "name": "Download all run artifacts",
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "pattern": "judge-run-*",
+            "path": "${{ runner.temp }}/judge-runs"
+          }
+        },
+        {
+          "name": "Merge completed cases",
+          "run": "mkdir -p atsip/explore/out/judge_run\nfor d in \"$RUNNER_TEMP\"/judge-runs/judge-run-*; do\n  test -d \"$d\" || continue\n  key=${d##*/judge-run-}\n  level=${key%-*-*}\n  group=${key##*-}\n  case \"$key\" in nominal-*) level=nominal;; -30dB-*) level=-30dB;; -20dB-*) level=-20dB;; *) exit 1;; esac\n  rest=${key#\"$level\"-}\n  scen=${rest%-*}\n  target=\"atsip/explore/out/judge_run/$level/$scen/g$group\"\n  mkdir -p \"$target\"\n  cp -a \"$d/.\" \"$target/\"\ndone"
+        },
+        {
+          "name": "Save checkpoints before reporting",
+          "run": "git config user.name 'github-actions[bot]'\ngit config user.email '41898282+github-actions[bot]@users.noreply.github.com'\ngit add -f atsip/explore/out/judge_run\nif ! git diff --cached --quiet; then git commit -m 'Checkpoint ATSIP judgment analysis'; fi\ngit fetch origin +refs/heads/atsip/judge:refs/remotes/origin/atsip/judge\nif ! git merge-base --is-ancestor origin/atsip/judge HEAD; then git rebase origin/atsip/judge; fi\ngit push origin HEAD:atsip/judge"
+        },
+        {
+          "name": "Generate complete report",
+          "working-directory": "atsip/explore",
+          "run": "python judge.py report"
+        },
+        {
+          "name": "Commit report and scatter data",
+          "run": "git add -f atsip/explore/RESULTS_judge.md atsip/explore/out/judge_scatter.npz\nif ! git diff --cached --quiet; then git commit -m 'Record completed ATSIP judgment analysis'; fi\ngit fetch origin +refs/heads/atsip/judge:refs/remotes/origin/atsip/judge\nif ! git merge-base --is-ancestor origin/atsip/judge HEAD; then git rebase origin/atsip/judge; fi\ngit push origin HEAD:atsip/judge"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "judge-report",
+            "path": "atsip/explore/RESULTS_judge.md\natsip/explore/out/judge_scatter.npz",
+            "overwrite": true,
+            "if-no-files-found": "warn"
+          }
+        }
+      ]
+    }
+  }
+}

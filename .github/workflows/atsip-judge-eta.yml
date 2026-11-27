@@ -1,0 +1,323 @@
+{
+  "name": "ATSIP proposition 3 eta audit",
+  "on": {
+    "push": {
+      "branches": [
+        "atsip/judge-eta"
+      ],
+      "paths": [
+        "atsip/explore/judge_eta.py"
+      ]
+    },
+    "workflow_dispatch": {}
+  },
+  "permissions": {
+    "contents": "write",
+    "actions": "read"
+  },
+  "concurrency": {
+    "group": "atsip-judge-eta",
+    "cancel-in-progress": false
+  },
+  "env": {
+    "OPENBLAS_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1",
+    "NUMBA_NUM_THREADS": "1",
+    "NUMEXPR_NUM_THREADS": "1"
+  },
+  "jobs": {
+    "data": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 350,
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "fetch-depth": 0
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "name": "Install dependencies",
+          "run": "python -m pip install -r requirements.txt scipy\npython -m pip freeze"
+        },
+        {
+          "name": "Check frozen base",
+          "run": "git merge-base --is-ancestor d3e588093d0c6fe1bcf06e4d09a2949f7b79ab6b HEAD\npython -m py_compile atsip/explore/judge_eta.py"
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "judge-extra-inputs",
+            "path": "${{ runner.temp }}/judge-extra",
+            "run-id": 45545643777,
+            "github-token": "${{ github.token }}"
+          },
+          "continue-on-error": true
+        },
+        {
+          "name": "Prepare recordings once",
+          "working-directory": "atsip/explore",
+          "run": "mkdir -p data/prepared\nif test -d \"$RUNNER_TEMP/judge-extra/prepared\"; then cp -a \"$RUNNER_TEMP/judge-extra/prepared/.\" data/prepared/; fi\nif ! python -c 'from pathlib import Path; from scipy.io import wavfile; p=Path(\"data/prepared\"); assert all((lambda z:z[0]==16000 and z[1].ndim==1 and len(z[1])>=608000)(wavfile.read(p/(c+\".wav\"))) for c in (\"machinegun\",\"factory1\",\"destroyerengine\",\"volvo\",\"valve\",\"jackhammer\"))'; then\n  python data/fetch.py mimii noisex sonyc\n  python data/make_noise.py\nfi"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "judge-eta-data",
+            "path": "atsip/explore/data/prepared/",
+            "overwrite": true,
+            "if-no-files-found": "warn"
+          }
+        },
+        {
+          "name": "Audit smoke test",
+          "working-directory": "atsip/explore",
+          "run": "python judge_eta.py gate"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "judge-eta-gate",
+            "path": "atsip/explore/out/judge_eta_gate.json",
+            "overwrite": true,
+            "if-no-files-found": "warn"
+          }
+        }
+      ]
+    },
+    "run": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 350,
+      "needs": "data",
+      "strategy": {
+        "fail-fast": false,
+        "matrix": {
+          "include": [
+            {
+              "level": "nominal",
+              "scen": "stat",
+              "group": 0
+            },
+            {
+              "level": "nominal",
+              "scen": "stat",
+              "group": 1
+            },
+            {
+              "level": "nominal",
+              "scen": "RS-near",
+              "group": 0
+            },
+            {
+              "level": "nominal",
+              "scen": "RS-near",
+              "group": 1
+            },
+            {
+              "level": "nominal",
+              "scen": "RS-far",
+              "group": 0
+            },
+            {
+              "level": "nominal",
+              "scen": "RS-far",
+              "group": 1
+            },
+            {
+              "level": "nominal",
+              "scen": "EN0",
+              "group": 0
+            },
+            {
+              "level": "nominal",
+              "scen": "EN0",
+              "group": 1
+            },
+            {
+              "level": "-30dB",
+              "scen": "stat",
+              "group": 0
+            },
+            {
+              "level": "-30dB",
+              "scen": "stat",
+              "group": 1
+            },
+            {
+              "level": "-30dB",
+              "scen": "RS-near",
+              "group": 0
+            },
+            {
+              "level": "-30dB",
+              "scen": "RS-near",
+              "group": 1
+            },
+            {
+              "level": "-30dB",
+              "scen": "RS-far",
+              "group": 0
+            },
+            {
+              "level": "-30dB",
+              "scen": "RS-far",
+              "group": 1
+            },
+            {
+              "level": "-20dB",
+              "scen": "stat",
+              "group": 0
+            },
+            {
+              "level": "-20dB",
+              "scen": "stat",
+              "group": 1
+            },
+            {
+              "level": "-20dB",
+              "scen": "RS-near",
+              "group": 0
+            },
+            {
+              "level": "-20dB",
+              "scen": "RS-near",
+              "group": 1
+            },
+            {
+              "level": "-20dB",
+              "scen": "RS-far",
+              "group": 0
+            },
+            {
+              "level": "-20dB",
+              "scen": "RS-far",
+              "group": 1
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "fetch-depth": 0
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "name": "Install dependencies",
+          "run": "python -m pip install -r requirements.txt scipy\npython -m pip freeze"
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "judge-eta-data",
+            "path": "atsip/explore/data/prepared"
+          }
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "judge-eta-${{ matrix.level }}-${{ matrix.scen }}-${{ matrix.group }}",
+            "path": "atsip/explore/out/judge_eta_run/${{ matrix.level }}/${{ matrix.scen }}/g${{ matrix.group }}"
+          },
+          "continue-on-error": true
+        },
+        {
+          "name": "Replay frozen controller",
+          "working-directory": "atsip/explore",
+          "run": "timeout --signal=TERM 310m python judge_eta.py run --level='${{ matrix.level }}' --scen '${{ matrix.scen }}' --group '${{ matrix.group }}' --procs 4"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "judge-eta-${{ matrix.level }}-${{ matrix.scen }}-${{ matrix.group }}",
+            "path": "atsip/explore/out/judge_eta_run/${{ matrix.level }}/${{ matrix.scen }}/g${{ matrix.group }}",
+            "overwrite": true,
+            "if-no-files-found": "warn"
+          }
+        }
+      ]
+    },
+    "report": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 350,
+      "needs": [
+        "data",
+        "run"
+      ],
+      "if": "${{ always() && !cancelled() && needs.data.result == 'success' }}",
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "fetch-depth": 0
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "name": "Install dependencies",
+          "run": "python -m pip install -r requirements.txt scipy\npython -m pip freeze"
+        },
+        {
+          "name": "Synchronize branch",
+          "run": "git checkout atsip/judge-eta\ngit pull --rebase origin atsip/judge-eta"
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "pattern": "judge-eta-*-*-*",
+            "path": "${{ runner.temp }}/eta-runs"
+          }
+        },
+        {
+          "name": "Merge checkpoints",
+          "run": "mkdir -p atsip/explore/out/judge_eta_run\nfor d in \"$RUNNER_TEMP\"/eta-runs/judge-eta-*; do\n  test -d \"$d\" || continue\n  key=${d##*/judge-eta-}\n  group=${key##*-}\n  case \"$key\" in nominal-*) level=nominal;; -30dB-*) level=-30dB;; -20dB-*) level=-20dB;; *) exit 1;; esac\n  rest=${key#\"$level\"-}\n  scen=${rest%-*}\n  target=\"atsip/explore/out/judge_eta_run/$level/$scen/g$group\"\n  mkdir -p \"$target\"\n  cp -a \"$d/.\" \"$target/\"\ndone"
+        },
+        {
+          "name": "Save partial checkpoints",
+          "if": "${{ needs.run.result != 'success' }}",
+          "run": "git config user.name 'github-actions[bot]'\ngit config user.email '41898282+github-actions[bot]@users.noreply.github.com'\ngit add -f atsip/explore/out/judge_eta_run\nif test -f atsip/explore/RESULTS_judge_eta.md; then git add -f atsip/explore/RESULTS_judge_eta.md atsip/explore/out/judge_scatter_eta.npz; fi\nif ! git diff --cached --quiet; then git commit -m 'Record eta audit results and checkpoints'; fi\nfor attempt in 1 2 3; do\n  git fetch origin +refs/heads/atsip/judge-eta:refs/remotes/origin/atsip/judge-eta\n  if ! git merge-base --is-ancestor origin/atsip/judge-eta HEAD; then git rebase origin/atsip/judge-eta; fi\n  git merge-base --is-ancestor origin/atsip/judge-eta HEAD\n  if git push origin HEAD:atsip/judge-eta; then git rev-parse HEAD; exit 0; fi\ndone\nexit 1"
+        },
+        {
+          "name": "Aggregate and compare old arrays",
+          "working-directory": "atsip/explore",
+          "run": "python judge_eta.py report\ncat RESULTS_judge_eta.md"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "judge-eta-report",
+            "path": "atsip/explore/RESULTS_judge_eta.md\natsip/explore/out/judge_scatter_eta.npz",
+            "overwrite": true,
+            "if-no-files-found": "warn"
+          }
+        },
+        {
+          "name": "Commit verified results",
+          "run": "git config user.name 'github-actions[bot]'\ngit config user.email '41898282+github-actions[bot]@users.noreply.github.com'\ngit add -f atsip/explore/out/judge_eta_run\nif test -f atsip/explore/RESULTS_judge_eta.md; then git add -f atsip/explore/RESULTS_judge_eta.md atsip/explore/out/judge_scatter_eta.npz; fi\nif ! git diff --cached --quiet; then git commit -m 'Record eta audit results and checkpoints'; fi\nfor attempt in 1 2 3; do\n  git fetch origin +refs/heads/atsip/judge-eta:refs/remotes/origin/atsip/judge-eta\n  if ! git merge-base --is-ancestor origin/atsip/judge-eta HEAD; then git rebase origin/atsip/judge-eta; fi\n  git merge-base --is-ancestor origin/atsip/judge-eta HEAD\n  if git push origin HEAD:atsip/judge-eta; then git rev-parse HEAD; exit 0; fi\ndone\nexit 1"
+        }
+      ]
+    }
+  }
+}
