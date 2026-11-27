@@ -71,7 +71,7 @@ def normalize_tables():
             def _sub(m):
                 n, txt = m.group(1), m.group(2)
                 return "\\multicolumn{%s}{c}{\\textit{%s}} \\\\\n\\cmidrule(lr){1-%s}" % (n, txt, n)
-            t = _re.sub(r"\\multicolumn\{(\d+)\}\{l\}\{\\textit\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}\} \\\\", _sub, t)
+            t = _re.sub(r"\\multicolumn\{(\d+)\}\{[lc]\}\{\\textit\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}\} \\\\", _sub, t)
             t = _re.sub(r"(?<!\\midrule)\n(\\multicolumn\{\d+\}\{c\}\{\\textit)", r"\n\\midrule\n\1", t)
             t = _re.sub(r"\\textbf\{([^{}]*)\}\\par\\smallskip", r"\\textit{\1}\\par\\smallskip", t)
             t = t.replace("\\begin{minipage}{0.98\\textwidth}\n\\footnotesize", "\\begin{minipage}{0.98\\textwidth}\n\\scriptsize")
