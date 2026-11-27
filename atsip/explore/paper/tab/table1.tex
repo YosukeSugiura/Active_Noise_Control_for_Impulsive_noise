@@ -48,7 +48,6 @@ APFM & \cite{yin2023} & $\tilde{\mu} = 4$ & Pretrained filter$^{c}$ \\
 \par\medskip
 \begin{minipage}{0.98\textwidth}
 \footnotesize
-All algorithms use 512 coefficients and one setting for all noise types and conditions. Each step size was selected from seven values between 1/32 and 2 times the published value (APFM: $2^{-8}$ to $2^{3}$) with the seeds 10 to 14, the no-change and far-source conditions, and nine noise types, by the fewest diverged runs and then the largest ANR over 30\,s.\par
 $^{a}$At the 1st and 99th percentiles of the last 0.5\,s, updated in every block (our choice of window and interval). The clipping acted on 2\% to 4\% of the samples.\par
 $^{b}$Same reconstruction as the early phase of the proposed algorithm, with a fixed step size and regularization 0.001.\par
 $^{c}$One filter trained for the primary path before the switch. Candidates also include the current and the zero filter. The new path was not used for training. The update follows the equations of \cite{yin2023} ($\mu_{\max} = 2$, forgetting factors 0.95, regularization $10^{-6}$), because the published code does not include the gradient.\par

@@ -240,7 +240,7 @@ In the two source-switch conditions, the primary path changed at 15 s to the res
 
 ### 5.3 Algorithms
 
-Table 1 lists the settings of the proposed algorithm and of the eleven comparison algorithms. The settings of the proposed algorithm were fixed before the evaluation, and the evaluation seeds 100 to 119 were not used to choose them. We also evaluated the proposed algorithm with the trials disabled, listed as "Without trials." The step sizes of the comparison algorithms were selected with separate seeds, as described in the note of Table 1. For APFM, the new primary path was not used for training, because the proposed algorithm does not assume it to be known.
+Table 1 lists the settings of the proposed algorithm and of the eleven comparison algorithms. The settings of the proposed algorithm were fixed before the evaluation, and the evaluation seeds 100 to 119 were not used to choose them. We also evaluated the proposed algorithm with the trials disabled, listed as "Without trials." All algorithms used 512 coefficients and one setting for all noise types and conditions. The step size of each comparison algorithm was selected from seven values between 1/32 and 2 times the published value (for APFM, which gives no value, from $2^{-8}$ to $2^{3}$). The selection used the seeds 10 to 14, the no-change and far-source conditions, and nine noise types. The criterion was the smallest number of diverged runs, followed by the largest ANR over 30 s. For APFM, the new primary path was not used for training, because the proposed algorithm does not assume it to be known.
 
 ### 5.4 Metrics
 
