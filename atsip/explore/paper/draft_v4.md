@@ -356,7 +356,7 @@ We proposed a frequency-domain filtered-x algorithm for impulsive noise. The alg
 
 The algorithm has three limitations. First, the trial depends on the detector. Machine gun noise consists of intermittent bursts. For this noise, a transfer occurred in fewer than half of the runs, and our previous algorithm reduced the noise more after the switch. Second, the foreground filter recovered less from a disturbance at the error microphone than two comparison algorithms, by 0.3 dB to 0.6 dB. Third, with an added error of −30 dB or more in the secondary-path model, the algorithm diverged more often than our previous algorithm, and the decision transferred worse coefficients in some trials. The evaluation used simulations with paths from one room, a fixed secondary path, and no acoustic feedback. Future work includes a start condition for intermittent noise, an update that is less sensitive to errors in the secondary-path model, and a real-time implementation.
 
-The code of the proposed algorithm and of the evaluation is available at <https://github.com/YosukeSugiura/Active_Noise_Control_for_Impulsive_noise>.
+The code of the proposed algorithm and of the evaluation, together with the per-seed results, is available at <https://doi.org/10.5281/zenodo.24589368>.
 
 [7–8 章のメモ]
 - 7.1 節：変化なしの 2494 回の試行の内訳は、打ち切り（ρ > 4）188、判定で破棄 2297、実行の終わりで未了 9。
