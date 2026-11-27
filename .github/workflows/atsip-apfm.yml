@@ -1,5 +1,17 @@
 {
-  "name": "ATSIP APFM comparison",
+  "name": "ATSIP APFM",
+  "on": {
+    "push": {
+      "branches": [
+        "atsip/apfm"
+      ],
+      "paths": [
+        "atsip/explore/apfm.py",
+        ".github/workflows/atsip-apfm.yml"
+      ]
+    },
+    "workflow_dispatch": {}
+  },
   "permissions": {
     "contents": "write",
     "actions": "read"
@@ -18,10 +30,12 @@
     "data": {
       "runs-on": "ubuntu-latest",
       "timeout-minutes": 350,
-      "if": "github.ref == 'refs/heads/atsip/apfm'",
       "steps": [
         {
-          "uses": "actions/checkout@v4"
+          "uses": "actions/checkout@v4",
+          "with": {
+            "fetch-depth": 0
+          }
         },
         {
           "uses": "actions/setup-python@v5",
@@ -33,20 +47,17 @@
           "run": "python -m pip install -r requirements.txt scipy"
         },
         {
-          "run": "test -f APFM_PARAMETERS.json || { echo \"APFM parameter source is required\"; exit 1; }",
-          "working-directory": "atsip/explore"
-        },
-        {
-          "run": "run=$(gh api \"repos/$GITHUB_REPOSITORY/actions/artifacts?name=$ARTIFACT&per_page=100\" --jq '[.artifacts[] | select(.expired|not)][0].workflow_run.id // empty')\nif [ -n \"$run\" ]; then\n  gh run download \"$run\" -n \"$ARTIFACT\" -D \"$DEST\" || true\nfi\n\nif [ ! -f \"$DEST/machinegun.wav\" ]; then\n  gh run download 45900099477 -n frozen5-data -D \"$DEST\" || true\nfi\n",
-          "name": "Restore previous artifact",
+          "name": "Restore prior artifact",
           "env": {
             "GH_TOKEN": "${{ github.token }}",
             "ARTIFACT": "apfm-data",
             "DEST": "atsip/explore/data/prepared"
-          }
+          },
+          "run": "if run=$(gh api \"repos/$GITHUB_REPOSITORY/actions/artifacts?name=$ARTIFACT&per_page=100\" --jq '[.artifacts[] | select((.expired|not) and (.workflow_run.head_sha == env.GITHUB_SHA))][0].workflow_run.id // empty'); then\n  if [ -n \"$run\" ]; then gh run download \"$run\" -n \"$ARTIFACT\" -D \"$DEST\" || true; fi\nfi\nif [ ! -f \"$DEST/machinegun.wav\" ]; then\n  gh run download 45900099477 -n frozen5-data -D \"$DEST\" || true\nfi"
         },
         {
-          "run": "check() {\npython -c 'from pathlib import Path; from scipy.io import wavfile; p=Path(\"data/prepared\"); assert all((lambda z: z[0]==16000 and z[1].ndim==1 and len(z[1])>=608000)(wavfile.read(p/(c+\".wav\"))) for c in (\"machinegun\",\"factory1\",\"destroyerengine\",\"volvo\",\"valve\",\"jackhammer\"))'\n}\nif ! check; then\n  python data/fetch.py mimii noisex sonyc\n  python data/make_noise.py\n  check\nfi",
+          "name": "Prepare recordings",
+          "run": "if ! python -c 'from pathlib import Path; from scipy.io import wavfile; p=Path(\"data/prepared\"); assert all((lambda a:a[0]==16000 and a[1].ndim==1 and len(a[1])>=480000)(wavfile.read(p/(c+\".wav\"))) for c in (\"machinegun\",\"factory1\",\"destroyerengine\",\"volvo\",\"valve\",\"jackhammer\"))'; then\n  python data/fetch.py mimii noisex sonyc\n  python data/make_noise.py\nfi\npython apfm.py check",
           "working-directory": "atsip/explore"
         },
         {
@@ -54,7 +65,7 @@
           "if": "always()",
           "with": {
             "name": "apfm-data",
-            "path": "atsip/explore/data/prepared/*.wav",
+            "path": "atsip/explore/data/prepared",
             "overwrite": true,
             "if-no-files-found": "warn"
           }
@@ -64,310 +75,56 @@
     "bank": {
       "runs-on": "ubuntu-latest",
       "timeout-minutes": 350,
-      "needs": "data",
-      "steps": [
-        {
-          "uses": "actions/checkout@v4"
-        },
-        {
-          "uses": "actions/setup-python@v5",
-          "with": {
-            "python-version": "3.11"
-          }
-        },
-        {
-          "run": "python -m pip install -r requirements.txt scipy"
-        },
-        {
-          "run": "run=$(gh api \"repos/$GITHUB_REPOSITORY/actions/artifacts?name=$ARTIFACT&per_page=100\" --jq '[.artifacts[] | select(.expired|not)][0].workflow_run.id // empty')\nif [ -n \"$run\" ]; then\n  gh run download \"$run\" -n \"$ARTIFACT\" -D \"$DEST\" || true\nfi\n",
-          "name": "Restore previous artifact",
-          "env": {
-            "GH_TOKEN": "${{ github.token }}",
-            "ARTIFACT": "apfm-bank",
-            "DEST": "atsip/explore/out/apfm_bank"
-          }
-        },
-        {
-          "run": "python apfm_run.py bank --procs 4",
-          "working-directory": "atsip/explore"
-        },
-        {
-          "uses": "actions/upload-artifact@v4",
-          "if": "always()",
-          "with": {
-            "name": "apfm-bank",
-            "path": "atsip/explore/out/apfm_bank/*.json",
-            "overwrite": true,
-            "if-no-files-found": "warn"
-          }
-        }
-      ]
-    },
-    "tune": {
-      "runs-on": "ubuntu-latest",
-      "timeout-minutes": 350,
-      "needs": "bank",
-      "strategy": {
-        "fail-fast": false,
-        "matrix": {
-          "shard": [
-            0,
-            1,
-            2,
-            3
-          ]
-        }
-      },
-      "steps": [
-        {
-          "uses": "actions/checkout@v4"
-        },
-        {
-          "uses": "actions/setup-python@v5",
-          "with": {
-            "python-version": "3.11"
-          }
-        },
-        {
-          "run": "python -m pip install -r requirements.txt scipy"
-        },
-        {
-          "uses": "actions/download-artifact@v4",
-          "with": {
-            "name": "apfm-data",
-            "path": "atsip/explore/data/prepared"
-          }
-        },
-        {
-          "uses": "actions/download-artifact@v4",
-          "with": {
-            "name": "apfm-bank",
-            "path": "atsip/explore/out/apfm_bank"
-          }
-        },
-        {
-          "run": "run=$(gh api \"repos/$GITHUB_REPOSITORY/actions/artifacts?name=$ARTIFACT&per_page=100\" --jq '[.artifacts[] | select(.expired|not)][0].workflow_run.id // empty')\nif [ -n \"$run\" ]; then\n  gh run download \"$run\" -n \"$ARTIFACT\" -D \"$DEST\" || true\nfi\n",
-          "name": "Restore previous artifact",
-          "env": {
-            "GH_TOKEN": "${{ github.token }}",
-            "ARTIFACT": "apfm-tune-${{ matrix.shard }}",
-            "DEST": "atsip/explore/out/apfm_tune/APFM"
-          }
-        },
-        {
-          "run": "python apfm_run.py tune --shard \"${{ matrix.shard }}/4\" --procs 4",
-          "working-directory": "atsip/explore"
-        },
-        {
-          "uses": "actions/upload-artifact@v4",
-          "if": "always()",
-          "with": {
-            "name": "apfm-tune-${{ matrix.shard }}",
-            "path": "atsip/explore/out/apfm_tune/APFM/*/*.json",
-            "overwrite": true,
-            "if-no-files-found": "warn"
-          }
-        }
-      ]
-    },
-    "select": {
-      "runs-on": "ubuntu-latest",
-      "timeout-minutes": 350,
-      "needs": "tune",
-      "steps": [
-        {
-          "uses": "actions/checkout@v4"
-        },
-        {
-          "uses": "actions/setup-python@v5",
-          "with": {
-            "python-version": "3.11"
-          }
-        },
-        {
-          "run": "python -m pip install -r requirements.txt scipy"
-        },
-        {
-          "uses": "actions/download-artifact@v4",
-          "with": {
-            "name": "apfm-bank",
-            "path": "atsip/explore/out/apfm_bank"
-          }
-        },
-        {
-          "uses": "actions/download-artifact@v4",
-          "with": {
-            "pattern": "apfm-tune-*",
-            "path": "atsip/explore/out/apfm_tune/APFM",
-            "merge-multiple": true
-          }
-        },
-        {
-          "run": "python apfm_run.py select",
-          "working-directory": "atsip/explore"
-        },
-        {
-          "uses": "actions/upload-artifact@v4",
-          "if": "always()",
-          "with": {
-            "name": "apfm-selection",
-            "path": "atsip/explore/out/apfm_selected.json",
-            "overwrite": true,
-            "if-no-files-found": "warn"
-          }
-        }
-      ]
-    },
-    "eval": {
-      "runs-on": "ubuntu-latest",
-      "timeout-minutes": 350,
-      "needs": "select",
-      "strategy": {
-        "fail-fast": false,
-        "matrix": {
-          "shard": [
-            0,
-            1,
-            2,
-            3
-          ],
-          "method": [
-            "APFM",
-            "VSS-NFBFxLMS"
-          ]
-        }
-      },
-      "steps": [
-        {
-          "uses": "actions/checkout@v4"
-        },
-        {
-          "uses": "actions/setup-python@v5",
-          "with": {
-            "python-version": "3.11"
-          }
-        },
-        {
-          "run": "python -m pip install -r requirements.txt scipy"
-        },
-        {
-          "uses": "actions/download-artifact@v4",
-          "with": {
-            "name": "apfm-data",
-            "path": "atsip/explore/data/prepared"
-          }
-        },
-        {
-          "uses": "actions/download-artifact@v4",
-          "with": {
-            "name": "apfm-bank",
-            "path": "atsip/explore/out/apfm_bank"
-          }
-        },
-        {
-          "uses": "actions/download-artifact@v4",
-          "with": {
-            "name": "apfm-selection",
-            "path": "atsip/explore/out"
-          }
-        },
-        {
-          "run": "run=$(gh api \"repos/$GITHUB_REPOSITORY/actions/artifacts?name=$ARTIFACT&per_page=100\" --jq '[.artifacts[] | select(.expired|not)][0].workflow_run.id // empty')\nif [ -n \"$run\" ]; then\n  gh run download \"$run\" -n \"$ARTIFACT\" -D \"$DEST\" || true\nfi\n",
-          "name": "Restore previous artifact",
-          "env": {
-            "GH_TOKEN": "${{ github.token }}",
-            "ARTIFACT": "apfm-eval-${{ matrix.method }}-${{ matrix.shard }}",
-            "DEST": "atsip/explore/out/apfm_eval"
-          }
-        },
-        {
-          "run": "python apfm_run.py eval --method \"${{ matrix.method }}\" --shard \"${{ matrix.shard }}/4\" --procs 4",
-          "working-directory": "atsip/explore"
-        },
-        {
-          "uses": "actions/upload-artifact@v4",
-          "if": "always()",
-          "with": {
-            "name": "apfm-eval-${{ matrix.method }}-${{ matrix.shard }}",
-            "path": "atsip/explore/out/apfm_eval/*/*/*.json",
-            "overwrite": true,
-            "if-no-files-found": "warn"
-          }
-        }
-      ]
-    },
-    "reference": {
-      "runs-on": "ubuntu-latest",
-      "timeout-minutes": 350,
-      "needs": "select",
-      "strategy": {
-        "fail-fast": false,
-        "matrix": {
-          "shard": [
-            0,
-            1,
-            2,
-            3
-          ]
-        }
-      },
-      "steps": [
-        {
-          "uses": "actions/checkout@v4"
-        },
-        {
-          "uses": "actions/setup-python@v5",
-          "with": {
-            "python-version": "3.11"
-          }
-        },
-        {
-          "run": "python -m pip install -r requirements.txt scipy"
-        },
-        {
-          "uses": "actions/download-artifact@v4",
-          "with": {
-            "name": "apfm-data",
-            "path": "atsip/explore/data/prepared"
-          }
-        },
-        {
-          "run": "run=$(gh api \"repos/$GITHUB_REPOSITORY/actions/artifacts?name=$ARTIFACT&per_page=100\" --jq '[.artifacts[] | select(.expired|not)][0].workflow_run.id // empty')\nif [ -n \"$run\" ]; then\n  gh run download \"$run\" -n \"$ARTIFACT\" -D \"$DEST\" || true\nfi\n",
-          "name": "Restore previous artifact",
-          "env": {
-            "GH_TOKEN": "${{ github.token }}",
-            "ARTIFACT": "apfm-power-${{ matrix.shard }}",
-            "DEST": "atsip/explore/out/apfm_reference_power"
-          }
-        },
-        {
-          "run": "python apfm_report.py \"${{ matrix.shard }}/4\"",
-          "working-directory": "atsip/explore"
-        },
-        {
-          "uses": "actions/upload-artifact@v4",
-          "if": "always()",
-          "with": {
-            "name": "apfm-power-${{ matrix.shard }}",
-            "path": "atsip/explore/out/apfm_reference_power/*.json",
-            "overwrite": true,
-            "if-no-files-found": "warn"
-          }
-        }
-      ]
-    },
-    "report": {
-      "runs-on": "ubuntu-latest",
-      "timeout-minutes": 350,
-      "needs": [
-        "eval",
-        "reference"
-      ],
       "steps": [
         {
           "uses": "actions/checkout@v4",
           "with": {
-            "ref": "atsip/apfm",
+            "fetch-depth": 0
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "run": "python -m pip install -r requirements.txt scipy"
+        },
+        {
+          "name": "Restore prior artifact",
+          "env": {
+            "GH_TOKEN": "${{ github.token }}",
+            "ARTIFACT": "apfm-bank",
+            "DEST": "atsip/explore/out/apfm_bank"
+          },
+          "run": "if run=$(gh api \"repos/$GITHUB_REPOSITORY/actions/artifacts?name=$ARTIFACT&per_page=100\" --jq '[.artifacts[] | select((.expired|not) and (.workflow_run.head_sha == env.GITHUB_SHA))][0].workflow_run.id // empty'); then\n  if [ -n \"$run\" ]; then gh run download \"$run\" -n \"$ARTIFACT\" -D \"$DEST\" || true; fi\nfi"
+        },
+        {
+          "name": "Train bank for each initial setting",
+          "run": "python apfm.py bank --procs 4",
+          "working-directory": "atsip/explore"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "apfm-bank",
+            "path": "atsip/explore/out/apfm_bank",
+            "overwrite": true,
+            "if-no-files-found": "warn"
+          }
+        }
+      ],
+      "needs": "data"
+    },
+    "tune": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 350,
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
             "fetch-depth": 0
           }
         },
@@ -383,23 +140,183 @@
         {
           "uses": "actions/download-artifact@v4",
           "with": {
+            "name": "apfm-data",
+            "path": "atsip/explore/data/prepared"
+          }
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
             "name": "apfm-bank",
+            "path": "atsip/explore/out/apfm_bank"
+          }
+        },
+        {
+          "name": "Restore prior artifact",
+          "env": {
+            "GH_TOKEN": "${{ github.token }}",
+            "ARTIFACT": "apfm-tune",
+            "DEST": "atsip/explore/out/apfm_tune"
+          },
+          "run": "if run=$(gh api \"repos/$GITHUB_REPOSITORY/actions/artifacts?name=$ARTIFACT&per_page=100\" --jq '[.artifacts[] | select((.expired|not) and (.workflow_run.head_sha == env.GITHUB_SHA))][0].workflow_run.id // empty'); then\n  if [ -n \"$run\" ]; then gh run download \"$run\" -n \"$ARTIFACT\" -D \"$DEST\" || true; fi\nfi"
+        },
+        {
+          "name": "Restore prior artifact",
+          "env": {
+            "GH_TOKEN": "${{ github.token }}",
+            "ARTIFACT": "apfm-extra-bank",
+            "DEST": "atsip/explore/out/apfm_bank"
+          },
+          "run": "if run=$(gh api \"repos/$GITHUB_REPOSITORY/actions/artifacts?name=$ARTIFACT&per_page=100\" --jq '[.artifacts[] | select((.expired|not) and (.workflow_run.head_sha == env.GITHUB_SHA))][0].workflow_run.id // empty'); then\n  if [ -n \"$run\" ]; then gh run download \"$run\" -n \"$ARTIFACT\" -D \"$DEST\" || true; fi\nfi"
+        },
+        {
+          "name": "Tune APFM and extend a boundary grid",
+          "run": "python apfm.py tune --procs 4\npython apfm.py extend --procs 4",
+          "working-directory": "atsip/explore"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "apfm-tune",
+            "path": "atsip/explore/out/apfm_tune",
+            "overwrite": true,
+            "if-no-files-found": "warn"
+          }
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "apfm-extra-bank",
+            "path": "atsip/explore/out/apfm_bank",
+            "overwrite": true,
+            "if-no-files-found": "warn"
+          }
+        }
+      ],
+      "needs": "bank"
+    },
+    "eval": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 350,
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "fetch-depth": 0
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "run": "python -m pip install -r requirements.txt scipy"
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "apfm-data",
+            "path": "atsip/explore/data/prepared"
+          }
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "apfm-extra-bank",
             "path": "atsip/explore/out/apfm_bank"
           }
         },
         {
           "uses": "actions/download-artifact@v4",
           "with": {
-            "pattern": "apfm-tune-*",
-            "path": "atsip/explore/out/apfm_tune/APFM",
-            "merge-multiple": true
+            "name": "apfm-tune",
+            "path": "atsip/explore/out/apfm_tune"
+          }
+        },
+        {
+          "name": "Restore prior artifact",
+          "env": {
+            "GH_TOKEN": "${{ github.token }}",
+            "ARTIFACT": "apfm-eval-${{ matrix.method }}-${{ matrix.shard }}",
+            "DEST": "atsip/explore/out/apfm_eval"
+          },
+          "run": "if run=$(gh api \"repos/$GITHUB_REPOSITORY/actions/artifacts?name=$ARTIFACT&per_page=100\" --jq '[.artifacts[] | select((.expired|not) and (.workflow_run.head_sha == env.GITHUB_SHA))][0].workflow_run.id // empty'); then\n  if [ -n \"$run\" ]; then gh run download \"$run\" -n \"$ARTIFACT\" -D \"$DEST\" || true; fi\nfi"
+        },
+        {
+          "name": "Evaluate shard",
+          "run": "python apfm.py eval --method '${{ matrix.method }}' --shard '${{ matrix.shard }}' --procs 4",
+          "working-directory": "atsip/explore"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "apfm-eval-${{ matrix.method }}-${{ matrix.shard }}",
+            "path": "atsip/explore/out/apfm_eval",
+            "overwrite": true,
+            "if-no-files-found": "warn"
+          }
+        }
+      ],
+      "needs": "tune",
+      "strategy": {
+        "fail-fast": false,
+        "matrix": {
+          "method": [
+            "APFM",
+            "VSS-NFBFxLMS",
+            "references"
+          ],
+          "shard": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9
+          ]
+        }
+      }
+    },
+    "report": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 350,
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "fetch-depth": 0
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "run": "python -m pip install -r requirements.txt scipy"
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "apfm-extra-bank",
+            "path": "atsip/explore/out/apfm_bank"
           }
         },
         {
           "uses": "actions/download-artifact@v4",
           "with": {
-            "name": "apfm-selection",
-            "path": "atsip/explore/out"
+            "name": "apfm-tune",
+            "path": "atsip/explore/out/apfm_tune"
           }
         },
         {
@@ -411,15 +328,8 @@
           }
         },
         {
-          "uses": "actions/download-artifact@v4",
-          "with": {
-            "pattern": "apfm-power-*",
-            "path": "atsip/explore/out/apfm_reference_power",
-            "merge-multiple": true
-          }
-        },
-        {
-          "run": "tar -xzf results/final2_run.tar.gz -C out\ntar -xzf results/coef2_run.tar.gz -C out\npython apfm_report.py report",
+          "name": "Generate complete report",
+          "run": "mkdir -p out\ntar -xzf results/final2_run.tar.gz -C out\ntar -xzf results/coef2_run.tar.gz -C out\npython apfm.py report",
           "working-directory": "atsip/explore"
         },
         {
@@ -433,20 +343,11 @@
           }
         },
         {
-          "run": "git config user.name 'github-actions[bot]'\ngit config user.email '41898282+github-actions[bot]@users.noreply.github.com'\ngit add atsip/explore/RESULTS_apfm.md atsip/explore/out/apfm_*\nif git diff --cached --quiet; then exit 0; fi\ngit commit -m 'Record APFM bank, selection, evaluation and comparisons'\nfor attempt in 1 2 3; do\n  git fetch origin +refs/heads/atsip/apfm:refs/remotes/origin/atsip/apfm\n  git rebase origin/atsip/apfm\n  if git push origin HEAD:atsip/apfm; then exit 0; fi\ndone\nexit 1"
+          "name": "Commit and push",
+          "run": "git config user.name 'github-actions[bot]'\ngit config user.email '41898282+github-actions[bot]@users.noreply.github.com'\ngit add -f atsip/explore/RESULTS_apfm.md atsip/explore/out/apfm_*\nif git diff --cached --quiet; then exit 0; fi\ngit commit -m 'Record APFM evaluation'\nfor attempt in 1 2 3; do\n  git fetch origin refs/heads/atsip/apfm:refs/remotes/origin/atsip/apfm\n  if ! git merge-base --is-ancestor origin/atsip/apfm HEAD; then\n    git rebase origin/atsip/apfm\n  fi\n  if git push origin HEAD:refs/heads/atsip/apfm; then exit 0; fi\ndone\nexit 1"
         }
-      ]
-    }
-  },
-  "on": {
-    "push": {
-      "branches": [
-        "atsip/apfm"
       ],
-      "paths": [
-        "atsip/explore/APFM_PARAMETERS.json"
-      ]
-    },
-    "workflow_dispatch": {}
+      "needs": "eval"
+    }
   }
 }
