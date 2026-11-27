@@ -28,15 +28,7 @@ ISSN 2048-7703; DOI 10.1561/116.xxxxxxxx\\
 \creditline*{Corresponding author: Yosuke Sugiura, ysugiura@meiji.ac.jp.}
 \begin{document}
 \begin{abstract}
-\textbf{Purpose} Algorithms for active control of impulsive noise avoid divergence by limiting large samples or by using a small step size. Because every update acts directly on the control filter, these settings also slow the reconvergence after a change in the primary path. This paper aims to shorten this reconvergence without divergence.
-
-\textbf{Design/methodology/approach} This paper proposes a frequency-domain filtered-x algorithm that tests a larger step size on a background filter during a short trial. The foreground filter generates the control signal and receives the background coefficients only when they give a sufficiently smaller error on the same data. The algorithm was evaluated in simulations with measured room responses and ten noise types against eleven comparison algorithms.
-
-\textbf{Findings} The proposed algorithm shortened the median recovery time over all noise types after a switch of the noise source by 63\% to 68\% compared with the fastest comparison algorithm, without divergence in the main evaluation. The coefficients obtained 0.51 s after the switch reduced the noise by 2.7 dB to 3.8 dB more on average. With a fixed primary path and without a disturbance, the two algorithms differed by less than 0.1 dB.
-
-\textbf{Research limitations/implications} For machine gun noise, the comparison algorithm reduced the noise more. The evaluation used simulations with paths from one room and a fixed secondary path.
-
-\textbf{Originality/value} A discarded trial leaves the control signal identical to that obtained without the trial, given the same initial state and input. The control signal therefore changes only when a trial is confirmed.
+Algorithms for active control of impulsive noise avoid divergence by limiting large samples or by using a small step size. Because every update acts directly on the control filter, these settings also slow the reconvergence after a change in the primary path. This paper proposes a frequency-domain filtered-x algorithm that tests a larger step size on a background filter during a short trial. The foreground filter generates the control signal and receives the background coefficients only when they give a sufficiently smaller error on the same data. A discarded trial leaves the control signal identical to that obtained without the trial, given the same initial state and input. In simulations with measured room responses and ten noise types, the proposed algorithm shortened the median recovery time over all noise types after a switch of the noise source by 63\% to 68\% compared with the fastest of eleven comparison algorithms, without divergence in the main evaluation. The coefficients obtained 0.51 s after the switch reduced the noise by 2.7 dB to 3.8 dB more on average. With a fixed primary path and without a disturbance, the two algorithms differed by less than 0.1 dB. For machine gun noise, the comparison algorithm reduced the noise more.
 \end{abstract}
 \hypertarget{sec:1}{%
 \section{Introduction}\label{sec:1}}
