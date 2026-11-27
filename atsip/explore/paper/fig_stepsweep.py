@@ -35,7 +35,7 @@ for ax, (sc, sub) in zip(axes, (("RS-near", "(a) Close source"), ("RS-far", "(b)
     ins.plot([p[0] for p in pp], [p[1] for p in pp], color="#D55E00", lw=0.8, marker="*", ms=7)
     for x, y, f in pp:
         off = {0.5: (-2, 6) if sc == "RS-near" else (6, -6), 1: (6, -3), 1.5: (-10, 6)}[f]
-        ins.annotate(f"$\\sigma_{{\\mathrm{{E}}}}$ ×{f:g}", (x, y), textcoords="offset points", xytext=off, fontsize=7, color="#D55E00")
+        ins.annotate(f"×{f:g}", (x, y), textcoords="offset points", xytext=off, fontsize=7, color="#D55E00")
     ins.set_xlim(-0.4, 3.2); ins.set_ylim(0.33, 0.53)
     ins.set_xticks([0, 1.5]); ins.set_yticks([0.35, 0.4, 0.45, 0.5])
     ins.tick_params(labelsize=6.5); ins.grid(color=".9", lw=.5)
