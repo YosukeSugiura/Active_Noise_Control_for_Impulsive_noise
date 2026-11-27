@@ -352,7 +352,7 @@ The proposed algorithm tolerated an added model error of −40 dB, but it diverg
 
 Most of this sensitivity originates in the update of the foreground filter, because the algorithm without the trials also diverged in six runs with −30 dB and in 51 runs with −20 dB. At each of these two levels, the proposed algorithm diverged in three more runs, within 2 s after a transfer. These three runs were the three conditions of one noise sequence, and Section 8.2 examines their transfers.
 
-However, in the runs without divergence, the advantage in the recovery time remained. With −20 dB, the median recovery time of the proposed algorithm was 0.44 s and 0.51 s, compared with 1.03 s and 1.33 s for CohVSS-FxNLMS. With −30 dB and without a change, the noise reduction of the proposed algorithm over the last 10 s was smaller than that of CohVSS-FxNLMS by 0.3 dB ([0.06, 0.78] dB).
+However, in the runs without divergence, the advantage in the recovery time remained. With −20 dB, the median recovery time of the proposed algorithm was 0.44 s and 0.51 s, compared with 1.03 s and 1.33 s for CohVSS-FxNLMS. Counted over all 200 runs of each source-switch condition, including the diverged runs, the proposed algorithm recovered within 0.5 s in 98 and 90 runs with −20 dB, and CohVSS-FxNLMS in 38 and 31. Within 2 s, the counts were 135 and 128 for the proposed algorithm and 136 and 130 for CohVSS-FxNLMS. With −30 dB, the proposed algorithm recovered within 0.5 s in 110 and 105 runs, and CohVSS-FxNLMS in 42 and 40. With −30 dB and without a change, the noise reduction of the proposed algorithm over the last 10 s was smaller than that of CohVSS-FxNLMS by 0.3 dB ([0.06, 0.78] dB).
 
 ### 8.2 Check of the transfer decisions
 
