@@ -4,67 +4,37 @@
 \setlength{\tabcolsep}{4pt}
 \caption{Noise reduction with a fixed primary path}
 \label{tab:atsip-3}
-\par\medskip
-\textit{Levels [dB]}\par\smallskip
-\begin{tabular}{lrrrrr}
+\begin{tabular}{lrr}
 \toprule
-Algorithm & \makecell[r]{Whole\\run} & \makecell[r]{Last\\10\,s} & \makecell[r]{2\,s after\\disturbance} & Transfers & \makecell[r]{Identical\\runs} \\
+Algorithm & Noise reduction [dB] & \makecell[r]{Proposed minus algorithm [dB]\\(95\% interval)} \\
 \midrule
-\multicolumn{6}{c}{\textit{No change}} \\
-\cmidrule(lr){1-6}
-Proposed & $-$9.03 & $-$9.11 & -- & 0 & 200/200 \\
-CohVSS-FxNLMS & $-$8.98 & $-$9.18 & -- & -- & -- \\
-C-FXLMS & $-$8.05 & $-$8.49 & -- & -- & -- \\
-MFxNLMS & $-$8.03 & $-$8.34 & -- & -- & -- \\
-Without trials & $-$9.03 & $-$9.11 & -- & 0 & -- \\
+\multicolumn{3}{c}{\textit{No change (whole run)}} \\
+\cmidrule(lr){1-3}
+Proposed & $-$9.03 & -- \\
+CohVSS-FxNLMS & $-$8.98 & $-$0.05 [$-$0.08, $-$0.03] \\
+C-FXLMS & $-$8.05 & $-$0.98 [$-$1.03, $-$0.94] \\
+MFxNLMS & $-$8.03 & $-$1.00 [$-$1.07, $-$0.93] \\
+Without trials & $-$9.03 & 0 (identical output) \\
 \midrule
-\multicolumn{6}{c}{\textit{Disturbance (0\,dB)}} \\
-\cmidrule(lr){1-6}
-Proposed & $-$8.49 & $-$8.15 & $-$5.60 & 13 & 187/200 \\
-CohVSS-FxNLMS & $-$8.54 & $-$8.40 & $-$6.22 & -- & -- \\
-C-FXLMS & $-$7.67 & $-$7.87 & $-$5.87 & -- & -- \\
-MFxNLMS & $-$7.50 & $-$7.45 & $-$5.23 & -- & -- \\
-Without trials & $-$8.46 & $-$8.07 & $-$5.59 & 0 & -- \\
+\multicolumn{3}{c}{\textit{Disturbance of 0\,dB (2\,s after each disturbance)}} \\
+\cmidrule(lr){1-3}
+Proposed & $-$5.60 & -- \\
+CohVSS-FxNLMS & $-$6.22 & +0.62 [+0.53, +0.72] \\
+C-FXLMS & $-$5.87 & +0.27 [+0.14, +0.40] \\
+MFxNLMS & $-$5.23 & $-$0.37 [$-$0.49, $-$0.24] \\
+Without trials & $-$5.59 & $-$0.01 [$-$0.03, 0.00] \\
 \midrule
-\multicolumn{6}{c}{\textit{Disturbance ($-$10\,dB)}} \\
-\cmidrule(lr){1-6}
-Proposed & $-$8.78 & $-$8.63 & $-$7.45 & 2 & 198/200 \\
-CohVSS-FxNLMS & $-$8.77 & $-$8.81 & $-$7.65 & -- & -- \\
-C-FXLMS & $-$7.89 & $-$8.23 & $-$7.18 & -- & -- \\
-MFxNLMS & $-$7.82 & $-$7.98 & $-$6.89 & -- & -- \\
-Without trials & $-$8.78 & $-$8.63 & $-$7.45 & 0 & -- \\
-\bottomrule
-\end{tabular}
-\par\medskip
-\textit{Paired differences (proposed minus the other algorithm) [dB]}\par\smallskip
-\begin{tabular}{lr}
-\toprule
-Other algorithm & Difference [95\% interval] \\
-\midrule
-\multicolumn{2}{c}{\textit{No change}} \\
-\cmidrule(lr){1-2}
-CohVSS-FxNLMS & $-$0.053 [$-$0.081, $-$0.025] \\
-C-FXLMS & $-$0.983 [$-$1.029, $-$0.935] \\
-MFxNLMS & $-$0.999 [$-$1.071, $-$0.928] \\
-\midrule
-\multicolumn{2}{c}{\textit{Disturbance (0\,dB)}} \\
-\cmidrule(lr){1-2}
-CohVSS-FxNLMS & +0.622 [+0.533, +0.715] \\
-C-FXLMS & +0.265 [+0.141, +0.395] \\
-MFxNLMS & $-$0.371 [$-$0.490, $-$0.244] \\
-Without trials & $-$0.011 [$-$0.031, +0.000] \\
-\midrule
-\multicolumn{2}{c}{\textit{Disturbance ($-$10\,dB)}} \\
-\cmidrule(lr){1-2}
-CohVSS-FxNLMS & +0.198 [+0.144, +0.256] \\
-C-FXLMS & $-$0.274 [$-$0.358, $-$0.177] \\
-MFxNLMS & $-$0.555 [$-$0.659, $-$0.444] \\
-Without trials & $-$0.001 [$-$0.002, +0.000] \\
+\multicolumn{3}{c}{\textit{Disturbance of $-$10\,dB (2\,s after each disturbance)}} \\
+\cmidrule(lr){1-3}
+Proposed & $-$7.45 & -- \\
+CohVSS-FxNLMS & $-$7.65 & +0.20 [+0.14, +0.26] \\
+C-FXLMS & $-$7.18 & $-$0.27 [$-$0.36, $-$0.18] \\
+MFxNLMS & $-$6.89 & $-$0.56 [$-$0.66, $-$0.44] \\
+Without trials & $-$7.45 & $-$0.001 [$-$0.002, 0.000] \\
 \bottomrule
 \end{tabular}
 \par\medskip
 \begin{minipage}{0.98\textwidth}
-\scriptsize
-Differences are taken over the whole run without a change and over the 2\,s after each disturbance otherwise, over 200 runs. Transfers count events in 200 runs. Identical runs are those whose error and control signals equal those of the algorithm without the trials exactly.\par
+Means over 200 runs. A negative difference favors the proposed algorithm.\par
 \end{minipage}
 \end{table*}

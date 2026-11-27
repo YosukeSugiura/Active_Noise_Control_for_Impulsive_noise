@@ -310,7 +310,7 @@ Without a path change, the trials left the control signal unchanged. In the no-c
 
 ### 6.5 Disturbance at the error microphone
 
-With a disturbance, the trials rarely led to a transfer and did not degrade the noise reduction. Fewer than 0.5% of the trials ended with a transfer, and only the runs with such a transfer differed from those without the trials. Over the 2 s after each disturbance, the difference from the algorithm without the trials was about 0.01 dB or less, and both intervals included zero.
+With a disturbance, the trials rarely led to a transfer and did not degrade the noise reduction. Fewer than 0.5% of the trials ended with a transfer (13 transfers with the 0 dB disturbance and two with the −10 dB disturbance). Only the runs with such a transfer differed from those without the trials, and 187 and 198 of the 200 runs gave an identical output. Over the 2 s after each disturbance, the difference from the algorithm without the trials was about 0.01 dB or less, and both intervals included zero.
 
 However, two comparison algorithms recovered better from the 0 dB disturbance. After this disturbance, CohVSS-FxNLMS and C-FXLMS reduced the noise by 0.62 dB and 0.27 dB more than the proposed algorithm. The algorithm without the trials showed the same gap. The gap therefore comes from the late-phase update of the foreground filter and not from the trials. C-FXLMS switched to its slow filter during the disturbance (mixing parameter 0.04). With the −10 dB disturbance, CohVSS-FxNLMS was better by 0.20 dB, and C-FXLMS was worse by 0.27 dB.
 
