@@ -6,22 +6,30 @@
 \label{tab:atsip-1}
 \par\medskip
 \textit{Proposed algorithm}\par\smallskip
-\begin{tabular}{>{\raggedright\arraybackslash}p{0.52\linewidth}>{\raggedright\arraybackslash}p{0.42\linewidth}}
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.5\linewidth}l>{\raggedright\arraybackslash}p{0.3\linewidth}}
 \toprule
-Parameter & Value \\
+Parameter & Symbol & Value \\
 \midrule
-Sampling rate; high-pass cutoff of the input & 16\,kHz; 100\,Hz \\
-Filter length $M$; FFT length $N$; block shift $B$ & 512; 1024; 128 samples (8\,ms) \\
-Length of $\hat{s}(k)$, $L_s$; error window $M_e$ & 512; 512 samples \\
-Weight $\beta$ of $\hat{\mathbf{S}}_{rr,n}$; regularization $\epsilon$ & 0.05; 0.01 \\
-Step sizes $\sigma_{\mathrm E}$; $\sigma_{\mathrm L}$ & 1; 0.0566 \\
-Lower bound $g_{\min}$ in the early phase; in the late phase & 0.55; 0.25 \\
-Length of the early phase $n_{\mathrm E}$ & 32 blocks, counted from the start of the trial after a transfer \\
-Windows of $e(k)$ and $r(k)$ in $z_n$ & 512; 1024 samples \\
-Weight of the exponential average $\bar{z}_n$; threshold $\gamma$ & 0.05; 4, for two consecutive blocks \\
-Interval $n_{\mathrm G}$ before the next trial & 64 blocks, with $\bar{z}_n$ held constant \\
-Discard threshold $\rho_{\mathrm{abort}}$ & 4, from block 2 of the trial \\
-Transfer rules $(n_1, \rho_1)$; $(n_2, \rho_2)$ & (4, 0.25); (16, 0.5) \\
+Sampling rate & $f_s$ & 16\,kHz \\
+High-pass cutoff of the input & -- & 100\,Hz \\
+Filter length & $M$ & 512 \\
+FFT length & $N$ & 1024 \\
+Block shift & $B$ & 128 samples (8\,ms) \\
+Length of the secondary-path model & $L_s$ & 512 \\
+Length of the error window & $M_e$ & 512 \\
+Weight of the current frame in $\hat{\mathbf{S}}_{rr,n}$ & $\beta$ & 0.05 \\
+Regularization & $\epsilon$ & 0.01 \\
+Step size in the early phase & $\sigma_{\mathrm E}$ & 1 \\
+Step size in the late phase & $\sigma_{\mathrm L}$ & 0.0566 \\
+Lower bound of $g_n$ in the early phase & $g_{\min}$ & 0.55 \\
+Lower bound of $g_n$ in the late phase & $g_{\min}$ & 0.25 \\
+Length of the early phase & $n_{\mathrm E}$ & 32 blocks \\
+Weight of the current block in $\bar{z}_n$ & -- & 0.05 \\
+Detection threshold & $\gamma$ & 4, for two consecutive blocks \\
+Interval before the next trial & $n_{\mathrm G}$ & 64 blocks \\
+Discard threshold & $\rho_{\mathrm{abort}}$ & 4 \\
+Early transfer rule & $(n_1, \rho_1)$ & (4, 0.25) \\
+Final transfer rule & $(n_2, \rho_2)$ & (16, 0.5) \\
 \bottomrule
 \end{tabular}
 \par\medskip
