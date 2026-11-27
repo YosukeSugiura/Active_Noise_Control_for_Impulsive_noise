@@ -13,8 +13,12 @@ mf = F.load("mfx_run", (*F.SWITCHES, *F.QUIET)); mc = F.load("mfx_coef", F.SWITC
 report = F.coef_main_rows((F.ROOT / "RESULTS_coef2.md").read_text())
 F.figure3(coef, report)
 others = [("CohVSS-FxNLMS", final, coef, F.A), ("C-FXLMS", ccf, ccc, F.C), ("MFxNLMS", mf, mc, F.M), ("Without trials", final, coef, F.N)]
-panels = [("Recovery time [s]", None), ("Noise reduction at 0.13 s [dB]", 16), ("Noise reduction at 0.51 s [dB]", 64)]
-fig, axes = plt.subplots(1, 3, figsize=(7.2, 2.4), sharey=True, layout="constrained")
+panels = [("Difference in recovery time [s]\n(a) Recovery time", None), ("Difference in noise reduction [dB]\n(b) Coefficients frozen at 0.13 s", 16), ("Difference in noise reduction [dB]\n(c) Coefficients frozen at 0.51 s", 64)]
+fig = plt.figure(figsize=(7.2, 2.5))
+gs = fig.add_gridspec(1, 4, width_ratios=[1, 0.22, 1, 1], wspace=0.08, left=0.17, right=0.99, top=0.84, bottom=0.3)
+a0 = fig.add_subplot(gs[0]); a1 = fig.add_subplot(gs[2], sharey=a0); a2 = fig.add_subplot(gs[3], sharey=a0, sharex=a1)
+axes = [a0, a1, a2]
+for ax in (a1, a2): ax.tick_params(labelleft=False)
 mark = {"RS-near": ("o", "#D55E00", "Close source"), "RS-far": ("s", "#0072B2", "Far source")}
 out = {}
 for col, (ax, (lab, k)) in enumerate(zip(axes, panels)):
@@ -30,10 +34,10 @@ for col, (ax, (lab, k)) in enumerate(zip(axes, panels)):
             ax.errorbar(a, row + d, xerr=[[a - lo], [hi - a]], fmt=mk, color=c, mfc=c if s == "RS-near" else "white",
                         ms=4.5, capsize=2, lw=1, label=l if (row == 0 and col == 0) else None)
     ax.axvline(0, color="0.5", lw=.7, ls=":")
-    ax.set_xlabel(f"Proposed − other\n({'abc'[col]}) {lab}", linespacing=1.6)
+    ax.set_xlabel(lab, linespacing=1.6)
     ax.grid(axis="x", color=".9", lw=.6)
 axes[0].set_yticks(range(len(others)), [o[0] for o in others]); axes[0].invert_yaxis()
-fig.legend(loc="outside upper center", ncol=2, frameon=False, fontsize=8)
+fig.legend(loc="upper center", ncol=2, frameon=False, fontsize=8)
 for ext in ("pdf", "png"):
     fig.savefig(F.PAPER / "fig" / f"fig_diff.{ext}", bbox_inches="tight", dpi=300)
 for k, v in out.items(): print(k, v)

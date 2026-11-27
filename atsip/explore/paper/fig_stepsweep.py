@@ -27,7 +27,13 @@ for ax, (sc, sub) in zip(axes, (("RS-near", "(a) Close source"), ("RS-far", "(b)
         ax.plot([p[0] for p in pts], [p[1] for p in pts], color=c, marker=mk, ms=4, lw=1, label=lab)
         for x, y, f in pts:
             ax.annotate(f"×{f:g}", (x, y), textcoords="offset points", xytext=(4, 3), fontsize=7, color=c)
-    ax.plot([0], [prop[sc]], marker="*", ms=10, color="#D55E00", ls="none", label="Proposed")
+    # proposed with sigma_E x0.5, x1, x1.5 (RESULTS_sens.md: sigma-0.5, default, sigma-1.5; 200 runs each)
+    pp = {"RS-near": [(0.0, 0.416, 0.5), (0.0, 0.360, 1), (1.5, 0.424, 1.5)],
+          "RS-far": [(0.0, 0.368, 0.5), (0.0, 0.400, 1), (1.5, 0.488, 1.5)]}[sc]
+    ax.plot([p[0] for p in pp], [p[1] for p in pp], color="#D55E00", lw=1, marker="*", ms=8, label="Proposed")
+    for x, y, f in pp:
+        if f != 1:
+            ax.annotate(f"×{f:g}", (x, y), textcoords="offset points", xytext=(5, -9 if f == 0.5 else 3), fontsize=7, color="#D55E00")
     ax.set_yscale("log"); ax.set_xlim(-4, 104)
     ax.set_yticks([0.3, 0.5, 1, 2, 5]); ax.set_yticklabels(["0.3", "0.5", "1", "2", "5"])
     ax.yaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
