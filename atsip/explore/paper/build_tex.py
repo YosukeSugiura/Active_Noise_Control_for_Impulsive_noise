@@ -58,12 +58,16 @@ def normalize_tables():
     out = HERE / "tex" / "tabn"; out.mkdir(exist_ok=True)
     for f in (HERE / "tab").glob("*.tex"):
         t = f.read_text()
-        if "\\begin{table" in t:
+        if "\\begin{table" in t or "\\begin{sidewaystable" in t:
             t = _re.sub(r"\\(small|footnotesize)\n", "", t, count=1)
             t = _re.sub(r"\\setlength\{\\tabcolsep\}\{[0-9.]+pt\}\n", "", t)
             t = t.replace("\\centering\n", "\\centering\n\\footnotesize\n\\setlength{\\tabcolsep}{4pt}\n", 1)
             t = t.replace("\\resizebox{\\ifdim\\width>\\linewidth\\linewidth\\else\\width\\fi}{!}{%\n", "")
             t = t.replace("\\end{tabular}}", "\\end{tabular}")
+            if f.stem not in ("table1", "table11"):
+                t = _re.sub(r"\\begin\{tabular\}\{(l+)\}", lambda m: "\\begin{tabular}{l" + "r" * (len(m.group(1)) - 1) + "}", t)
+                t = t.replace("\\multicolumn{2}{l}{", "\\multicolumn{2}{c}{").replace("\\multicolumn{4}{l}{", "\\multicolumn{4}{c}{")
+                t = t.replace("& \\makecell[l]{", "& \\makecell[r]{")
             t = _re.sub(r"\\textbf\{([^{}]*)\}\\par\\smallskip", r"\\textit{\1}\\par\\smallskip", t)
             t = t.replace("\\begin{minipage}{0.98\\textwidth}\n\\footnotesize", "\\begin{minipage}{0.98\\textwidth}\n\\scriptsize")
         (out / f.name).write_text(t)

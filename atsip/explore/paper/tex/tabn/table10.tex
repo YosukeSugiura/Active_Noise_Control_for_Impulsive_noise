@@ -1,14 +1,13 @@
 \begin{sidewaystable}[tbp]
 \centering
-\small
+\footnotesize
 \setlength{\tabcolsep}{4pt}
 \caption{All algorithms with the common setting}
 \label{tab:atsip-10}
 \par\smallskip
-\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%
-\begin{tabular}{llllllllll}
+\begin{tabular}{lrrrrrrrrr}
 \toprule
- & Diverged & \multicolumn{2}{l}{Median recovery time [s]} & \multicolumn{2}{l}{Frozen at 0.13 s [dB]} & \multicolumn{2}{l}{Frozen at 0.51 s [dB]} & No change & 2 s after 0 dB \\
+ & Diverged & \multicolumn{2}{c}{Median recovery time [s]} & \multicolumn{2}{c}{Frozen at 0.13 s [dB]} & \multicolumn{2}{c}{Frozen at 0.51 s [dB]} & No change & 2 s after 0 dB \\
 Algorithm & runs & Close & Far & Close & Far & Close & Far & Whole run [dB] & disturbance [dB] \\
 \midrule
 Proposed & 0 & 0.36 & 0.40 & $-$2.6 & $-$6.7 & $-$7.9 & $-$10.9 & $-$9.03 & $-$5.60 \\
@@ -25,10 +24,10 @@ C-FXLMS & 0 & 2.54 & 2.78 & 1.2 & 0.0 & $-$1.9 & $-$3.2 & $-$8.05 & $-$5.87 \\
 MFxNLMS & 0 & 1.97 & 2.43 & 0.9 & $-$0.4 & $-$2.8 & $-$4.3 & $-$8.03 & $-$5.23 \\
 APFM & 1 & 1.20 & 2.90 & 0.0 & $-$0.1 & $-$0.3 & $-$0.3 & $-$7.01 & $-$5.25 \\
 \bottomrule
-\end{tabular}}
+\end{tabular}
 \par\medskip
 \begin{minipage}{0.98\textwidth}
-\footnotesize
+\scriptsize
 Diverged runs are counted over the 1000 runs of the five conditions. The noise reduction values are averaged over the runs without divergence. The frozen values are medians over the runs. APFM uses one filter trained for the primary path before the switch.\par
 \end{minipage}
 \end{sidewaystable}
