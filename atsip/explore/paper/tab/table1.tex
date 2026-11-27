@@ -40,15 +40,15 @@ Final transfer rule & $(n_2, \rho_2)$ & (16, 0.5) \\
 \toprule
 Algorithm & Reference & Step size & Other setting \\
 \midrule
-FxNLMS & -- & 0.01875 & -- \\
-Th-FxNLMS & \cite{akhtar2008,akhtar2009} & 0.01875 & Percentile clipping$^{a}$ \\
-FxlogNLMS & \cite{wu2011} & 0.015625 & -- \\
-MFxLMM & \cite{sun2015} & 0.000125 & -- \\
-FxNFLOC & \cite{feng2024} & 0.1 & -- \\
-EVSS-FxeLMS & \cite{cheng2023} & 0.003125 & -- \\
-FreqFxLMS & \cite{das2007} & 0.0225 & -- \\
-CohVSS-FxNLMS & \cite{sugiura2026} & 0.09 & -- \\
-C-FXLMS & \cite{ferrer2013} & 0.0375, 0.009375 & Normalized components \\
+FxNLMS & -- & 0.01875 (1/16) & -- \\
+Th-FxNLMS & \cite{akhtar2008,akhtar2009} & 0.01875 (1/16) & Percentile clipping$^{a}$ \\
+FxlogNLMS & \cite{wu2011} & 0.015625 (1/32) & -- \\
+MFxLMM & \cite{sun2015} & 0.000125 (1/8) & -- \\
+FxNFLOC & \cite{feng2024} & 0.1 (1) & -- \\
+EVSS-FxeLMS & \cite{cheng2023} & 0.003125 (1/16) & -- \\
+FreqFxLMS & \cite{das2007} & 0.0225 (1/16) & -- \\
+CohVSS-FxNLMS & \cite{sugiura2026} & 0.09 (1/4) & -- \\
+C-FXLMS & \cite{ferrer2013} & 0.0375 (1/8), 0.009375 & Normalized components \\
 MFxNLMS & \cite{bjarnason1992} & 0.05 & Reconstructed error$^{b}$ \\
 APFM & \cite{yin2023} & $\tilde{\mu} = 4$ & Pretrained filter$^{c}$ \\
 \bottomrule
@@ -56,6 +56,7 @@ APFM & \cite{yin2023} & $\tilde{\mu} = 4$ & Pretrained filter$^{c}$ \\
 \par\medskip
 \begin{minipage}{0.98\textwidth}
 \footnotesize
+The values in parentheses are the selected multiples of the published or default step size.\par
 $^{a}$At the 1st and 99th percentiles of the last 0.5\,s, updated in every block (our choice of window and interval). The clipping acted on 2\% to 4\% of the samples.\par
 $^{b}$Same reconstruction as the early phase of the proposed algorithm, with a fixed step size and regularization 0.001.\par
 $^{c}$One filter trained for the primary path before the switch. Candidates also include the current and the zero filter. The new path was not used for training. The update follows the equations of \cite{yin2023} ($\mu_{\max} = 2$, forgetting factors 0.95, regularization $10^{-6}$), because the published code does not include the gradient.\par

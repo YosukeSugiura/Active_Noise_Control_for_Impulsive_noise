@@ -5,7 +5,8 @@
 \Require $\mathbf{w}_{\mathrm f}$, the state of the trial ($n_0$, $\mathbf{w}_{\mathrm b}$), $\hat{\mathbf{S}}_{rr,n-1}$, $\bar{z}_{n-1}$
 \State Compute $\mathbf{R}_n$, $\hat{\mathbf{S}}_{rr,n}$, $\mathbf{F}_n$, and $g_n$ by \eqref{eq:5} and \eqref{eq:6}, and $\hat{d}(k)$ by \eqref{eq:7}
 \State $T \gets$ \textbf{true} if a trial is active, and $\mathit{moved} \gets$ \textbf{false}
-\If{$T$} \Comment{$m = n - n_0 \ge 1$}
+\If{$T$}
+  \State $m \gets n - n_0$
   \If{$m \ge 2$}
     \State Reconstruct $\tilde{e}_{\mathrm b}$ and $\tilde{e}_{\mathrm f}$ by \eqref{eq:8} and compute $\rho_n$ by \eqref{eq:11}
     \If{$\rho_n > \rho_{\mathrm{abort}}$ or $\rho_n$ is not finite} discard $\mathbf{w}_{\mathrm b}$
