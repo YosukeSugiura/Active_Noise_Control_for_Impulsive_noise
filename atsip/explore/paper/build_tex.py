@@ -15,7 +15,7 @@ CITE = {"Shao and Nikias 1993": "shao1993", "Kuo and Morgan 1996": "kuo1996", "S
         "Akhtar 2009": "akhtar2009", "Wu 2011": "wu2011", "Thanigai 2007": "thanigai2007", "Wu and Qiu 2013": "wu2013",
         "Sun et al. 2015": "sun2015", "Feng et al. 2024": "feng2024", "Cheng 2023": "cheng2023", "APSIPA 2026": "sugiura2026",
         "Ferrer 2013": "ferrer2013", "Cheng 2022": "cheng2022", "Yu 2020": "yu2020", "Ochiai et al. 1977": "ochiai1977",
-        "Das 2007": "das2007", "Harman 2022": "harman2022", "Lindstrom 2007": "lindstrom2007", "Iqbal 2007": "iqbal2007", "Jung 2014": "jung2014", "Elliott and Rafaely 1997": "elliott1997", "Elliott and Rafaely 2000": "elliott2000",
+        "Das 2007": "das2007", "Harman 2022": "harman2022", "Lindstrom 2007": "lindstrom2007", "Iqbal 2007": "iqbal2007", "Jung 2014": "jung2014", "Yin 2023": "yin2023", "Elliott and Rafaely 1997": "elliott1997", "Elliott and Rafaely 2000": "elliott2000",
         "Bjarnason 1992": "bjarnason1992", "Yang 2018 review": "yang2018", "MeshRIR": "meshrir", "NOISEX": "noisex",
         "MIMII": "mimii", "SONYC": "sonyc"}
 FLOATS = {  # inserted after the heading that starts with the key
