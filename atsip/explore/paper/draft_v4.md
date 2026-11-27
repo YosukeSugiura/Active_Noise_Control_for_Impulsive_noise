@@ -63,7 +63,7 @@ Ferrer et al. [Ferrer 2013] applied the convex combination of two filtered-x fil
 
 ### 2.3 Frequency-domain update and error reconstruction
 
-The bin-normalized frequency-domain LMS algorithm converges to a biased solution when the filter is constrained to be causal [Elliott and Rafaely 1997]. Applying spectral factors of the reference power spectrum before and after the constraint removes this bias [Elliott and Rafaely 2000]. The modified FxLMS algorithm [Bjarnason 1992] estimates the primary noise at the error microphone and computes the error that the current coefficients would produce. This modification removes the delay of the secondary path from the adaptation loop [Yang 2018 review].
+The bin-normalized frequency-domain LMS algorithm converges to a biased solution when the filter is constrained to be causal [Elliott and Rafaely 1997]. Applying spectral factors of the reference power spectrum before and after the constraint removes this bias [Elliott and Rafaely 2000]. For multichannel ANC, causal preconditioning filters obtained by spectral factorization of the reference cross-spectral density matrix speed up the convergence without adding delay [Wang 2025]. The modified FxLMS algorithm [Bjarnason 1992] estimates the primary noise at the error microphone and computes the error that the current coefficients would produce. This modification removes the delay of the secondary path from the adaptation loop [Yang 2018 review].
 
 ### 2.4 Position of this work
 
