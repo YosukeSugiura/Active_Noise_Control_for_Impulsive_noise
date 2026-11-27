@@ -10,19 +10,24 @@
 \toprule
 Algorithm & \makecell[r]{Whole\\run} & \makecell[r]{Last\\10\,s} & \makecell[r]{2\,s after\\disturbance} & Transfers & \makecell[r]{Identical\\runs} \\
 \midrule
-\multicolumn{6}{l}{\textit{No change}} \\
+\multicolumn{6}{c}{\textit{No change}} \\
+\cmidrule(lr){1-6}
 Proposed & $-$9.03 & $-$9.11 & -- & 0 & 200/200 \\
 CohVSS-FxNLMS & $-$8.98 & $-$9.18 & -- & -- & -- \\
 C-FXLMS & $-$8.05 & $-$8.49 & -- & -- & -- \\
 MFxNLMS & $-$8.03 & $-$8.34 & -- & -- & -- \\
 Without trials & $-$9.03 & $-$9.11 & -- & 0 & -- \\
-\multicolumn{6}{l}{\textit{Disturbance (0\,dB)}} \\
+\midrule
+\multicolumn{6}{c}{\textit{Disturbance (0\,dB)}} \\
+\cmidrule(lr){1-6}
 Proposed & $-$8.49 & $-$8.15 & $-$5.60 & 13 & 187/200 \\
 CohVSS-FxNLMS & $-$8.54 & $-$8.40 & $-$6.22 & -- & -- \\
 C-FXLMS & $-$7.67 & $-$7.87 & $-$5.87 & -- & -- \\
 MFxNLMS & $-$7.50 & $-$7.45 & $-$5.23 & -- & -- \\
 Without trials & $-$8.46 & $-$8.07 & $-$5.59 & 0 & -- \\
-\multicolumn{6}{l}{\textit{Disturbance ($-$10\,dB)}} \\
+\midrule
+\multicolumn{6}{c}{\textit{Disturbance ($-$10\,dB)}} \\
+\cmidrule(lr){1-6}
 Proposed & $-$8.78 & $-$8.63 & $-$7.45 & 2 & 198/200 \\
 CohVSS-FxNLMS & $-$8.77 & $-$8.81 & $-$7.65 & -- & -- \\
 C-FXLMS & $-$7.89 & $-$8.23 & $-$7.18 & -- & -- \\
@@ -40,11 +45,13 @@ Other algorithm & Difference [95\% interval] \\
 CohVSS-FxNLMS & $-$0.053 [$-$0.081, $-$0.025] \\
 C-FXLMS & $-$0.983 [$-$1.029, $-$0.935] \\
 MFxNLMS & $-$0.999 [$-$1.071, $-$0.928] \\
+\midrule
 \multicolumn{2}{c}{\textit{Disturbance (0\,dB)}} \\
 CohVSS-FxNLMS & +0.622 [+0.533, +0.715] \\
 C-FXLMS & +0.265 [+0.141, +0.395] \\
 MFxNLMS & $-$0.371 [$-$0.490, $-$0.244] \\
 Without trials & $-$0.011 [$-$0.031, +0.000] \\
+\midrule
 \multicolumn{2}{c}{\textit{Disturbance ($-$10\,dB)}} \\
 CohVSS-FxNLMS & +0.198 [+0.144, +0.256] \\
 C-FXLMS & $-$0.274 [$-$0.358, $-$0.177] \\
