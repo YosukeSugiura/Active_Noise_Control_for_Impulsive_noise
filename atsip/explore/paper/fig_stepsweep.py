@@ -30,17 +30,25 @@ for ax, (sc, sub) in zip(axes, (("RS-near", "(a) Close source"), ("RS-far", "(b)
     # proposed with sigma_E x0.5, x1, x1.5 (RESULTS_sens.md: sigma-0.5, default, sigma-1.5; 200 runs each)
     pp = {"RS-near": [(0.0, 0.416, 0.5), (0.0, 0.360, 1), (1.5, 0.424, 1.5)],
           "RS-far": [(0.0, 0.368, 0.5), (0.0, 0.400, 1), (1.5, 0.488, 1.5)]}[sc]
-    ax.plot([p[0] for p in pp], [p[1] for p in pp], color="#D55E00", lw=1, marker="*", ms=8, label="Proposed")
+    ax.plot([p[0] for p in pp], [p[1] for p in pp], color="#D55E00", lw=0, marker="*", ms=7, label="Proposed")
+    ins = ax.inset_axes([0.62, 0.52, 0.34, 0.42])
+    ins.plot([p[0] for p in pp], [p[1] for p in pp], color="#D55E00", lw=0.8, marker="*", ms=7)
     for x, y, f in pp:
-        if f != 1:
-            ax.annotate(f"×{f:g}", (x, y), textcoords="offset points", xytext=(5, -9 if f == 0.5 else 3), fontsize=7, color="#D55E00")
+        off = {0.5: (-2, 6) if sc == "RS-near" else (6, -6), 1: (6, -3), 1.5: (-10, 6)}[f]
+        ins.annotate(f"$\\sigma_{{\\mathrm{{E}}}}$ ×{f:g}", (x, y), textcoords="offset points", xytext=off, fontsize=7, color="#D55E00")
+    ins.set_xlim(-0.4, 3.2); ins.set_ylim(0.33, 0.53)
+    ins.set_xticks([0, 1.5]); ins.set_yticks([0.35, 0.4, 0.45, 0.5])
+    ins.tick_params(labelsize=6.5); ins.grid(color=".9", lw=.5)
+    for sp in ("top", "right"): ins.spines[sp].set_visible(True)
+    _, lines = ax.indicate_inset_zoom(ins, edgecolor="0.5", lw=0.6)
+    for l in lines: l.set_visible(False)
     ax.set_yscale("log"); ax.set_xlim(-4, 104)
     ax.set_yticks([0.3, 0.5, 1, 2, 5]); ax.set_yticklabels(["0.3", "0.5", "1", "2", "5"])
     ax.yaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
     ax.set_xlabel(f"Diverged runs [%]\n{sub}", linespacing=1.6)
     ax.grid(color=".9", lw=.6)
 axes[0].set_ylabel("Median recovery time [s]")
-axes[0].legend(frameon=False, fontsize=8, loc="upper right")
+fig.legend(*axes[0].get_legend_handles_labels(), frameon=False, fontsize=8, loc="lower center", ncol=3, bbox_to_anchor=(0.5, 1.0))
 fig.tight_layout()
 for ext in ("pdf", "png"):
     fig.savefig(HERE / "fig" / f"fig_stepsweep.{ext}", bbox_inches="tight", dpi=200)
