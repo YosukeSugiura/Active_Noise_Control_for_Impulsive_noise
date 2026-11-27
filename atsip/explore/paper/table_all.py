@@ -73,8 +73,8 @@ tex = r"""\begin{sidewaystable}[tbp]
 \resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%
 \begin{tabular}{llllllllll}
 \toprule
- & Diverged & \multicolumn{2}{l}{Median recovery time [s]} & \multicolumn{2}{l}{Frozen at 0.13 s [dB]} & \multicolumn{2}{l}{Frozen at 0.51 s [dB]} & No change & 2 s after 0 dB \\
-Algorithm & runs & Close & Far & Close & Far & Close & Far & Whole run [dB] & disturbance [dB] \\
+ & & \multicolumn{2}{c}{\makecell{Median recovery\\time [s]}} & \multicolumn{2}{c}{\makecell{Frozen at\\0.13 s [dB]}} & \multicolumn{2}{c}{\makecell{Frozen at\\0.51 s [dB]}} & \makecell{No change,\\whole run} & \makecell{2 s after 0 dB\\disturbance} \\
+Algorithm & Diverged & Close & Far & Close & Far & Close & Far & [dB] & [dB] \\
 \midrule
 """ + "\n".join(lines) + r"""
 \bottomrule
