@@ -75,6 +75,8 @@ def normalize_tables():
             t = _re.sub(r"(?<!\\midrule)\n(\\multicolumn\{\d+\}\{c\}\{\\textit)", r"\n\\midrule\n\1", t)
             t = _re.sub(r"\\textbf\{([^{}]*)\}\\par\\smallskip", r"\\textit{\1}\\par\\smallskip", t)
             t = t.replace("\\begin{minipage}{0.98\\textwidth}\n\\footnotesize", "\\begin{minipage}{0.98\\textwidth}\n\\scriptsize")
+        import re as _re
+        t = _re.sub(r"\\end\{(table\*?|sidewaystable)\}", lambda m: "\\par\\smallskip{\\footnotesize\\raggedright Source: Author\'s own work\\par}\n\\end{" + m.group(1) + "}", t)
         (out / f.name).write_text(t)
 
 def join_after_display(md):
@@ -175,6 +177,7 @@ ISSN 2048-7703; DOI 10.1561/116.xxxxxxxx\\
     TEX.mkdir(exist_ok=True)
     normalize_tables()
     tex = tex.replace(r"\input{../tab/", r"\input{tabn/")
+    tex = tex.replace("\\end{figure}", "\\par\\smallskip{\\footnotesize\\raggedright Source: Author\'s own work\\par}\\end{figure}")
     (TEX / "main.tex").write_text(tex)
     for cmd in (["pdflatex", "-interaction=nonstopmode", "-halt-on-error", "main"], ["biber", "main"],
                 ["pdflatex", "-interaction=nonstopmode", "main"], ["pdflatex", "-interaction=nonstopmode", "main"]):
