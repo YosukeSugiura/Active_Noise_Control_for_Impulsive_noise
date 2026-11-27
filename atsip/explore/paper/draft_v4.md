@@ -55,7 +55,13 @@ Section 2 reviews related work, Section 3 formulates the problem, and Section 4 
 
 ### 2.1 Adaptive algorithms for impulsive noise
 
-The second-order moment of an α-stable distribution does not exist for α < 2 [Shao and Nikias 1993]. Previous studies therefore limited the effect of large samples on the update. Sun et al. [Sun 2006] ignored the samples that exceeded a threshold. Akhtar and Mitsuhashi [Akhtar 2008, Akhtar 2009] replaced such samples with the threshold values. Wu et al. [Wu 2011] minimized the squared logarithm of the error. Thanigai et al. [Thanigai 2007] rejected impulses in the error signal with the M-estimator of Hampel. Sun et al. [Sun et al. 2015] applied another Hampel M-estimator to the reference signal. Wu and Qiu [Wu and Qiu 2013] proposed an algorithm based on the Fair function. Feng et al. [Feng et al. 2024] derived a normalized algorithm from the fractional lower-order covariance. Cheng et al. [Cheng 2023] applied the Gaussian error function to the error. Our previous algorithm [APSIPA 2026] scaled the step size in each frequency bin by the coherence between the filtered reference and error signals, within a fixed range. In all these algorithms, the update acts directly on the filter that generates the control signal, with parameters selected for stability.
+The second-order moment of an α-stable distribution does not exist for α < 2 [Shao and Nikias 1993]. Previous studies therefore limited the effect of large samples on the update in three ways.
+
+The first group of algorithms clips or ignores large samples. Sun et al. [Sun 2006] ignored the samples that exceeded a threshold. Akhtar and Mitsuhashi [Akhtar 2008, Akhtar 2009] replaced such samples with the threshold values. Thanigai et al. [Thanigai 2007] rejected impulses in the error signal with the M-estimator of Hampel, and Sun et al. [Sun et al. 2015] applied another Hampel M-estimator to the reference signal.
+
+The second group minimizes a cost function that grows slowly for large errors. Wu et al. [Wu 2011] minimized the squared logarithm of the error. Wu and Qiu [Wu and Qiu 2013] used the Fair function. Feng et al. [Feng et al. 2024] derived a normalized algorithm from the fractional lower-order covariance. Cheng et al. [Cheng 2023] applied the Gaussian error function to the error.
+
+The third group controls the step size. Our previous algorithm [APSIPA 2026] scaled the step size in each frequency bin by the coherence between the filtered reference and error signals, within a fixed range. In all three groups, the update acts directly on the filter that generates the control signal, with parameters selected for stability.
 
 ### 2.2 Algorithms with two adaptive filters
 
@@ -149,11 +155,11 @@ Here, $R_n(f)$ is the element of $\mathbf{R}_n$ in bin $f$, and the sum runs ove
 
 Thus, an isolated impulse produces the same update for any amplitude as long as $g_n \ge g_{\min}$, and the algorithm keeps impulsive samples in the update without a threshold. For $g_n < g_{\min}$, the update is smaller.
 
-For a colored $x(k)$, two weaker statements hold for any positive $\hat{\mathbf{S}}_{rr,n-1}$. Let $\mathbf{R}_n = A\,\mathbf{R}^{(1)}$ and $\mathbf{E}_n = A\,\mathbf{E}^{(1)}$, and let $P_1$ be the mean of $|\mathbf{R}^{(1)}|^2$ over the bins. First, as $A \to \infty$, $\boldsymbol{\Lambda}_n / A^2$ approaches $\beta(|\mathbf{R}^{(1)}|^2 + \epsilon P_1)$, and $\boldsymbol{\delta}_n/g_n$ approaches the direction (5) computed with $\boldsymbol{\Lambda} = |\mathbf{R}^{(1)}|^2 + \epsilon P_1$. This limit depends neither on $A$ nor on the past spectrum. Second, because $\boldsymbol{\Lambda}_n \ge \epsilon \bar{P}_n$ in every bin and the projections in (5) do not increase the norm,
+For a colored $x(k)$, the update is not independent of $A$, but two weaker statements hold for any positive $\hat{\mathbf{S}}_{rr,n-1}$. Let $\mathbf{R}_n = A\,\mathbf{R}^{(1)}$ and $\mathbf{E}_n = A\,\mathbf{E}^{(1)}$, and let $P_1$ be the mean of $|\mathbf{R}^{(1)}|^2$ over the bins. First, as $A \to \infty$, $\boldsymbol{\delta}_n/g_n$ approaches the direction (5) computed with $\boldsymbol{\Lambda} = |\mathbf{R}^{(1)}|^2 + \epsilon P_1$. This limit depends neither on $A$ nor on the past spectrum. Second, because $\boldsymbol{\Lambda}_n \ge \epsilon \bar{P}_n$ in every bin and the projections in (5) do not increase the norm,
 
 $$\left\| \boldsymbol{\delta}_n / g_n \right\|_2 \le \frac{\left\| \mathcal{F}^{-1}\{\mathbf{R}^{(1)*} \odot \mathbf{E}^{(1)}\} \right\|_2}{\epsilon\, P_1}$$
 
-for every $A \ne 0$. This bound is loose and covers only an isolated impulse. In a numerical example with an autoregressive past spectrum (pole at 0.95), the norm of $\boldsymbol{\delta}_n/g_n$ changed by a factor of two between small and large $A$. When a frame also contains background noise, we rely on the simulations.
+for every $A \ne 0$. In a numerical example with an autoregressive past spectrum (pole at 0.95), the norm of $\boldsymbol{\delta}_n/g_n$ changed by a factor of two between small and large $A$. For frames that also contain background noise, we rely on the simulations.
 
 ### 4.4 Early phase with reconstructed error frames
 
@@ -173,9 +179,7 @@ $$\boldsymbol{\theta}_{n+1} = (\mathbf{I} - a\,\mathbf{G}_n)\,\boldsymbol{\theta
 
 where $\mathbf{U}_n$ and $\mathbf{X}^r_n$ are the $M_e \times M$ regression matrices of the whitened filtered reference, i.e., $r(k)$ filtered by the inverse of the spectral factor, and of $r(k)$ in the window, $\mathbf{F}_M$ is the $M \times M$ convolution matrix of the spectral factor, and $\mathbf{b}_n$ is the contribution of the residual error of $\mathbf{w}_o$.
 
-Equation (9) contains only the current coefficient error. Because the matrices $\mathbf{G}_n$ of consecutive blocks share samples, we have no closed-form stability bound on $a$. We therefore examined (9) numerically over 64 blocks with 20 runs for each input. Each run started from a coefficient error with equal entries, with $\mathbf{b}_n = \mathbf{0}$. The results are an empirical design guide for a short trial, not a stability proof.
-
-For white Gaussian input, the coefficient error decayed in all runs for $a \le 0.5$, grew in one run at $a = 0.55$, and grew in 18 runs at $a = 0.625$. The decay was fastest for $a$ between 0.375 and 0.455. The result was the same within one run when the filtered reference was colored by a first-order autoregressive spectrum with a pole at 0.9 or 0.98. For symmetric α-stable input with $\alpha = 1.45$ and $\alpha = 1.20$, the step size was also divided by the running average of the frame power and by $\max(g_n, g_{\min})$. No run grew for $a \le 0.375$. One run grew at $a = 0.455$ for each $\alpha$, although the mean error still decayed by more than 50 dB. Based on these results, we set $\sigma_{\mathrm E} = 1$ and $g_{\min} = 0.55$ in the early phase. These values give $a = 0.25$ for $g_n = 1$ and limit $a/\max(g_n, g_{\min})$ to 0.455.
+Equation (9) contains only the current coefficient error. However, the matrices $\mathbf{G}_n$ of consecutive blocks share samples, and we have no closed-form stability bound on $a$. We therefore iterated (9) over 64 blocks with $\mathbf{b}_n = \mathbf{0}$, in 20 runs for each input, and use the result as a design guide rather than a stability proof. For white Gaussian input, the coefficient error decayed in all runs for $a \le 0.5$ and grew in 18 of 20 runs at $a = 0.625$. A first-order autoregressive coloring with a pole at 0.9 or 0.98 changed this result by at most one run. For symmetric α-stable input with $\alpha = 1.45$ and $\alpha = 1.20$, with the step size also divided by the running average of the frame power and by $\max(g_n, g_{\min})$, no run grew for $a \le 0.375$, and one run grew at $a = 0.455$. Based on these results, we set $\sigma_{\mathrm E} = 1$ and $g_{\min} = 0.55$ in the early phase. These values give $a = 0.25$ for $g_n = 1$ and limit $a/\max(g_n, g_{\min})$ to 0.455.
 
 ### 4.5 Late phase
 
