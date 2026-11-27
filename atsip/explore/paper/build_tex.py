@@ -50,6 +50,24 @@ def clean(md):
     return "\n".join(out)
 
 
+
+def normalize_tables():
+    """Apply the table style of now-journal.cls to copies of tab/*.tex: table font footnotesize,
+    note font scriptsize, sub-headings in italics, no scaling of tabulars."""
+    import re as _re
+    out = HERE / "tex" / "tabn"; out.mkdir(exist_ok=True)
+    for f in (HERE / "tab").glob("*.tex"):
+        t = f.read_text()
+        if "\\begin{table" in t:
+            t = _re.sub(r"\\(small|footnotesize)\n", "", t, count=1)
+            t = _re.sub(r"\\setlength\{\\tabcolsep\}\{[0-9.]+pt\}\n", "", t)
+            t = t.replace("\\centering\n", "\\centering\n\\footnotesize\n\\setlength{\\tabcolsep}{4pt}\n", 1)
+            t = t.replace("\\resizebox{\\ifdim\\width>\\linewidth\\linewidth\\else\\width\\fi}{!}{%\n", "")
+            t = t.replace("\\end{tabular}}", "\\end{tabular}")
+            t = _re.sub(r"\\textbf\{([^{}]*)\}\\par\\smallskip", r"\\textit{\1}\\par\\smallskip", t)
+            t = t.replace("\\begin{minipage}{0.98\\textwidth}\n\\footnotesize", "\\begin{minipage}{0.98\\textwidth}\n\\scriptsize")
+        (out / f.name).write_text(t)
+
 def join_after_display(md):
     """A paragraph that continues the sentence of a display equation ("where ...", "for ...") is not indented."""
     return re.sub(r"(\$\$[^\n]*\$\$)\n\n(?=[a-z])", r"\1\n", md)
@@ -110,6 +128,8 @@ def main():
 \usepackage{amssymb,amsmath,newunicodechar}
 \usepackage{float}
 \usepackage{algorithm}
+\usepackage{makecell}
+\usepackage{rotating}
 \usepackage[noend]{algpseudocode}
 \newunicodechar{α}{\ensuremath{\alpha}}\newunicodechar{−}{\ensuremath{-}}\newunicodechar{≤}{\ensuremath{\le}}\newunicodechar{≥}{\ensuremath{\ge}}
 \newunicodechar{μ}{\ensuremath{\mu}}
@@ -144,6 +164,8 @@ ISSN 2048-7703; DOI 10.1561/116.xxxxxxxx\\
     print("converted:", stats)
     tex = tex.replace(r"$\blacksquare$", r"\hfill$\blacksquare$")
     TEX.mkdir(exist_ok=True)
+    normalize_tables()
+    tex = tex.replace(r"\input{../tab/", r"\input{tabn/")
     (TEX / "main.tex").write_text(tex)
     for cmd in (["pdflatex", "-interaction=nonstopmode", "-halt-on-error", "main"], ["biber", "main"],
                 ["pdflatex", "-interaction=nonstopmode", "main"], ["pdflatex", "-interaction=nonstopmode", "main"]):

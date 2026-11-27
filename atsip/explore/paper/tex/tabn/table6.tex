@@ -1,0 +1,25 @@
+\begin{table*}[tbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\caption{Sensitivity to the threshold $\gamma$ for starting a trial (200 runs per condition)}
+\label{tab:atsip-6}
+\par\smallskip
+\begin{tabular}{lllllll}
+\toprule
+ & \multicolumn{2}{l}{\makecell[l]{Median recovery\\time [s]}} & \multicolumn{2}{l}{\makecell[l]{Runs without\\a trial}} & \multicolumn{2}{l}{\makecell[l]{Transfers without\\a path change}} \\
+$\gamma$ & Close & Far & Close & Far & \makecell[l]{No\\change} & \makecell[l]{Disturbance\\0\,dB} \\
+\midrule
+2 & 0.38 & 0.43 & 3 & 2 & 10 & 27 \\
+3 & 0.37 & 0.39 & 19 & 0 & 1 & 19 \\
+4 (default) & 0.36 & 0.40 & 41 & 8 & 0 & 13 \\
+6 & 0.54 & 0.48 & 79 & 28 & 0 & 4 \\
+8 & 0.73 & 0.71 & 109 & 63 & 0 & 2 \\
+\bottomrule
+\end{tabular}
+\par\medskip
+\begin{minipage}{0.98\textwidth}
+\scriptsize
+Runs without a trial are those in which no trial started within 1\,s after the change.\par
+\end{minipage}
+\end{table*}

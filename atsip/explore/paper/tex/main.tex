@@ -3,6 +3,8 @@
 \usepackage{amssymb,amsmath,newunicodechar}
 \usepackage{float}
 \usepackage{algorithm}
+\usepackage{makecell}
+\usepackage{rotating}
 \usepackage[noend]{algpseudocode}
 \newunicodechar{α}{\ensuremath{\alpha}}\newunicodechar{−}{\ensuremath{-}}\newunicodechar{≤}{\ensuremath{\le}}\newunicodechar{≥}{\ensuremath{\ge}}
 \newunicodechar{μ}{\ensuremath{\mu}}
@@ -187,7 +189,7 @@ In the late phase, the measured error frame is used, and the step size is small.
 \hypertarget{sec:4.6}{%
 \subsection{Trial with the background filter}\label{sec:4.6}}
 
-\input{../tab/alg1.tex}
+\input{tabn/alg1.tex}
 
 \textbf{Start of a trial.} For each block, the algorithm computes the ratio
 
@@ -253,14 +255,14 @@ In the two source-switch conditions, the primary path changed at 15 s to the res
 \hypertarget{sec:5.3}{%
 \subsection{Algorithms}\label{sec:5.3}}
 
-\input{../tab/table1.tex}
+\input{tabn/table1.tex}
 
 Table~\ref{tab:atsip-1} lists the settings of the proposed algorithm and of the eleven comparison algorithms. The settings of the proposed algorithm were fixed before the evaluation, and the evaluation seeds 100 to 119 were not used to choose them. We also evaluated the proposed algorithm with the trials disabled, listed as ``Without trials.'' All algorithms used 512 coefficients and one setting for all noise types and conditions. The step size of each comparison algorithm was selected from seven values between 1/32 and 2 times the published value (for APFM, which gives no value, from \(2^{-8}\) to \(2^{3}\)). The selection used the seeds 10 to 14, the no-change and far-source conditions, and nine noise types. The criterion was the smallest number of diverged runs, followed by the largest ANR over 30 s. For APFM, the new primary path was not used for training, because the proposed algorithm does not assume it to be known.
 
 \hypertarget{sec:5.4}{%
 \subsection{Metrics}\label{sec:5.4}}
 
-\input{../tab/table11.tex}
+\input{tabn/table11.tex}
 
 Table~\ref{tab:atsip-11} defines the measures. A negative ANR, power ratio, or noise reduction with frozen coefficients indicates a reduction. The recovery time depends on the reference level of each algorithm, and the noise reduction with frozen coefficients compares the coefficients on a common scale. For the proposed algorithm, 28 of the 200 runs in each source-switch condition did not recover: all 20 runs with the isolated impulses and eight with valve noise.
 
@@ -277,9 +279,9 @@ This section follows the three requirements of Section~\ref{sec:3.4}. Sections~\
 \begin{figure}[tbp]\centering\includegraphics[width=\linewidth]{../fig/fig_diff.pdf}\caption{Paired differences, proposed algorithm minus each algorithm, after a source switch (mean over runs with seed-bootstrap 95\% intervals). Panel (a) is in seconds, and panels (b) and (c) are in decibels. Negative values favor the proposed algorithm. Recovery differences use the runs in which both algorithms recovered.}\label{fig:diff}\end{figure}
 \begin{figure}[tbp]\centering\includegraphics[width=\linewidth]{../fig/fig_anr_common.pdf}\caption{Time course of the noise reduction for the $\alpha$-stable signal with $\alpha = 1.45$ (median over 20 seeds of the ratio of the error power to the primary-noise power, both smoothed by an exponential average with a forgetting factor of 0.9995). The noise source switches at 15 s. Each algorithm uses its common setting.}\label{fig:anr}\end{figure}
 \begin{figure}[tbp]\centering\includegraphics[width=\linewidth]{../fig/fig3.pdf}\caption{Noise reduction with the coefficients frozen at each time after the switch of the noise source (median over 200 runs). The bands show the interquartile range for the proposed algorithm and CohVSS-FxNLMS. The time axis is linear up to 0.55 s and logarithmic thereafter. The vertical dotted lines mark 0.13 s and 0.51 s.}\label{fig:frozen}\end{figure}
-\input{../tab/table10.tex}
+\input{tabn/table10.tex}
 \begin{figure}[tbp]\centering\includegraphics[width=\linewidth]{../fig/fig_stepsweep.pdf}\caption{Median recovery time and percentage of diverged runs of two comparison algorithms with step sizes from 0.5 to 16 times the common setting (200 runs each). The median is computed over the runs without divergence. CohVSS-FxNLMS diverged in all runs at 16 times. The stars mark the proposed algorithm with 0.5, 1, and 1.5 times $\sigma_{\mathrm E}$, enlarged in the inset of each panel.}\label{fig:stepsweep}\end{figure}
-\input{../tab/table8.tex}
+\input{tabn/table8.tex}
 
 The proposed algorithm shortened the median recovery time by 63\% (95\% interval {[}55\%, 68\%{]}) with the close source and by 68\% ({[}54\%, 75\%{]}) with the far source compared with CohVSS-FxNLMS, the fastest of the eleven comparison algorithms. Fig.~\ref{fig:diff} shows the paired differences, and Table~\ref{tab:atsip-10} lists the medians. No run of the proposed algorithm diverged in the 1000 runs. The convex combination did not shorten the recovery, because the mixing parameter of C-FXLMS stayed above 0.96 and its fast filter set the recovery time.
 
@@ -322,7 +324,7 @@ For the signal of Fig.~\ref{fig:anr}, the setting of C-FXLMS had an eight times 
 \hypertarget{sec:6.4}{%
 \subsection{No change in the primary path}\label{sec:6.4}}
 
-\input{../tab/table3.tex}
+\input{tabn/table3.tex}
 
 Without a path change, the trials left the control signal unchanged. In the no-change condition, all 2494 trials were discarded, about one every 2.4 s, and the control signal was identical to that obtained without the trials in every run. Table~\ref{tab:atsip-3} lists the noise reduction. Over the whole run, the mean noise reduction was 0.05 dB larger than that of CohVSS-FxNLMS ({[}−0.08, −0.03{]} dB), and over the last 10 s it was 0.07 dB smaller ({[}0.04, 0.11{]} dB). It exceeded that of C-FXLMS by about 1.0 dB. For destroyer engine noise, C-FXLMS was better by 0.4 dB.
 
@@ -339,7 +341,7 @@ However, two comparison algorithms recovered better from the 0 dB disturbance. A
 \hypertarget{sec:7.1}{%
 \subsection{Contribution of each element}\label{sec:7.1}}
 
-\input{../tab/table4.tex}
+\input{tabn/table4.tex}
 
 Table~\ref{tab:atsip-4} lists three variants of the trial. The first variant omits the division by \(g_n\). Seven to nine of its 200 runs diverged in each condition. The second variant has no background filter, and the coefficients with the larger step size control the noise from the start of a trial. Its recovery time was the same within 0.02 s. However, its control signal changed in 71 of the 200 runs without a change. Thus, the background filter keeps the output unchanged at no cost in speed. The third variant has no detector. Whenever no trial is active, it starts a new trial from the current foreground coefficients, with the same update and the same decision rules. Its background filter therefore adapts continuously, as the shadow filter in the patent \cite{harman2022} does. Because the patent does not specify the update or the comparison, this variant is a structural counterpart of the shadow filter and not a reimplementation of it. Its recovery took 10\% to 17\% less time, and its noise reduction after the 0 dB disturbance was 0.50 dB larger ({[}0.37, 0.64{]} dB). However, it made 96 transfers without a change and had 1.9 times the average cost, with the same peak cost. The detector trades this speed-up for an unchanged output and a lower average cost.
 
@@ -350,14 +352,14 @@ Finally, we applied the trial to our previous algorithm. The foreground filter u
 \hypertarget{sec:7.2}{%
 \subsection{Computational cost}\label{sec:7.2}}
 
-\input{../tab/table5.tex}
+\input{tabn/table5.tex}
 
 Table~\ref{tab:atsip-5} lists the cost per block of 128 samples. The late phase requires 0.60 times the real multiplications of the time-domain FxNLMS algorithm, and a block with a trial requires 1.23 times. A trial was active in 7\% of the blocks, and the average cost was 0.65 times that of the FxNLMS algorithm. A real-time implementation must provide for the peak during a trial. By the same count, CohVSS-FxNLMS requires about 0.63 times the multiplications of the FxNLMS algorithm, close to the late phase of the proposed algorithm. The counts exclude the logarithm and the complex exponential that the spectral factor requires for each bin once per block, and the three power functions and one exponential per bin of CohVSS-FxNLMS.
 
 \hypertarget{sec:7.3}{%
 \subsection{Sensitivity to the parameters}\label{sec:7.3}}
 
-\input{../tab/table6.tex}
+\input{tabn/table6.tex}
 
 The threshold \(\gamma\) trades missed changes against transfers without a path change, and the other parameters had small effects. We varied four parameters of the proposed algorithm one at a time. Table~\ref{tab:atsip-6} shows the result for the threshold \(\gamma\) in \eqref{eq:10}. For \(\gamma\) between 2 and 4, the median recovery time stayed within 0.04 s of the default, and with \(\gamma = 8\), it was about twice as long.
 
@@ -369,7 +371,7 @@ For the transfer thresholds \((\rho_1, \rho_2)\) of \((0.18, 0.35)\) and \((0.35
 \hypertarget{sec:8.1}{%
 \subsection{Divergence and recovery}\label{sec:8.1}}
 
-\input{../tab/table7.tex}
+\input{tabn/table7.tex}
 
 The proposed algorithm tolerated an added model error of −40 dB, but it diverged more often than CohVSS-FxNLMS with an added error of −30 dB or more. In addition to the truncation error of about −24 dB (Section~\ref{sec:5.1}), we added white Gaussian noise to the coefficients of \(\hat{s}(k)\) at −40 dB, −30 dB, and −20 dB relative to their energy and repeated the no-change and source-switch conditions. Table~\ref{tab:atsip-7} lists the results. The actual secondary path was unchanged. With −40 dB, no run diverged, and the median recovery times changed by at most 0.01 s. With −30 dB, the proposed algorithm diverged in nine of the 600 runs, and CohVSS-FxNLMS diverged in three. With −20 dB, the proposed algorithm and C-FXLMS diverged in 54 runs each, and CohVSS-FxNLMS diverged in 21.
 
@@ -380,7 +382,7 @@ However, the advantage in the recovery time remained. With −20 dB, the median 
 \hypertarget{sec:8.2}{%
 \subsection{Check of the transfer decisions}\label{sec:8.2}}
 
-\input{../tab/table9.tex}
+\input{tabn/table9.tex}
 
 The decisions based on the reconstructed errors agreed with those based on the actual errors, and every reversed transfer violated the sufficient condition of Proposition 3. For all 364,970 decisions, we computed \(\rho^{\star}_n\), \(\kappa_n\), and \(\eta_n\) with the true secondary path. Table~\ref{tab:atsip-9} summarizes the result. We call a transfer reversed when \(\rho^{\star}_n \ge 1\). The median of \(\eta_n\) was about 0.009, and its 99th percentile was 0.19 to 0.32. In 195 decisions (0.05\%), \(\eta_n \ge 1\) and Proposition 3 does not apply. None of them led to a transfer. The bound of Proposition 3 held in all other decisions. With \(\eta_n = 0\), the bound failed in six decisions, in which the foreground coefficients had changed within the memory of the secondary path.
 

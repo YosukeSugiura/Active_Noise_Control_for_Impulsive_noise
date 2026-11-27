@@ -1,0 +1,18 @@
+\begin{table*}[tbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\caption{Measures}
+\label{tab:atsip-11}
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.22\textwidth}>{\raggedright\arraybackslash}p{0.46\textwidth}>{\raggedright\arraybackslash}p{0.2\textwidth}}
+\toprule
+Measure & Definition & Purpose \\
+\midrule
+Averaged noise reduction (ANR) \cite{akhtar2009} & $20\log_{10}[A_e(k)/A_d(k)]$ with exponential averages of $|e(k)|$ and $|d(k)|$ (forgetting factor 0.999), averaged over the whole run, the last 10\,s, or the 2\,s after a disturbance or change & Overall noise reduction \\
+Recovery time & Time from the change to the end of the first 16-block window of the first 1\,s interval in which the short-time error power stays at most 3\,dB above the level of a separate run started with the new path (last 5\,s); Kaplan--Meier median with censoring & Return of the error level \\
+Noise reduction with frozen coefficients & Error-to-primary power ratio with the coefficients frozen 0.13\,s or 0.51\,s after the change, over the rest of the signal except its first 256\,ms & Quality of the coefficients on a common scale \\
+Power ratio & $10\log_{10}[\sum_k e^2(k)/\sum_k d^2(k)]$ over the first 0.5\,s, 1\,s, and 2\,s after the change & Actual error during the adaptation \\
+Divergence & Block error power not finite or above $10^4$ times the primary-noise power & Stability \\
+\bottomrule
+\end{tabular}
+\end{table*}

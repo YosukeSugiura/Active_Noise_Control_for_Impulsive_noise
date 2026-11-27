@@ -1,0 +1,53 @@
+\begin{table*}[tbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\caption{Settings of the proposed algorithm and selected step sizes of the comparison algorithms}
+\label{tab:atsip-1}
+\par\medskip
+\textit{Proposed algorithm}\par\smallskip
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.52\linewidth}>{\raggedright\arraybackslash}p{0.42\linewidth}}
+\toprule
+Parameter & Value \\
+\midrule
+Sampling rate; high-pass cutoff of the input & 16\,kHz; 100\,Hz \\
+Filter length $M$; FFT length $N$; block shift $B$ & 512; 1024; 128 samples (8\,ms) \\
+Length of $\hat{s}(k)$, $L_s$; error window $M_e$ & 512; 512 samples \\
+Weight $\beta$ of $\hat{\mathbf{S}}_{rr,n}$; regularization $\epsilon$ & 0.05; 0.01 \\
+Step sizes $\sigma_{\mathrm E}$; $\sigma_{\mathrm L}$ & 1; 0.0566 \\
+Lower bound $g_{\min}$ in the early phase; in the late phase & 0.55; 0.25 \\
+Length of the early phase $n_{\mathrm E}$ & 32 blocks, counted from the start of the trial after a transfer \\
+Windows of $e(k)$ and $r(k)$ in $z_n$ & 512; 1024 samples \\
+Weight of the exponential average $\bar{z}_n$; threshold $\gamma$ & 0.05; 4, for two consecutive blocks \\
+Interval $n_{\mathrm G}$ before the next trial & 64 blocks, with $\bar{z}_n$ held constant \\
+Discard threshold $\rho_{\mathrm{abort}}$ & 4, from block 2 of the trial \\
+Transfer rules $(n_1, \rho_1)$; $(n_2, \rho_2)$ & (4, 0.25); (16, 0.5) \\
+\bottomrule
+\end{tabular}
+\par\medskip
+\textit{Comparison algorithms}\par\smallskip
+\begin{tabular}{lll>{\raggedright\arraybackslash}p{0.3\linewidth}}
+\toprule
+Algorithm & Reference & Step size & Other setting \\
+\midrule
+FxNLMS & -- & 0.01875 & -- \\
+Th-FxNLMS & \cite{akhtar2008,akhtar2009} & 0.01875 & Percentile clipping$^{a}$ \\
+FxlogNLMS & \cite{wu2011} & 0.015625 & -- \\
+MFxLMM & \cite{sun2015} & 0.000125 & -- \\
+FxNFLOC & \cite{feng2024} & 0.1 & -- \\
+EVSS-FxeLMS & \cite{cheng2023} & 0.003125 & -- \\
+FreqFxLMS & \cite{das2007} & 0.0225 & -- \\
+CohVSS-FxNLMS & \cite{sugiura2026} & 0.09 & -- \\
+C-FXLMS & \cite{ferrer2013} & 0.0375, 0.009375 & Normalized components \\
+MFxNLMS & \cite{bjarnason1992} & 0.05 & Reconstructed error$^{b}$ \\
+APFM & \cite{yin2023} & $\tilde{\mu} = 4$ & Pretrained filter$^{c}$ \\
+\bottomrule
+\end{tabular}
+\par\medskip
+\begin{minipage}{0.98\textwidth}
+\scriptsize
+$^{a}$At the 1st and 99th percentiles of the last 0.5\,s, updated in every block (our choice of window and interval). The clipping acted on 2\% to 4\% of the samples.\par
+$^{b}$Same reconstruction as the early phase of the proposed algorithm, with a fixed step size and regularization 0.001.\par
+$^{c}$One filter trained for the primary path before the switch. Candidates also include the current and the zero filter. The new path was not used for training. The update follows the equations of \cite{yin2023} ($\mu_{\max} = 2$, forgetting factors 0.95, regularization $10^{-6}$), because the published code does not include the gradient.\par
+\end{minipage}
+\end{table*}

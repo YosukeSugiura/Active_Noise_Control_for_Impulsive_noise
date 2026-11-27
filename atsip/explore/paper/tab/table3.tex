@@ -7,50 +7,56 @@
 \par\medskip
 \textbf{Levels [dB]}\par\smallskip
 \resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%
-\begin{tabular}{lllllll}
+\begin{tabular}{llllll}
 \toprule
-Condition & Algorithm & Whole run & Last 10\,s & 2\,s after disturbance & Transfers & Identical runs \\
+Algorithm & \makecell[l]{Whole\\run} & \makecell[l]{Last\\10\,s} & \makecell[l]{2\,s after\\disturbance} & Transfers & \makecell[l]{Identical\\runs} \\
 \midrule
-No change & Proposed & $-$9.03 & $-$9.11 & -- & 0 & 200/200 \\
-No change & CohVSS-FxNLMS & $-$8.98 & $-$9.18 & -- & -- & -- \\
-No change & C-FXLMS & $-$8.05 & $-$8.49 & -- & -- & -- \\
-No change & MFxNLMS & $-$8.03 & $-$8.34 & -- & -- & -- \\
-No change & Without trials & $-$9.03 & $-$9.11 & -- & 0 & -- \\
-Disturbance (0\,dB) & Proposed & $-$8.49 & $-$8.15 & $-$5.60 & 13 & 187/200 \\
-Disturbance (0\,dB) & CohVSS-FxNLMS & $-$8.54 & $-$8.40 & $-$6.22 & -- & -- \\
-Disturbance (0\,dB) & C-FXLMS & $-$7.67 & $-$7.87 & $-$5.87 & -- & -- \\
-Disturbance (0\,dB) & MFxNLMS & $-$7.50 & $-$7.45 & $-$5.23 & -- & -- \\
-Disturbance (0\,dB) & Without trials & $-$8.46 & $-$8.07 & $-$5.59 & 0 & -- \\
-Disturbance ($-$10\,dB) & Proposed & $-$8.78 & $-$8.63 & $-$7.45 & 2 & 198/200 \\
-Disturbance ($-$10\,dB) & CohVSS-FxNLMS & $-$8.77 & $-$8.81 & $-$7.65 & -- & -- \\
-Disturbance ($-$10\,dB) & C-FXLMS & $-$7.89 & $-$8.23 & $-$7.18 & -- & -- \\
-Disturbance ($-$10\,dB) & MFxNLMS & $-$7.82 & $-$7.98 & $-$6.89 & -- & -- \\
-Disturbance ($-$10\,dB) & Without trials & $-$8.78 & $-$8.63 & $-$7.45 & 0 & -- \\
+\multicolumn{6}{l}{\textit{No change}} \\
+Proposed & $-$9.03 & $-$9.11 & -- & 0 & 200/200 \\
+CohVSS-FxNLMS & $-$8.98 & $-$9.18 & -- & -- & -- \\
+C-FXLMS & $-$8.05 & $-$8.49 & -- & -- & -- \\
+MFxNLMS & $-$8.03 & $-$8.34 & -- & -- & -- \\
+Without trials & $-$9.03 & $-$9.11 & -- & 0 & -- \\
+\multicolumn{6}{l}{\textit{Disturbance (0\,dB)}} \\
+Proposed & $-$8.49 & $-$8.15 & $-$5.60 & 13 & 187/200 \\
+CohVSS-FxNLMS & $-$8.54 & $-$8.40 & $-$6.22 & -- & -- \\
+C-FXLMS & $-$7.67 & $-$7.87 & $-$5.87 & -- & -- \\
+MFxNLMS & $-$7.50 & $-$7.45 & $-$5.23 & -- & -- \\
+Without trials & $-$8.46 & $-$8.07 & $-$5.59 & 0 & -- \\
+\multicolumn{6}{l}{\textit{Disturbance ($-$10\,dB)}} \\
+Proposed & $-$8.78 & $-$8.63 & $-$7.45 & 2 & 198/200 \\
+CohVSS-FxNLMS & $-$8.77 & $-$8.81 & $-$7.65 & -- & -- \\
+C-FXLMS & $-$7.89 & $-$8.23 & $-$7.18 & -- & -- \\
+MFxNLMS & $-$7.82 & $-$7.98 & $-$6.89 & -- & -- \\
+Without trials & $-$8.78 & $-$8.63 & $-$7.45 & 0 & -- \\
 \bottomrule
 \end{tabular}}
 \par\medskip
 \textbf{Paired differences (proposed minus the other algorithm) [dB]}\par\smallskip
 \resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%
-\begin{tabular}{llll}
+\begin{tabular}{ll}
 \toprule
-Condition & Other algorithm & Window & Difference [95\% CI] \\
+Other algorithm & Difference [95\% interval] \\
 \midrule
-No change & CohVSS-FxNLMS & Whole run & $-$0.053 [$-$0.081, $-$0.025] (200) \\
-No change & C-FXLMS & Whole run & $-$0.983 [$-$1.029, $-$0.935] (200) \\
-No change & MFxNLMS & Whole run & $-$0.999 [$-$1.071, $-$0.928] (200) \\
-Disturbance (0\,dB) & CohVSS-FxNLMS & 2\,s after disturbance & +0.622 [+0.533, +0.715] (200) \\
-Disturbance (0\,dB) & C-FXLMS & 2\,s after disturbance & +0.265 [+0.141, +0.395] (200) \\
-Disturbance (0\,dB) & MFxNLMS & 2\,s after disturbance & $-$0.371 [$-$0.490, $-$0.244] (200) \\
-Disturbance (0\,dB) & Without trials & 2\,s after disturbance & $-$0.011 [$-$0.031, +0.000] (200) \\
-Disturbance ($-$10\,dB) & CohVSS-FxNLMS & 2\,s after disturbance & +0.198 [+0.144, +0.256] (200) \\
-Disturbance ($-$10\,dB) & C-FXLMS & 2\,s after disturbance & $-$0.274 [$-$0.358, $-$0.177] (200) \\
-Disturbance ($-$10\,dB) & MFxNLMS & 2\,s after disturbance & $-$0.555 [$-$0.659, $-$0.444] (200) \\
-Disturbance ($-$10\,dB) & Without trials & 2\,s after disturbance & $-$0.001 [$-$0.002, +0.000] (200) \\
+\multicolumn{2}{l}{\textit{No change}} \\
+CohVSS-FxNLMS & $-$0.053 [$-$0.081, $-$0.025] \\
+C-FXLMS & $-$0.983 [$-$1.029, $-$0.935] \\
+MFxNLMS & $-$0.999 [$-$1.071, $-$0.928] \\
+\multicolumn{2}{l}{\textit{Disturbance (0\,dB)}} \\
+CohVSS-FxNLMS & +0.622 [+0.533, +0.715] \\
+C-FXLMS & +0.265 [+0.141, +0.395] \\
+MFxNLMS & $-$0.371 [$-$0.490, $-$0.244] \\
+Without trials & $-$0.011 [$-$0.031, +0.000] \\
+\multicolumn{2}{l}{\textit{Disturbance ($-$10\,dB)}} \\
+CohVSS-FxNLMS & +0.198 [+0.144, +0.256] \\
+C-FXLMS & $-$0.274 [$-$0.358, $-$0.177] \\
+MFxNLMS & $-$0.555 [$-$0.659, $-$0.444] \\
+Without trials & $-$0.001 [$-$0.002, +0.000] \\
 \bottomrule
 \end{tabular}}
 \par\medskip
 \begin{minipage}{0.98\textwidth}
 \footnotesize
-Transfers count events in 200 runs. Identical runs are those whose error and control signals equal those of the algorithm without the trials exactly.\par
+Differences are taken over the whole run without a change and over the 2\,s after each disturbance otherwise, over 200 runs. Transfers count events in 200 runs. Identical runs are those whose error and control signals equal those of the algorithm without the trials exactly.\par
 \end{minipage}
 \end{table*}

@@ -63,7 +63,7 @@ for name, run, m, coef in ROWS:
 
 footnote = "" if frozen_complete else ' "--": frozen coefficients were not evaluated for this algorithm.'
 
-tex = r"""\begin{table*}[tbp]
+tex = r"""\begin{sidewaystable}[tbp]
 \centering
 \small
 \setlength{\tabcolsep}{4pt}
@@ -84,7 +84,7 @@ Algorithm & runs & Close & Far & Close & Far & Close & Far & Whole run [dB] & di
 \footnotesize
 Diverged runs are counted over the 1000 runs of the five conditions. The noise reduction values are averaged over the runs without divergence. The frozen values are medians over the runs. APFM uses one filter trained for the primary path before the switch.""" + footnote + r"""\par
 \end{minipage}
-\end{table*}
+\end{sidewaystable}
 """
 (Path(__file__).resolve().parent / "tab" / "table10.tex").write_text(tex)
 print("\n".join(lines))
