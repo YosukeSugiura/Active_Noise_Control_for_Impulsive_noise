@@ -178,6 +178,7 @@ ISSN 2048-7703; DOI 10.1561/116.xxxxxxxx\\
     normalize_tables()
     tex = tex.replace(r"\input{../tab/", r"\input{tabn/")
     tex = tex.replace("\\end{figure}", "\\par\\smallskip{\\footnotesize\\raggedright Source: Author\'s own work\\par}\\end{figure}")
+    tex = tex.replace("\\section{Acknowledgements}", "\\section*{Acknowledgements}")
     (TEX / "main.tex").write_text(tex)
     for cmd in (["pdflatex", "-interaction=nonstopmode", "-halt-on-error", "main"], ["biber", "main"],
                 ["pdflatex", "-interaction=nonstopmode", "main"], ["pdflatex", "-interaction=nonstopmode", "main"]):
