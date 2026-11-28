@@ -230,7 +230,7 @@ Thus, a transfer replaces the foreground coefficients by coefficients with a sma
 
 ### 5.1 Acoustic paths and signals
 
-We simulated closed-loop control at 16 kHz with room impulse responses from the MeshRIR dataset [MeshRIR], measured in one room. We used eight combinations of a noise source, a secondary source, and an error microphone. The primary path had 4096 coefficients, the secondary path had 2048 coefficients, and the model $\hat{s}(k)$ was the first 512 coefficients of the secondary path. The truncated part contained −23.4 dB to −24.7 dB of the energy of the secondary path. The model therefore had an error of this size in all evaluations. The reference signal was the source signal itself, and the reference path and the acoustic feedback were excluded. The causality constraint was therefore looser than in a system with a reference microphone. Generative AI tools (Claude, Anthropic, and ChatGPT, OpenAI) were used to write and check the simulation code.
+We simulated closed-loop control at 16 kHz with room impulse responses from the MeshRIR dataset [MeshRIR], measured in one room. We used eight combinations of a noise source, a secondary source, and an error microphone. The primary path had 4096 coefficients, the secondary path had 2048 coefficients, and the model $\hat{s}(k)$ was the first 512 coefficients of the secondary path. The truncated part contained −23.4 dB to −24.7 dB of the energy of the secondary path. The model therefore had an error of this size in all evaluations. The reference signal was the source signal itself, and the reference path and the acoustic feedback were excluded. The causality constraint was therefore looser than in a system with a reference microphone. The simulation code was written by the author with the assistance of generative AI tools (Claude, Anthropic, and ChatGPT, OpenAI).
 
 Four noise types were synthetic: a Gaussian signal, a Gaussian signal with isolated impulses, and symmetric α-stable signals with $\alpha = 1.45$ and $\alpha = 1.20$. The isolated impulses had 300 times the standard deviation of the Gaussian signal and a random sign, and they occurred every 0.5 s with a uniform jitter of ±0.1 s. Six were recordings: machine gun, factory, destroyer engine, and car interior noise from NOISEX-92 [NOISEX], valve noise from MIMII [MIMII], and jackhammer noise from SONYC-UST [SONYC]. All signals were high-pass filtered at 100 Hz, and each run lasted 30 s. For each noise type and condition, 20 seeds determined the paths, the random sequences, and the starting positions in the recordings.
 
@@ -370,7 +370,7 @@ The code of the proposed algorithm and of the evaluation, together with the per-
 
 ## Acknowledgements
 
-Generative AI tools (Claude, Anthropic, and ChatGPT, OpenAI) were used to draft and edit the text, to write the simulation code, and to check the manuscript. The author designed the algorithm, verified all derivations, code, and results, and takes full responsibility for the content.
+During the preparation of this work, the author used Claude (Anthropic) and ChatGPT (OpenAI) to assist with writing, editing, and coding. The author reviewed all content and takes full responsibility for it.
 
 [7–8 章のメモ]
 - 7.1 節：変化なしの 2494 回の試行の内訳は、打ち切り（ρ > 4）188、判定で破棄 2297、実行の終わりで未了 9。
